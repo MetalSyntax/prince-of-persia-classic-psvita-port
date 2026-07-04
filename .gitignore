@@ -1,0 +1,37 @@
+# Build directories
+build/
+cmake-build-*/
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project-specific IDE directories
+.idea/
+.vscode/
+
+# Game-specific assets and binaries (Must NOT be uploaded)
+bin/
+original/
+
+# Compiled objects and artifacts
+*.so
+*.vpk
+*.elf
+*.self
+eboot.bin
+
+# Libc bridge build files
+lib/libc_bridge/out/
+lib/libc_bridge/out/*
+
+# Temp or debug files
+*.log
+*.zip
+*.obb
+*.apk

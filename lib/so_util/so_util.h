@@ -1,9 +1,13 @@
-#ifndef __SO_UTIL_H__
-#define __SO_UTIL_H__
+#ifndef SO_UTIL_H
+#define SO_UTIL_H
+
+#include <psp2/types.h>
 
 #include "elf.h"
 
-#include <psp2/types.h>
+#ifndef SCE_KERNEL_MEMBLOCK_TYPE_USER_RX
+#define SCE_KERNEL_MEMBLOCK_TYPE_USER_RX                 (0x0C20D050)
+#endif
 
 #define ALIGN_MEM(x, align) (((x) + ((align) - 1)) & ~((align) - 1))
 #define MAX_DATA_SEG 4
@@ -55,6 +59,8 @@ so_hook hook_thumb(uintptr_t addr, uintptr_t dst);
 so_hook hook_arm(uintptr_t addr, uintptr_t dst);
 so_hook hook_addr(uintptr_t addr, uintptr_t dst);
 
+void so_unhook(so_hook * hook);
+
 void so_flush_caches(so_module *mod);
 int so_file_load(so_module *mod, const char *filename, uintptr_t load_addr);
 int so_mem_load(so_module *mod, void * buffer, size_t so_size, uintptr_t load_addr);
@@ -74,4 +80,4 @@ uintptr_t so_symbol(so_module *mod, const char *symbol);
   r; \
 })
 
-#endif
+#endif // SO_UTIL_H

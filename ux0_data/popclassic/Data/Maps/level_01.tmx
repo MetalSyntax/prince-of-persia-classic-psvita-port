@@ -1,0 +1,969 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="90" height="19" tilewidth="128" tileheight="128">
+ <tileset firstgid="1" name="level_01_map01" tilewidth="128" tileheight="128">
+  <image source="imgs_dungeon/level_01_map01.png" width="2048" height="2048"/>
+ </tileset>
+ <tileset firstgid="257" name="level_01_map02" tilewidth="128" tileheight="128">
+  <image source="imgs_dungeon/level_01_map02.png" width="2048" height="2048"/>
+ </tileset>
+ <tileset firstgid="513" name="Collision" tilewidth="128" tileheight="128">
+  <image source="imgs_dungeon/Collision.png" trans="ff00ff" width="512" height="512"/>
+  <tile id="0">
+   <properties>
+    <property name="Wall" value=""/>
+   </properties>
+  </tile>
+  <tile id="1">
+   <properties>
+    <property name="Path" value=""/>
+   </properties>
+  </tile>
+  <tile id="2">
+   <properties>
+    <property name="Loosetiles" value=""/>
+   </properties>
+  </tile>
+  <tile id="3">
+   <properties>
+    <property name="LPath" value=""/>
+   </properties>
+  </tile>
+  <tile id="4">
+   <properties>
+    <property name="HalfWall" value=""/>
+   </properties>
+  </tile>
+ </tileset>
+ <layer name="background_1" width="90" height="19">
+  <data encoding="base64" compression="zlib">
+   eJzNWDlvXkUUvR+koDXOHyBQEDrASKlxBNQYiVQhDTLtZwXiciigBwn6IEESd7EEcRwoWASIVSzGFAYpbGYJSYCIhBAI97x3D3PefPNsLD6Qr3Q0b7mzn7vMHDSzWxxzZmkuype9fCV/b8BvkO8c30t5jWDd8W3PP/2/4Dgo7QPDoi+WcxVA97TjCxnrsNB50fFSz/uwp4ScdQxivOOSuxyzjocc1zp2OJ5y/Oq40bEryuOOFal32fFblNcLLjouyb+N5MHoD33fIH194PjQccHxi3wvy58cP4dO7f87js8d90T7eH/Xccix03G36BKQPx0TMZ9xyR7HZPTL8g7H7RVMOV63zOszlvlZ8pZcIGfVRsjD16K/ecejjmcct0W9Wv9bxZrjZsdzMae1mMNq9PlY9Kl1ID/E3MbJ573W7jc47XxOzq+E739Yu6/oE/Y/Hbrg2Eq1pbqAs+ArbORp6/LwY8v8e8LxZDuGRs5a9k3cS9jyOcd5x4+W7XsQulwf/D8WY37e8UK0ORNzYJ+ljVJ+d1yx8fL5WWv3G7bkfE47Y52xxpelT0zmPhvltfrDwp+mV63lLLjTZyPgGzh1OMYxGeNi//A/9EWw5asxlgnr4qRj2Vr7GVr2t2wXgnXnHGo2qj76aOBIT0n/zX2ucQHP5AP3e7VF+jTWeSMBJz6ylo/0b7AJcFZ9peqYZZ/Hcjn6X7SWW+S7Ffpbkb3W9dPHLfNZ5Ur0rzZKfw1ZCpzoKbc6NvI5fFZyXifd3xLY7zut9aMEOfOe4/3iH1HmAnNFW2jj8XimXTA/qI1DoXq19vY59ku7w5g71klt9FZZF/VL4C35PZAS9kH7qc2NgNT4TF9axm9w9k1rY/dN1uYKeAZnwEnGc42pKDWX2SHPbEt5Bx9zXaW9+danNf/BBXJvl+W8guPE2DQe8DvsayXaKIW5z0ayVJQQxrc3Yj5lORt65HOMH3NKjMPk4leOr0PP96HxtVM2mpswnh+K9lZDX9ru7AH+sa/DRfts7zNr90X2LU1GPfJ1zUZ97kY5E8aiNgueM/fBd+RCX9rmdnRa1oVzrZUQ8Hkl+ub6gE/KZ/gv5AfMqSGRDyb4OeYmVy3Hc+UR+KX5sf5DrgwfrnyG0C41P0A7s9a1IY6H/vIBH9Oe+HbEctw6V7THHH2361+IMdxr/Tl5+dyXN9XqQOCfpto1+3sPkMuCK315qa4znuHH4M/O2Gg834xfwCOW+axcs6I9crFsizEffvRArPP+qM+4xXNUbXz/NSAlZ1Ayl6XEGNNEi4Yz9EsQ5F7kNGMH89np2BMIzto8j+u64EwKf7po2VcvRh3mbcuW97aWAyifMbbdUX9g3X1Yt9G7Aebdmqv5e/Lvyf8n10uun9ZbVOv26R+LecPu77d6/qC80lxxOursy/vQ7AHXWvO3t2Sdlyyfx0s7L2MCz4VHYy6nrGtD54s903MpOav7pGMq7wb0XEJdf0/+Pfn/5HrJ9dPFFtW6ffrsl3yblxhOPsGH9Z39eM7bTE6Frln3HoR5E+1J/S3shOdC5qpvF+tc7hnnr/l5eZYpv/1f702ePcjjr/nQ2tkP57xvLMdnjdvUG4Ye3h92fBLrxjGQ+6XP5H0Ez4XkKfmMPuF7+85pLLebkM/kCXmhXCvPfvrOuM07PcZpveOLfK5pfyFAP6Ql7yNqOS74zBwXXD9g2T/XzmvbTbCeus7kObgGu/y38Zm5DNeZcYF3FGpbM9bNf5jLwiZ4V8L8G6IxY9z3xeMWrCfzDQjzBawFbbB2f48Yy/uSBRu9W6P/Zexn+7jvUZ9B6J0H7yg0ly1tqpHBqD/croL5lvGZtsc7MLyXcZbvlyr/9Oyi9oB10TMN3su6M/bPbKgc43aXvwAUPW9q
+  </data>
+ </layer>
+ <layer name="small elements 1b" width="90" height="19">
+  <data encoding="base64" compression="zlib">
+   eJztWM1O20AQngtFJAi4ACWA4A3gCkSQKyKivcMb8Hvnp5VaCWgRHKjUAoc8QA7wiMwo84lhtGvsyHaA9JM+2bvZnRl75y++IqJrekaVOaz3deYqc03HDcoPv5ltM4Ye6Mf4jHnu1gw5uwQVMyd2HzAPA/KuqPO8rPu7tcfLKwIt5hZzm/nAfNT5JnOT+UXHX3PUea9X6IUe6Mf4L/OfrsXclLNLUDNzYvc36rxIL0/Q0us4c8LJLho4/yTANxoZ5MJ/BD4+yvChUeaYmytDbww4f6BNL+NaAN/I6tfwHx8fZfjQHHPezZXluxb2vPeY+3ov+dP6YgzLbp/4rOTPio5tvi8TFXWbBUoXf/Cp1YLssed9wjzVe+TPlt8QgN0nPiv5s6bjaebMK/sn0xiaEoP6fmsmPLPE32aOtlj4/AX/Q52/YP5irlDHVwVy9sjnPtfFYuAyor9NYZ/3/UFMXlKuTepPQojZmITXYh4y4c94b8jBqPO3zDvmBnVyCYB8jlw3wPykv9kYsDnFwtZd2+MAof4gVKuxLhQTSf1JnkiK+ape4c94b/5Mu+kP7DrkFMz9YP5Ufb5njp0J1sHGemBNFkCerfNe9w5zV+8R29iHGA/J9OMHHcOf0ccC6C276Q9C6zB3w/zj5uDPNs8nyWumsCGrfV73EfOY+ZmPFrGNfYjxJJl+LPV4kZ7PqFf9ATndRdX9XgNnhP5gtgc22N6kqLrfS6BmhupMo3Rr4nn6I0Bqpv9PKMjzm0ZaxPJ0P8B/m7C9jK2/sX46bW+K/qdBL/tIAfJ3N33uW8GeXv2zAf7bxKRxfVt/Q7VczqRK6YD+R+Lo3v0W6rPfG0706p8tDyxR+v4B/U8I9Yyy+g3rlK1/GInMN7uQ9R/9hScN34ty
+  </data>
+ </layer>
+ <layer name="shadow1 " width="90" height="19" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJztV01PwkAQpf8/CH8A4Vq1eEagXvSgxnLRoye//gDo1Z1kJ74MM7tdbJEaXzKhlDqzs75985pnvd6ZiMLFwLjXJHKlNtYqIvXo9yNlrZhHwnqW4srFdcM9MkqR98J9f3Zx6WIFsXQxbXgNs+y75tzFwsfS1+fPhRH0+3HkGZl/atSkeHHxuqd9PnHfT41a/GwKr5mzeEaYhzc+z637vGvhvDCwp3JPNSUqV2cItR7c9aNRu/L3U3hNnMUzYvGQ7o1b6hl7qkTNps9oCJOa+8xAXod0vfCcDZ0RzkPPnjfQs9R8yhvqSfbSpkYjn9/c9XukDvMa+ThU7rG+xnQPtfinQL7yGkI9VcDrecsajXz+cNef2TZX6+bYVe+kfg8S82lr5L/lnu59Xo2zck7VheWZNA+DfLb8xspzlud0H66Zi0+Jeoczfwn5Ucu1fJpXwOiLHBy8Po3fswjvLcj5JoGahXzGOYwaR/6AnmOtHWW67qbwAmsVIn8oX8wrjAJroHzyzPIcWbvYZGFPLrWf98UC7jNyRvJJ+gPWL+pFmy9SH5lfFv/QKw8VTlUijzxD1l5aqERd7TrmyVP8O+o9rquuryyNfU7tm5D73yeeaxujvnWGUuv9Fuh/LN/9xpE9jOkSItb3KNv21xpXS4Xv1toOEZrnZC9r8TpP6CW2z5oftzzBLrPqUFBm27OfNdPyDynzeVaDf6iRQ0OT/sI+W7qncY3nsza3EeiDU96zJoF9Xhtc7wJCM01yLTar5XN8HurOTELI43YZKd5hl9yElPzocdnL8hnqMoizbb3Xs5dJyY8el/0pn5VVx/f6H+3iC6tBmMA=
+  </data>
+ </layer>
+ <layer name="shadow2" width="90" height="19" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJztmDsOwjAMhuP7LxyBmccFKrqVBVa4AYUL8FgxQtkq10X+o7j42yq1jvPra2slJT0dpbSnCQ8EP3HljG/Oct5xvwtnPd+53wdhvUbUXgr1an1HW8J6feK6Z+Paks+I9azIXiNA7FvyGbkXC1pQbxeu2xf0OdNUnLUHNiT7nDnwPcfIehLhpj1D88KKr9d/mDXSr6Hvuac5vzPsU+PX1nC9J9n2j0TjhHYGG6uF8B0xtyD4OPEqlHP8678ZSVjkHOi81tSwpsYziblR85nEnIicy+BllgjK8wYCxEbG
+  </data>
+ </layer>
+ <layer name="Collision" width="90" height="19">
+  <data encoding="base64" compression="zlib">
+   eJztVu0OwyAIbPX933l/1swRDk5kRJNdQmJbPZDydV3faM2WexAPd7OF1Vkp7N1+DdbPno93uIuGSttu8J/lHo9jxl6pKys2W8P2aDla7WdPNxOvUXtZ7hn9lj0V+dYUPuRTLa5ZoBwZn/tbIvdEZ2Q8WznqcWWjMkYj+iO2RfRH76SJFs8etFrYlXejzHCtANkmIXO0D+sZPzOoqvc7wqvjmf0HxTOKybF+So5o7Ub8Hh+q888Z1A+yweTfSq0d19k9OhIv8kzFDMHC6tHWHCv9PK61vd3hQnUZ5QqaG7QagPgqZaZHy/dojWIoY0aw9LB+ro5pOXNYPd+y17Pb2vfwoFnF87N1Jy8+qsHOLyv9We6TZ1m92vtTwNS9TF3eP2rGd4trdzB1L1MX8lf02ylg4mulz0pdTJ1g7T7dz3Id5f37+QOmj+0sp+AF+usIUw==
+  </data>
+ </layer>
+ <objectgroup name="Flametracker" width="90" height="19">
+  <object name="TorchLight" x="1140" y="91">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1524" y="91">
+   <properties>
+    <property name="Torch" value="4"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1780" y="347">
+   <properties>
+    <property name="Torch" value="4"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1140" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1524" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1140" y="1627">
+   <properties>
+    <property name="Torch" value="4"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1524" y="1883">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="2164" y="859">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="2804" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="3444" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4084" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4084" y="347">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="3700" y="347">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4468" y="91">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4980" y="91">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4980" y="859">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="5364" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4980" y="1371">
+   <properties>
+    <property name="Torch" value="2"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4980" y="1883">
+   <properties>
+    <property name="Torch" value="4"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="3444" y="2139">
+   <properties>
+    <property name="Torch" value="2"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="2676" y="1883">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="5876" y="2139">
+   <properties>
+    <property name="Torch" value="2"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="6260" y="859">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="5620" y="91">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="6004" y="91">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="6644" y="91">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="7412" y="603">
+   <properties>
+    <property name="Torch" value="4"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="7156" y="859">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="7540" y="859">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="7924" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="7924" y="347">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="8564" y="91">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="8820" y="603">
+   <properties>
+    <property name="Torch" value="2"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="9716" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="10612" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="11124" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="7540" y="91">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="game_objects" width="90" height="19">
+  <object name="Elixir" x="858" y="242">
+   <properties>
+    <property name="Elixir" value="0"/>
+   </properties>
+  </object>
+  <object name="Sword" x="470" y="1513">
+   <properties>
+    <property name="Sword" value="1"/>
+   </properties>
+  </object>
+  <object name="Health" x="4556" y="1776">
+   <properties>
+    <property name="Health" value="1"/>
+   </properties>
+  </object>
+  <object name="Health" x="4305" y="752">
+   <properties>
+    <property name="Health" value="1"/>
+   </properties>
+  </object>
+  <object name="Map" x="3289" y="2287">
+   <properties>
+    <property name="map" value=""/>
+   </properties>
+  </object>
+  <object name="LooseTiles" x="8542" y="805">
+   <properties>
+    <property name="LooseTile_Half" value="0"/>
+   </properties>
+  </object>
+  <object name="LooseTiles" x="2398" y="805">
+   <properties>
+    <property name="LooseTile_Half" value="2"/>
+   </properties>
+  </object>
+  <object name="Spikes" x="2017" y="2000">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object name="Spikes" x="353" y="2256">
+   <properties>
+    <property name="Spikes" value="1"/>
+   </properties>
+  </object>
+  <object name="Spikes" x="225" y="2256">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object name="LooseTiles" x="1503" y="1061">
+   <properties>
+    <property name="LooseTile_Full" value="4"/>
+   </properties>
+  </object>
+  <object name="LooseTiles" x="1630" y="1061">
+   <properties>
+    <property name="LooseTile_Half" value="5"/>
+   </properties>
+  </object>
+  <object name="Spikes" x="2017" y="720">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object name="Spikes" x="1889" y="1488">
+   <properties>
+    <property name="Spikes" value="1"/>
+   </properties>
+  </object>
+  <object name="LooseTiles" x="4702" y="549">
+   <properties>
+    <property name="LooseTile_Half" value="7"/>
+   </properties>
+  </object>
+  <object name="LooseTiles" x="4575" y="549">
+   <properties>
+    <property name="LooseTile_Full" value="6"/>
+   </properties>
+  </object>
+  <object name="Spikes" x="7009" y="1488">
+   <properties>
+    <property name="Spikes" value="1"/>
+   </properties>
+  </object>
+  <object name="Spikes" x="6881" y="1488">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object name="LooseTiles" x="7390" y="805">
+   <properties>
+    <property name="LooseTile_Half" value="8"/>
+   </properties>
+  </object>
+  <object name="LooseTiles" x="4318" y="1573">
+   <properties>
+    <property name="LooseTile_Half" value="9"/>
+   </properties>
+  </object>
+  <object name="Spikes" x="4833" y="2256">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object name="Spikes" x="4961" y="2256">
+   <properties>
+    <property name="Spikes" value="1"/>
+   </properties>
+  </object>
+  <object name="LooseTiles" x="3294" y="1317">
+   <properties>
+    <property name="LooseTile_Half" value="10"/>
+   </properties>
+  </object>
+  <object name="LooseTiles" x="4575" y="1061">
+   <properties>
+    <property name="LooseTile_Full" value="12"/>
+   </properties>
+  </object>
+  <object name="LooseTiles" x="4702" y="1061">
+   <properties>
+    <property name="LooseTile_Half" value="13"/>
+   </properties>
+  </object>
+  <object name="Fountain" x="3711" y="1162">
+   <properties>
+    <property name="Fountain" value=""/>
+   </properties>
+  </object>
+  <object name="Slicer" x="6694" y="155">
+   <properties>
+    <property name="Slicer" value="0"/>
+   </properties>
+  </object>
+  <object name="IronGate" x="2543" y="934">
+   <properties>
+    <property name="IronGate" value="0"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object name="TileButton" x="3552" y="1277">
+   <properties>
+    <property name="yellow_button_half" value="0"/>
+   </properties>
+  </object>
+  <object name="TileButton" x="3168" y="1277">
+   <properties>
+    <property name="red_button_full" value=""/>
+   </properties>
+  </object>
+  <object name="IronGate" x="5103" y="934">
+   <properties>
+    <property name="IronGate" value="1"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object name="TileButton" x="6112" y="1277">
+   <properties>
+    <property name="yellow_button_half" value="1"/>
+   </properties>
+  </object>
+  <object name="TileButton" x="5984" y="1021">
+   <properties>
+    <property name="yellow_button_half" value="2"/>
+   </properties>
+  </object>
+  <object name="IronGate" x="6383" y="934">
+   <properties>
+    <property name="IronGate" value="2"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object name="TileButton" x="4192" y="1021">
+   <properties>
+    <property name="yellow_button_half" value="1"/>
+   </properties>
+  </object>
+  <object name="TileButton" x="6624" y="1021">
+   <properties>
+    <property name="yellow_button_half" value="2"/>
+   </properties>
+  </object>
+  <object name="TileButton" x="1760" y="1021">
+   <properties>
+    <property name="yellow_button_full" value="0"/>
+   </properties>
+  </object>
+  <object name="IronGate" x="7151" y="166">
+   <properties>
+    <property name="IronGate" value="4"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object name="IronGate" x="7663" y="166">
+   <properties>
+    <property name="IronGate" value="5"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object name="TileButton" x="7264" y="253">
+   <properties>
+    <property name="yellow_button_full" value="5"/>
+   </properties>
+  </object>
+  <object name="TileButton" x="6880" y="253">
+   <properties>
+    <property name="yellow_button_half" value="4"/>
+   </properties>
+  </object>
+  <object name="LevelUpGate" x="10886" y="1111">
+   <properties>
+    <property name="LevelUpGate" value="0"/>
+   </properties>
+  </object>
+  <object name="TileButton" x="10336" y="1021">
+   <properties>
+    <property name="levelup_button_full" value="0"/>
+   </properties>
+  </object>
+  <object name="Checkpoint" x="469" y="1433">
+   <properties>
+    <property name="CheckPoint" value="0"/>
+    <property name="Interact" value=""/>
+   </properties>
+  </object>
+  <object name="LightRays" x="3003" y="1023"/>
+  <object name="ExitTrigger" x="10835" y="1087" width="93" height="145">
+   <properties>
+    <property name="ExitTrigger" value=""/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="SnapPrinceLayer" width="90" height="19">
+  <object x="664" y="1515" width="382" height="38">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="22" y="1261" width="380" height="38">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="414" y="1262" width="383" height="36">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="413" y="1005" width="382" height="39">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="20" y="1004" width="381" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="21" y="748" width="381" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="20" y="489" width="382" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="413" y="237" width="381" height="37">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="917" y="1775" width="380" height="37">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="2966" y="2025" width="380" height="40">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1300" y="236" width="382" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1559" y="492" width="380" height="38">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="2457" y="1003" width="382" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4375" y="1259" width="379" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="5017" y="1004" width="383" height="40">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="7575" y="1002" width="380" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="7577" y="236" width="380" height="38">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="8086" y="492" width="382" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="7192" y="235" width="380" height="38">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="7188" y="493" width="379" height="37">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4372" y="1004" width="380" height="37">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4631" y="1776" width="381" height="35">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4627" y="2027" width="381" height="38">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="2204" y="745" width="382" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1309" y="1005" width="378" height="37">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="5"/>
+   </properties>
+  </object>
+  <object x="2205" y="746" width="380" height="39">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3103" y="492" width="379" height="37">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4122" y="235" width="380" height="38">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4379" y="491" width="380" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4121" y="1514" width="382" height="38">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="5659" y="1003" width="381" height="38">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="7837" y="236" width="379" height="38">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1432" y="1004" width="381" height="37">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="4"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3869" y="1002" width="385" height="37">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="7192" y="747" width="382" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3098" y="1259" width="379" height="37">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3098" y="1257" width="380" height="40">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="5529" y="1262" width="381" height="38">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="5403" y="1261" width="383" height="40">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="LE" x="6683" y="1002" width="380" height="39">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="8340" y="748" width="382" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="8347" y="748" width="379" height="38">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1688" y="1004" width="380" height="38">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1819" y="956" width="381" height="152">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="10264" y="1004" width="382" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="158" y="1774" width="383" height="36">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1309" y="1004" width="380" height="38">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1435" y="957" width="382" height="146">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object name="RE" x="6683" y="1001" width="380" height="39">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4505" y="1003" width="385" height="37">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4505" y="1004" width="380" height="37">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="1"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4416" y="1005" width="385" height="37">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="13"/>
+   </properties>
+  </object>
+  <object x="7192" y="235" width="380" height="38">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="Enemy" width="90" height="19">
+  <object name="BG" x="9687" y="1271">
+   <properties>
+    <property name="Level" value="1"/>
+    <property name="Type" value="1"/>
+    <property name="Weak_Guard" value="0"/>
+   </properties>
+  </object>
+  <object name="BG" x="5847" y="247">
+   <properties>
+    <property name="Level" value="1"/>
+    <property name="Type" value="1"/>
+    <property name="Weak_Guard" value="1"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="Tutorial" width="90" height="19">
+  <object x="7861" y="152" width="57" height="429">
+   <properties>
+    <property name="Accessed" value="false"/>
+    <property name="TutObj" value="1"/>
+   </properties>
+  </object>
+  <object x="5937" y="810" width="59" height="259">
+   <properties>
+    <property name="Accessed" value="false"/>
+    <property name="TutObj" value="2"/>
+   </properties>
+  </object>
+  <object x="7793" y="913" width="91" height="410">
+   <properties>
+    <property name="Accessed" value="false"/>
+    <property name="TutObj" value="4"/>
+   </properties>
+  </object>
+  <object x="8357" y="535" width="93" height="459">
+   <properties>
+    <property name="Accessed" value="false"/>
+    <property name="TutObj" value="5"/>
+   </properties>
+  </object>
+  <object x="3663" y="887" width="89" height="457">
+   <properties>
+    <property name="Accessed" value="false"/>
+    <property name="TutObj" value="6"/>
+   </properties>
+  </object>
+  <object x="10783" y="910" width="173" height="454">
+   <properties>
+    <property name="Accessed" value="false"/>
+    <property name="TutObj" value="7"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="SpawnPoint" width="90" height="19">
+  <object name="SpawnPoint" x="7778" y="380">
+   <properties>
+    <property name="SpawnPoint" value="0"/>
+    <property name="direction" value="0"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="WayPoint" width="90" height="19">
+  <object x="8458" y="894" width="254" height="171">
+   <properties>
+    <property name="behaviour" value="1"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="0"/>
+   </properties>
+  </object>
+  <object x="8500" y="1108">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="1"/>
+   </properties>
+  </object>
+  <object x="8381" y="1153">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="2"/>
+   </properties>
+  </object>
+  <object x="8273" y="1156">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="3"/>
+   </properties>
+  </object>
+  <object x="8168" y="1156">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="4"/>
+   </properties>
+  </object>
+  <object x="8007" y="1144" width="84" height="196">
+   <properties>
+    <property name="behaviour" value="1"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="5"/>
+   </properties>
+  </object>
+  <object x="7936" y="1154">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="6"/>
+   </properties>
+  </object>
+  <object x="7866" y="1082">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="7"/>
+   </properties>
+  </object>
+  <object x="7837" y="991">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="8"/>
+   </properties>
+  </object>
+  <object x="7822" y="765">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="9"/>
+   </properties>
+  </object>
+  <object x="414" y="1376" width="111" height="227">
+   <properties>
+    <property name="behaviour" value="1"/>
+    <property name="id" value="1"/>
+    <property name="waypoint" value="0"/>
+   </properties>
+  </object>
+  <object x="516" y="1227" width="25" height="26">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="1"/>
+    <property name="waypoint" value="1"/>
+   </properties>
+  </object>
+  <object x="541" y="1088" width="25" height="26">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="1"/>
+    <property name="waypoint" value="2"/>
+   </properties>
+  </object>
+  <object x="627" y="929" width="25" height="26">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="1"/>
+    <property name="waypoint" value="3"/>
+   </properties>
+  </object>
+  <object x="810" y="906" width="25" height="26">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="1"/>
+    <property name="waypoint" value="4"/>
+   </properties>
+  </object>
+  <object x="970" y="900" width="25" height="26">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="1"/>
+    <property name="waypoint" value="5"/>
+   </properties>
+  </object>
+  <object x="1119" y="898" width="25" height="26">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="1"/>
+    <property name="waypoint" value="6"/>
+   </properties>
+  </object>
+  <object x="1264" y="892" width="108" height="207">
+   <properties>
+    <property name="behaviour" value="1"/>
+    <property name="id" value="1"/>
+    <property name="waypoint" value="7"/>
+   </properties>
+  </object>
+  <object x="1451" y="903" width="25" height="26">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="1"/>
+    <property name="waypoint" value="8"/>
+   </properties>
+  </object>
+  <object x="1577" y="903" width="25" height="26">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="1"/>
+    <property name="waypoint" value="9"/>
+   </properties>
+  </object>
+  <object x="1730" y="902" width="25" height="26">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="1"/>
+    <property name="waypoint" value="10"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

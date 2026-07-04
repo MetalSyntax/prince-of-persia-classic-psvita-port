@@ -11,9 +11,9 @@ project(so_loader C CXX)
 include("${VITASDK}/share/vita.cmake" REQUIRED)
 
 # Vita application configuration
-set(VITA_APP_NAME "so-loader")
-set(VITA_TITLEID "SOLOADER0")
-set(VITA_VPKNAME "so_loader")
+set(VITA_APP_NAME "Prince of Persia Classic")
+set(VITA_TITLEID "POPC00001")
+set(VITA_VPKNAME "popclassic")
 set(VITA_VERSION "01.00")
 set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
 
@@ -22,9 +22,8 @@ set(PSVITAIP "192.168.0.198" CACHE STRING "PSVita IP (for FTP access)")
 set(PARSECOREPATH "$ENV{PARSECOREPATH}" CACHE STRING "vita-parse-core main.py")
 
 # Game-specific definitions
-set(DATA_PATH "ux0:data/gamename/" CACHE STRING "Path to data (with trailing /)")
-set(SO_PATH "${DATA_PATH}main.so" CACHE STRING "Path to .so")
-add_definitions(-DDATA_PATH="${DATA_PATH}" -DSO_PATH="${SO_PATH}")
+set(DATA_PATH "ux0:data/popclassic/" CACHE STRING "Path to data (with trailing /)")
+add_definitions(-DDATA_PATH="${DATA_PATH}")
 
 option(USE_SCELIBC_IO "Use SceLibcBridge for IO and some other std functions" ON)
 if (USE_SCELIBC_IO)
@@ -134,6 +133,8 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
                       ScePower_stub
                       SceTouch_stub
                       SceVshBridge_stub
+                      vorbisidec
+                      ogg
                       )
 
 vita_create_self(eboot.bin ${CMAKE_PROJECT_NAME} UNSAFE NOASLR)

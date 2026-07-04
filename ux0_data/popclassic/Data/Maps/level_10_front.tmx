@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="80" height="19" tilewidth="128" tileheight="128">
+ <tileset firstgid="1" name="Level_10_Texture_01" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/level_10/Level_10_Texture_01.png" trans="000000" width="2048" height="2048"/>
+ </tileset>
+ <layer name="over_layer_left_side_front" width="80" height="19">
+  <data encoding="base64" compression="zlib">
+   eJztlsENwjAMRTMcnLhy48aBAZig4s4UjMAOSExQNmi3KFhqpSjYsZ1UaRv5SVai38RJftM0zm2DvSJ2jO4/v5dcRIUclp7AxjH/8ijpXztGTWcG5l8rjFQfatrzOWuZ+kr9Bj6K9nOGFJhfT8TFq8fW0gty9a6ufbQEvn8xr4FhrD8cfs/66Q3WL2QgxpvyYne0mIaNQ60FeEXadcScKU7K9sCT1puEdH95j0HJaXNS4ns8C3Xu7KD6hyWnxfbfm5grRQn/rkpdmzcsOS2G1o8S/t2UOgfslc7rH5ZYG+l42vMp5TxbA5L3bncFGvMvD/MvD/MvD/MvD8l/b63/xi9mFZEP
+  </data>
+ </layer>
+ <layer name="extra elements_1_front" width="80" height="19">
+  <data encoding="base64" compression="zlib">
+   eJztV0Fqw0AM1Bv6izwi14DvpdAecyjkmltui19g/JA8IfgFwU/qKtbY4+3Kbgg5NOzAIu9IkYQky0SkoGCO9xXe0xcM2K/wnr5gQKnfY9D6nB2epYcdyegniHN/RYR4jvFcpnuA7phID2x3sd93yT2HHT2jzuCqeL4W7IGPeLYLuUHPdhqLe57mcA+aeNp4rtN99FGbbDOxcD+T3vwE5Xq6e7FR906GOkfDAO5Adsp3pmNnyrFdDodEisUyXzfZmdulXi+B56uzo6hM7h07zC3PX2dcoFoI5ch4M6m11jpr78CdyE753nQN8cpt7DntLfbRJpFisWrzW5sf8GmOjG+Hb+m5t6P4lOEd2jt29RBznFPL5cYhN7L/lVtur4KrFnQM2PEsKy72XCV2j8Dz4e03nflAc7S2B/8K7Jml+qF3OR0Ddugten+1Z9VvHX+Uz1q+Y6zcrm0znELfIZ6j2rG7F9gz6EeYvjmz/RdoZkNm/7FdrrdB8vuP9ZaPWHwv39EHbDiPo/i/fQawZ9APfLN66tVJ5t+yZtpZM6Q9ZjQy7dGTo7d8xOIL5yWJ/kQ2nEdNfEFBQUHBayK8+P/xZ6P55/X7AYKgkic=
+  </data>
+ </layer>
+</map>

@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="70" height="25" tilewidth="128" tileheight="128">
+ <tileset firstgid="1" name="Level_06_Texture_01" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/level_06/Level_06_Texture_01.png" trans="000000" width="2048" height="2048"/>
+ </tileset>
+ <tileset firstgid="257" name="Collision" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/Collision.png" width="512" height="512"/>
+  <tile id="0">
+   <properties>
+    <property name="Wall" value=""/>
+   </properties>
+  </tile>
+  <tile id="1">
+   <properties>
+    <property name="Path" value=""/>
+   </properties>
+  </tile>
+  <tile id="2">
+   <properties>
+    <property name="Loosetiles" value=""/>
+   </properties>
+  </tile>
+  <tile id="3">
+   <properties>
+    <property name="LPath" value=""/>
+   </properties>
+  </tile>
+  <tile id="4">
+   <properties>
+    <property name="HalfWall" value=""/>
+   </properties>
+  </tile>
+ </tileset>
+ <tileset firstgid="273" name="shadow_tileset" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/level_06/shadow_tileset.png" width="1024" height="1024"/>
+ </tileset>
+ <layer name="Background" width="70" height="25">
+  <data encoding="base64" compression="zlib">
+   eJztlb1OAkEQx68hJiZyGoyFieYKbbVAKWjtbLSDQqMdVn50xi8o/EiUSGsMSqPGN9A38AHwDfQN1N7Z3AxMJnsLHMeBZif5Ze/uPzuz988xOI4NGza6jSWLxdI1CUYWOAKOgaLQOJRzItYi1lA582Id8SnxXq/AKVAP6PPu+FFnfXkvpT+jng2okWxxb8JFloEynqWCWg61HLunnGuxVrCGyvPEOuXT8EXlHYj3dsWq3vuQ6WXRi+vUdwVYxesUMA3MMuh+vIUnL3h2RR6oAndAjfngCV8o595fS7TWsEZO9MhprlXeJbAPfDAPeb9P4IrpVdazJvQ85mwAm3i9B0ww0sAc8AjMYI4MOucb83JLvI/yu4BaAT1eB86Ac8EFMARkgG28Juh+DfdT3i1wA3yhlmC62vMN/KA+pIHrGXy2A+yyGlRXQbPjCVhgz6UnLnqYZh4O+zS+d6nzZ51g2s+1sPVb9ezEF0+TO+lTMtUKM99N++U5o/pPUXXHnObvQdevynyh2WHy8D/48gAsOv634xj6UZjeO8mI2xdXo7cbYc+i+15cTe4oI25fvD740u58kXM3qm897O+oV77wuaNDnq2dufvXfeFzJwh5tpTBN91sj8qXoNq98CXsuckz3i9otkfhi6n2IPkySPX7FdYXfVhf9BGnLzRbrS9NaLY6He7rV8TlS1j6Fb+OrE7a
+  </data>
+ </layer>
+ <layer name="extra elements_2" width="70" height="25">
+  <data encoding="base64" compression="zlib">
+   eJztlr1OAkEQxyn1DTDxAeQJ4A1o9J0ukdrEELG2MoqNpRAKWj8KqBHUQi1M/Cj8Fv1v2EvmltnbPRDuovNLfpm7ndmZIbmCXE4QBEEQskGdOdvXsQhLTAzzdaOe3uHew2dyL6Bz12GFxF2m1ty3Et07UHK/ibLnyCuazFnDcSfMN413RdmoLTPP5F5Aa6tGNGs3LPsqNpFvaG01IUc6PsMX+ArfxvtFIp3Dze4hnsM+HBAvHLvYeibJx7HD7xs76xjxBJ7Cs/F+kWjOaZF56uwO8Z7xYcLdk+Qp1/AG3o52tPWLnfWO+AE/4Zfn3GXL2RasGW5P0TNJ/rfpwC68hFdznp1lHuETHMLvlHfJAoc6LsBFmIdLjlpXr2l3mUXvpLR19Ple2pZz37zvLrPoPSk+38t/ZAUW4CpcS3mXv8hB2gukxLz/PwiCIAiCYOcHo4Vlbw==
+  </data>
+ </layer>
+ <layer name="Shadows" width="70" height="25" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJztlsEOgjAMhukjiAeNxIvRyElPCid9AX0nHt2Bks1Stm6aTWK/pBkj7b/m3zLIMkEQBEFIzwyGkRvPBxVHYyzgWZej3H4sUC6et88nQwf30efOYNirjQLomDvmY+HirHIq0CMHnIvnNh2fdVJyUT1eQY9czFxca9PxXcfGRumsPc6ADzeldwc9+tRQc5eOzzoutkpnN4Gzl5oFdNGk7uPX2EMXDSe39XBp8ZHymKox35XA07b1hLU/mff4+NLmlpZ8Souq4b7j9hRQ87YuVS++pPElRGdq+PqyGvkX4Ppi3jmh908MvrXPXB0zL+UZw/uD9yl2b+16NehvRp3IF7w/eJ+wL7HOdsjdGhPsS6zzI76Mryu+TI/qdQ9Wf+4DRnyheQC5u0hT
+  </data>
+ </layer>
+ <layer name="over_layer_left_side_front" width="70" height="25" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJztVj1PwzAQtdKxTJ1Z2n/Qrkz9YIiYUsEASAzdKjYW1C10Y+t/YGdhR11YURZU8W+wid1cL3e1nRQIkp84Pfvu/Oy8qA5CBAQEBAQE/D1uNMdMfSRjg5hDjHo3xHyk+05lTABf5JFOUO3Ncv4nsO8h48Tiy5RhCjHTM0Vj03eOmMp97NlP4UXwZ6eQfv/Zcab5UsYVUZ8R/MxoGw3co+fbsenr6FynkCjlZmI/oB7Go4xPHcc6t3L05VrznKnfEfyKtNdIA/akxXxbm4M81Ob2WwseRs8gRTWDSEY3j52zc7jVvCBq9zKWemz4QcY70s6QxhL0rIr5dv0C5KG2qQtUywSPJTr7CtUMlC/9PHbOzkF52BO0j5THEbPGNde2nIfas858rVnpDvMoPScF5eFA0D5SHkfMGtdcZDkPtWedeaa5Jfx8GRZc6m8TWhGzxjXn4ovP+cFeO/vi9WNP3Sq+JHqcWDyg+lx8SdAaFyRoX2q9j+4+X6h3p7wae+pAuNwvTYDNF+yx+l/wyFMHa9apHwrwm9AF3Ms5tflCgXrn1G+GQlN8gd+EPuBBziVfoI8tRpPLu8D23HW0fQCfewhYEGPF0EfqHqkL2/3SFGBfXO+JqmjKvWpD8IVG8IUG9sH1u1IVv3Wv1gX24b+8z5/GF4I7nSI=
+  </data>
+ </layer>
+ <layer name="Collision" width="70" height="25">
+  <data encoding="base64" compression="zlib">
+   eJztllEKgCAQRNui+1+5j5AiZtVV11TmgRAi4/AMa9sIIYSQcTilX0aLvTzzWmev6GVFdtEHuRHBzxoxh8hx7AxS48g4v5r8WK7VS2wtyrJkoqzcfVqg5dLL897QS36X0rX0Qi+WtZqXku6jeSn5jqX6zu7FQujzdvbti+at+ZqXmmxPau+Pv/O9oBcMvWDoBdPDy4j3aorwXzJbby8uFmgB3A==
+  </data>
+ </layer>
+ <objectgroup name="SnapPrinceLayer" width="70" height="25">
+  <object x="280" y="1250" width="386" height="56">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1302" y="1252" width="386" height="56">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3346" y="1254" width="386" height="56">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4244" y="1252" width="386" height="56">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="7068" y="1252" width="386" height="56">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="7836" y="994" width="386" height="56">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="670" y="1248" width="386" height="56">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1310" y="1250" width="386" height="56">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3366" y="1254" width="386" height="56">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4382" y="1250" width="386" height="56">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="6814" y="994" width="386" height="56">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="game_objects" width="70" height="25">
+  <object x="6383" y="1190">
+   <properties>
+    <property name="IronGate" value="0"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object x="7005" y="1279">
+   <properties>
+    <property name="yellow_button_half" value="0"/>
+   </properties>
+  </object>
+  <object x="5857" y="1232">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object x="5473" y="1232">
+   <properties>
+    <property name="Spikes" value="1"/>
+   </properties>
+  </object>
+  <object x="4193" y="1232">
+   <properties>
+    <property name="Spikes" value="3"/>
+   </properties>
+  </object>
+  <object x="3823" y="1190">
+   <properties>
+    <property name="IronGate" value="1"/>
+   </properties>
+  </object>
+  <object x="4829" y="1279">
+   <properties>
+    <property name="yellow_button_half" value="1"/>
+   </properties>
+  </object>
+  <object x="3551" y="1317">
+   <properties>
+    <property name="LooseTile_Half" value="0"/>
+   </properties>
+  </object>
+  <object x="2543" y="1190">
+   <properties>
+    <property name="IronGate" value="2"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object x="989" y="1279">
+   <properties>
+    <property name="yellow_button_half" value="3"/>
+   </properties>
+  </object>
+  <object x="367" y="1190">
+   <properties>
+    <property name="IronGate" value="3"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object x="221" y="1279">
+   <properties>
+    <property name="red_button_half" value="3"/>
+   </properties>
+  </object>
+  <object name="ExitTrigger" x="459" y="2574">
+   <properties>
+    <property name="ExitTrigger" value=""/>
+   </properties>
+  </object>
+  <object name="LevelEntryGate" x="6778" y="1126">
+   <properties>
+    <property name="LevelEntryGate" value="0"/>
+   </properties>
+  </object>
+  <object name="HP" x="7385" y="1509">
+   <properties>
+    <property name="Health" value="0"/>
+   </properties>
+  </object>
+  <object name="CP" x="2378" y="1201">
+   <properties>
+    <property name="CheckPoint" value="0"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="SpawnPoint" width="70" height="25">
+  <object name="SpawnPoint" x="6790" y="1111">
+   <properties>
+    <property name="SpawnPoint" value="0"/>
+    <property name="direction" value="1"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="Enemy" width="70" height="25">
+  <object name="GK" x="2775" y="1271">
+   <properties>
+    <property name="GateID" value="2"/>
+    <property name="Gate_Keeper" value="0"/>
+    <property name="Level" value="15"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="DarkPrince" width="70" height="25">
+  <object name="DarkPrince" x="71" y="1061" width="53" height="106">
+   <properties>
+    <property name="Direction" value="Right"/>
+    <property name="Event" value="Start"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="DarkPrinceHandler" width="70" height="25">
+  <object name="DarkPrince" x="1070" y="1137" width="118" height="255">
+   <properties>
+    <property name="Action" value="ActivateDarkPrince"/>
+    <property name="Activated" value="True"/>
+    <property name="Id" value="1"/>
+    <property name="Time" value="0"/>
+   </properties>
+  </object>
+  <object name="DarkPrince" x="382" y="1103" width="461" height="346">
+   <properties>
+    <property name="Action" value="StepForwardDarkPrince"/>
+    <property name="Activated" value="True"/>
+    <property name="Id" value="0"/>
+    <property name="Time" value="0"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="Flametracker" width="70" height="25">
+  <object name="TorchLight" x="8073" y="1115">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="7284" y="1115">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="6537" y="987">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4617" y="1115">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="3593" y="1115">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1545" y="1115">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="905" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="500" y="1115">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="244" y="1115">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="447" y="1744">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1472" y="1744">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="3518" y="1744">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4413" y="1745">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="7999" y="1618">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="WayPoint" width="70" height="25">
+  <object name="0" x="6960" y="1125" width="83" height="192">
+   <properties>
+    <property name="behaviour" value="1"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="0"/>
+   </properties>
+  </object>
+  <object name="1" x="6805" y="1122">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="1"/>
+   </properties>
+  </object>
+  <object name="1" x="6633" y="1118">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="2"/>
+   </properties>
+  </object>
+  <object name="1" x="6471" y="1108">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="3"/>
+   </properties>
+  </object>
+  <object name="1" x="6262" y="1101">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="4"/>
+   </properties>
+  </object>
+  <object name="1" x="6094" y="1088">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="5"/>
+   </properties>
+  </object>
+  <object name="1" x="5899" y="1048">
+   <properties>
+    <property name="behaviour" value="0"/>
+    <property name="id" value="0"/>
+    <property name="waypoint" value="6"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

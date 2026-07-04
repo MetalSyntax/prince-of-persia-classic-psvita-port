@@ -1,19 +1,22 @@
-/*
- * fios.c -- use FIOS2 for optimized I/O
+/* fios.c -- use FIOS2 for optimized I/O
  *
  * Copyright (C) 2021 Andy Nguyen
  *
  * This software may be modified and distributed under the terms
- * of the MIT license.  See the LICENSE file for details.
+ * of the MIT license.	See the LICENSE file for details.
  */
 
 #include <malloc.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "fios.h"
+#include <so_util/so_util.h>
 
 #define MAX_PATH_LENGTH 256
 #define RAMCACHEBLOCKSIZE (128 * 1024)
-#define RAMCACHEBLOCKNUM 64
+#define PSARCCACHEBLOCKSIZE (192 * 1024)
+#define RAMCACHEBLOCKNUM 512
 
 static int64_t g_OpStorage[SCE_FIOS_OP_STORAGE_SIZE(64, MAX_PATH_LENGTH) / sizeof(int64_t) + 1];
 static int64_t g_ChunkStorage[SCE_FIOS_CHUNK_STORAGE_SIZE(1024) / sizeof(int64_t) + 1];
@@ -21,9 +24,12 @@ static int64_t g_FHStorage[SCE_FIOS_FH_STORAGE_SIZE(1024, MAX_PATH_LENGTH) / siz
 static int64_t g_DHStorage[SCE_FIOS_DH_STORAGE_SIZE(32, MAX_PATH_LENGTH) / sizeof(int64_t) + 1];
 
 static SceFiosRamCacheContext g_RamCacheContext = SCE_FIOS_RAM_CACHE_CONTEXT_INITIALIZER;
+static SceFiosPsarcDearchiverContext g_PsarcContext;
 static char *g_RamCacheWorkBuffer;
+static int32_t g_TexturesHandle;
+static SceFiosBuffer g_MountBuffer;
 
-int fios_init(const char * path) {
+int fios_init(void) {
     int res;
 
     SceFiosParams params = SCE_FIOS_PARAMS_INITIALIZER;
@@ -53,7 +59,7 @@ int fios_init(const char * path) {
     if (!g_RamCacheWorkBuffer)
         return -1;
 
-    g_RamCacheContext.pPath = path;
+    g_RamCacheContext.pPath = DATA_PATH;
     g_RamCacheContext.pWorkBuffer = g_RamCacheWorkBuffer;
     g_RamCacheContext.workBufferSize = RAMCACHEBLOCKNUM * RAMCACHEBLOCKSIZE;
     g_RamCacheContext.blockSize = RAMCACHEBLOCKSIZE;

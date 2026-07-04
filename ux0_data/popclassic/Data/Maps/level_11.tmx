@@ -1,0 +1,1479 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="90" height="31" tilewidth="128" tileheight="128">
+ <tileset firstgid="1" name="Level_11_Texture_01" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/level_11/Level_11_Texture_01.png" trans="000000" width="2048" height="2048"/>
+ </tileset>
+ <tileset firstgid="257" name="Collision" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/Collision.png" trans="ff00ff" width="512" height="512"/>
+  <tile id="0">
+   <properties>
+    <property name="Wall" value=""/>
+   </properties>
+  </tile>
+  <tile id="1">
+   <properties>
+    <property name="Path" value=""/>
+   </properties>
+  </tile>
+  <tile id="2">
+   <properties>
+    <property name="Loosetiles" value=""/>
+   </properties>
+  </tile>
+  <tile id="3">
+   <properties>
+    <property name="LPath" value=""/>
+   </properties>
+  </tile>
+  <tile id="4">
+   <properties>
+    <property name="HalfWall" value=""/>
+   </properties>
+  </tile>
+ </tileset>
+ <tileset firstgid="273" name="shadow_tileset" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/level_11/shadow_tileset.png" width="1024" height="1024"/>
+ </tileset>
+ <layer name="Background" width="90" height="31">
+  <data encoding="base64" compression="zlib">
+   eJztl81OGzEQxw0iqhAomxaEQDl0D/SYU4FDLxy4IMTXLRyoWqmlvSRppV76CDxCH6Clb9AHaPsEwAMxVsbKZBjvetYLGyQffvJm7fGM/x6PN3vGmL1EIpFIJBKJB2YOmJ9RmtamTraA1ozStDZJ56eHpHOGbZu1mTA2xrZd8q5pbR5a5xzbDmtzYWyMbafknWYdfzxrmZX9iqkbK8ArYLGg39dX1O/m1azjN/ACeIYMgCHO37TGsTovARfARkG/r8/yydNv7daBHvKRPEu8QbsuYcPjvye0feG5hc898vsf8B/4LvCX+eE6uxwYsHEnwCk+D810ntBxb0mflhHOR2uye35uxrmYsbVTXM0/IHEOzP2YHeeCLZ+/T9ZO39v5boBb4JLxA7hm+nCdf5px7vB9fwe8N5P8ugI+4LgM9ciw77WSK/TpzgKtye75EPvyAp1zbM/M9PmQ4rI+NwVbPn+frJ2+t3N3GWs47wL+pmdbqmu8dti9+wJ8NZNcsOO+AasYW4fEqq1VrpbafD43cu7tmOm8p7nIY91h46S4pHVKZ3JE1j4KiMHOa8+evU8+YyvdLZL/ZXM/B3+Zce5vsrG2du6acR0L1dnOtW0mOSb5K8pFX6x8XKjOIWfSF4NbCx8forMvR10e0n3dB1569jAkr7dKfJZp1GLjXG7xePj3iFvDMDB2jU4h9u0CeymnaS48ts4Zs+O5JZ0hnps2/m6FWLlvrX2nxD52X/lcxxE65xV9S/NpbbS+tbrVpbP7/3YU4bOq7zp0jq0bj6WzZq2zojOt/dIdkHSO15nXfu2dpN2nOnXmfrUxanOqiu+60O5TXTpLfrUxVv3O0fhuijq/NxJJ56aJvXcTYcTeu4lE4mlzB7tiaEs=
+  </data>
+ </layer>
+ <layer name="extra elements_2" width="90" height="31">
+  <data encoding="base64" compression="zlib">
+   eJztmFFOwzAMhvuMxAWQeABeJnEAeOFEXKJX6A26vU2bNPFYsaniFFxnNWlWz3KcpAntBv6kqm3i2E73p4tbFIqiKIqiKIqSj1tzlHPn8de5N0c5dx5TcWOOMtVGgtNuqs9roerneGeOEre5bFz9vnuqXWjHcbmxMcDYnWMOc7LqclmSfGib677urg/dWbLfMv0xscfMpRViXjs7x5ywvjg7TnPPxO6lOzZZsuQB/6+Oaxx3J/iwfTCfb8FuL/z2nWaLuusHbR4Yu0OvIdqO9WXb2n4d4H4uJueP+01w257xU/f9bZ+7tLdx+D/5brlBQ75Ra7Hy9K9DnGTgrRjmDVqR3jFWS7AGfPm59jauZ7Q0fT+4fH94YnJ21m/d625FYjeBPlPB88Y64vTYDudSyo8+D6wpPA7WNuiXrtNmGHcW/0uISe1Ca4V1xv+WpxF2VI8PEfHo87CaWjhicb6ld4Md+y7kEForNEbnZ3Zb3yCB2DVXmT3lCXgWjwnxYwjN9TdY+E1EYtac1RJ+Z04J5DB1TXXtNRxoc8x3FVpTxcaMtU+JZ9mQcwi5vjmBNsd+VxlbZ9q1Gzo+dK37+CTnEHJ+c/LtYTlS68w56lS7d3HVkpTq/DpojMRc7/mpaVCtFmJvn0suTdDa4NKYc3/zn8j1flaUSyOlFlQURVF4joC2uO8=
+  </data>
+ </layer>
+ <layer name="shadows" width="90" height="31" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJzt1ksKwjAQgGFzBl1V3YjufK1UKOiioBu9k0c3kRZC24wTjVXx/yAYTDMT7SSk1wMAAPhfA/PpFQAAUhma9gZoZLZWRratAzXjxndCPU2EuX49Lm1bBWo11FzeLHJOPVc9r2Tx5j00tTFnT8bVzt3YZ7Yd7X8/V+q81ft/JFS7ubm3a2xOaS+48WM5trefB8X6pP2h5efy+y72OHD2V33p98R4pXZj453t9xfT7HexvpNp9jWxU/8/PncG9hOfSUUZK1fGdM8VkfupLYYwpoo9527zc9rebezZ/E2yxHsR/8u/5wIAvof2fgwAAADZDfAmFsk=
+  </data>
+ </layer>
+ <layer name="extra elements_1_front" width="90" height="31" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJztVktOAzEMzVXKDcoNBiSkLodFJeiOHequG4RmU3ECxAlYF4kDgIR6hO44SQvdkYiYusbOjwydQp5kZcZ2bOfV8VSpgoKCgoKCgoL28dpRuWrz0DvALFDvek/15XKDbiTUta94EPSUA+o3C7RRu2sftv81np8F/ZPH7ynQRu2ufdiewvOxIAUyUnj+D3M+N3LNjb8wf960nHjsLqwd+3BPHqHnmV0f7DpANoOVFS4O3ofjHDHPNO+u/ytNtEy1zD+X6L0cBuT9VG1mOXwnnwVfH7g4p8wzzRuDRtCvBD1gaVeud4dabrUsNM89vR5Y6SHeOb3JeSfkOyO5LtAz/cYa33Mtj2r7fixR3h7TAzjORcDzWm3uCgjwAu+QP3VWwT6u/4wNvut9LYdW+pZ3c0aqh71SP18Sm+QHvgYvxK9B9fQ9d03K5auB9u1E0EugvTC2+hvG1/QdzKQK6SvLrzkj1SsbH+It1TauSS4uL+Bd8BuheioPz0O1OS/NCxxwNUD/0b1jxpeD2S/1wpy8T9AeymeFVqxXNj6OHdoDXK0cGhXOs3Re330YBfq58ko1Lsj70K5j9Z3nWq+1wHOltmOnzjR0xnvzDrMK14PvEJ3X5j+J9Jv4fqcm0E9CzJ0Df5yP7pN4rjP0M60T3xPOxvWddF4fB/TcXeX5Felz8VyRZ2qjtRnsM8+4V2ukp2cG5OIZZhVnk86UOje6wLMEiefU+eyqs+1+Hgf6SfgtnudIn6ufXbbcPMf6UXDfahdSeV6QnCnIwbN03rZ5jt2bY26kIgfPkq2rPNdOry+fKY7/U7jqrDfr1Oe7TzynxP8pYursIs+0F1xIma0hvR8TJ6TOmN6PiR1TQ0HBvuMDDbIrEw==
+  </data>
+ </layer>
+ <layer name="Collision" width="90" height="31">
+  <data encoding="base64" compression="zlib">
+   eJztlusOwyAIhavr3v+VF5M2MUYQEC3Nzpf4YxPlcOrtOAAAAAAA1pLS0wpoImvTErmWyNq0RK4lsjYtkWvRaivxVHuaCBooLD57zLOCCBoouPWpWbeWeTzbraHwSbaWr8b1j8b3/j+rue9GcVZ9udHEjVsJ5XM0vgpdmthd9HxOgu/OxVn302idWtZivT+878N2f+VOLbmTuyDNLz3/pOzYR22OFTmpuqU+W95IWp97OrhGnfGUvpHP3BzS2jX3IDW+99vLZ828mrwan6V9XIy0ZqnPbXz7ZrCefyt8ptYf1ZeF2nf6PJuPyj1zJs18X80cb/Z5Jueu3FwMfPbLzcXAZ7/cdYzkDcKNHekY9f2DzzNo3oqcppl7UJrTotUj91N4+Qx44PMe4PMevM5IAMA7+QHVXQOV
+  </data>
+ </layer>
+ <objectgroup name="game_objects" width="90" height="31">
+  <object name="43" x="8414" y="2085">
+   <properties>
+    <property name="LooseTile_Half" value="43"/>
+   </properties>
+  </object>
+  <object name="42" x="8286" y="2085">
+   <properties>
+    <property name="LooseTile_Cut" value="42"/>
+   </properties>
+  </object>
+  <object name="42" x="8286" y="2085">
+   <properties>
+    <property name="LooseTile_Full" value="42"/>
+   </properties>
+  </object>
+  <object x="10720" y="2045">
+   <properties>
+    <property name="levelup_button_half" value="0"/>
+   </properties>
+  </object>
+  <object name="0" x="350" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="0"/>
+   </properties>
+  </object>
+  <object name="1" x="478" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="1"/>
+   </properties>
+  </object>
+  <object name="2" x="606" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="2"/>
+   </properties>
+  </object>
+  <object name="3" x="734" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="3"/>
+   </properties>
+  </object>
+  <object name="4" x="862" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="4"/>
+   </properties>
+  </object>
+  <object name="5" x="990" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="5"/>
+   </properties>
+  </object>
+  <object name="6" x="1118" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="6"/>
+   </properties>
+  </object>
+  <object name="7" x="1246" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="7"/>
+   </properties>
+  </object>
+  <object name="9" x="1502" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="9"/>
+   </properties>
+  </object>
+  <object name="10" x="1630" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="10"/>
+   </properties>
+  </object>
+  <object name="11" x="1758" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="11"/>
+   </properties>
+  </object>
+  <object name="12" x="1886" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="12"/>
+   </properties>
+  </object>
+  <object name="13" x="2014" y="1573">
+   <properties>
+    <property name="LooseTile_Half" value="13"/>
+   </properties>
+  </object>
+  <object name="14" x="2398" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="14"/>
+   </properties>
+  </object>
+  <object name="15" x="2526" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="15"/>
+   </properties>
+  </object>
+  <object name="16" x="2654" y="1573">
+   <properties>
+    <property name="LooseTile_Half" value="16"/>
+   </properties>
+  </object>
+  <object name="17" x="2782" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="17"/>
+   </properties>
+  </object>
+  <object name="18" x="2910" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="18"/>
+   </properties>
+  </object>
+  <object name="20" x="3294" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="20"/>
+   </properties>
+  </object>
+  <object name="21" x="3422" y="1573">
+   <properties>
+    <property name="LooseTile_Half" value="21"/>
+   </properties>
+  </object>
+  <object name="22" x="3550" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="22"/>
+   </properties>
+  </object>
+  <object name="23" x="3678" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="23"/>
+   </properties>
+  </object>
+  <object name="24" x="3806" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="24"/>
+   </properties>
+  </object>
+  <object name="25" x="3934" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="25"/>
+   </properties>
+  </object>
+  <object name="26" x="4062" y="1573">
+   <properties>
+    <property name="LooseTile_Half" value="26"/>
+   </properties>
+  </object>
+  <object name="27" x="4318" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="27"/>
+   </properties>
+  </object>
+  <object name="28" x="4446" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="28"/>
+   </properties>
+  </object>
+  <object name="29" x="4574" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="29"/>
+   </properties>
+  </object>
+  <object name="30" x="4702" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="30"/>
+   </properties>
+  </object>
+  <object name="31" x="4830" y="1573">
+   <properties>
+    <property name="LooseTile_Half" value="31"/>
+   </properties>
+  </object>
+  <object name="33" x="5726" y="2085">
+   <properties>
+    <property name="LooseTile_Full" value="33"/>
+   </properties>
+  </object>
+  <object name="34" x="5854" y="2085">
+   <properties>
+    <property name="LooseTile_Full" value="34"/>
+   </properties>
+  </object>
+  <object name="36" x="6110" y="2085">
+   <properties>
+    <property name="LooseTile_Full" value="36"/>
+   </properties>
+  </object>
+  <object name="40" x="7134" y="1573">
+   <properties>
+    <property name="LooseTile_Half" value="40"/>
+   </properties>
+  </object>
+  <object name="46" x="1886" y="2341">
+   <properties>
+    <property name="LooseTile_Full" value="46"/>
+   </properties>
+  </object>
+  <object name="47" x="2014" y="2341">
+   <properties>
+    <property name="LooseTile_Full" value="47"/>
+   </properties>
+  </object>
+  <object name="0" x="6881" y="2256">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object name="S0" x="7777" y="2256">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object x="7009" y="2256">
+   <properties>
+    <property name="Spikes" value="1"/>
+   </properties>
+  </object>
+  <object name="S1" x="7905" y="2256">
+   <properties>
+    <property name="Spikes" value="1"/>
+   </properties>
+  </object>
+  <object name="41" x="8158" y="2085">
+   <properties>
+    <property name="LooseTile_Full" value="41"/>
+   </properties>
+  </object>
+  <object x="3149" y="1691">
+   <properties>
+    <property name="Slicer" value="1"/>
+   </properties>
+  </object>
+  <object name="E" x="224" y="1760">
+   <properties>
+    <property name="Elixir" value="0"/>
+   </properties>
+  </object>
+  <object x="2132" y="1516">
+   <properties>
+    <property name="Health" value="0"/>
+   </properties>
+  </object>
+  <object x="4064" y="2045">
+   <properties>
+    <property name="yellow_button_half" value="0"/>
+   </properties>
+  </object>
+  <object x="4975" y="1958">
+   <properties>
+    <property name="IronGate" value="0"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object name="44" x="10974" y="1829">
+   <properties>
+    <property name="LooseTile_Half" value="44"/>
+   </properties>
+  </object>
+  <object x="4448" y="2045">
+   <properties>
+    <property name="red_button_half" value="0"/>
+   </properties>
+  </object>
+  <object x="4576" y="2045">
+   <properties>
+    <property name="red_button_half" value="0"/>
+   </properties>
+  </object>
+  <object x="4704" y="2045">
+   <properties>
+    <property name="red_button_half" value="0"/>
+   </properties>
+  </object>
+  <object x="4832" y="2045">
+   <properties>
+    <property name="red_button_half" value="0"/>
+   </properties>
+  </object>
+  <object name="35" x="5982" y="2085">
+   <properties>
+    <property name="LooseTile_Full" value="35"/>
+   </properties>
+  </object>
+  <object name="32" x="5598" y="2085">
+   <properties>
+    <property name="LooseTile_Full" value="32"/>
+   </properties>
+  </object>
+  <object x="6383" y="1958">
+   <properties>
+    <property name="IronGate" value="1"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object x="4064" y="2045">
+   <properties>
+    <property name="yellow_button_half" value="1"/>
+   </properties>
+  </object>
+  <object name="39" x="7006" y="1829">
+   <properties>
+    <property name="LooseTile_Half" value="39"/>
+   </properties>
+  </object>
+  <object name="38" x="6878" y="1829">
+   <properties>
+    <property name="LooseTile_Full" value="38"/>
+   </properties>
+  </object>
+  <object name="LevelUpGate" x="9082" y="1894">
+   <properties>
+    <property name="LevelUpGate" value="0"/>
+   </properties>
+  </object>
+  <object name="ExitTrigger" x="9008" y="1791" width="146" height="226">
+   <properties>
+    <property name="ExitTrigger" value=""/>
+   </properties>
+  </object>
+  <object name="CP" x="4105" y="1698">
+   <properties>
+    <property name="CheckPoint" value="0"/>
+   </properties>
+  </object>
+  <object name="19" x="3038" y="1573">
+   <properties>
+    <property name="LooseTile_Half" value="19"/>
+   </properties>
+  </object>
+  <object name="8" x="1374" y="1573">
+   <properties>
+    <property name="LooseTile_Full" value="8"/>
+   </properties>
+  </object>
+  <object name="37" x="6238" y="2085">
+   <properties>
+    <property name="LooseTile_Half" value="37"/>
+   </properties>
+  </object>
+  <object name="S0" x="8161" y="3024">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object name="S1" x="8289" y="3024">
+   <properties>
+    <property name="Spikes" value="1"/>
+   </properties>
+  </object>
+  <object name="S2" x="8417" y="3024">
+   <properties>
+    <property name="Spikes" value="2"/>
+   </properties>
+  </object>
+  <object name="S0" x="9825" y="2768">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object name="S1" x="9953" y="2768">
+   <properties>
+    <property name="Spikes" value="1"/>
+   </properties>
+  </object>
+  <object name="S2" x="10081" y="2768">
+   <properties>
+    <property name="Spikes" value="2"/>
+   </properties>
+  </object>
+  <object name="S2" x="10081" y="2768">
+   <properties>
+    <property name="Spikes" value="2"/>
+   </properties>
+  </object>
+  <object name="S3" x="10209" y="2768">
+   <properties>
+    <property name="Spikes" value="3"/>
+   </properties>
+  </object>
+  <object name="S0" x="1889" y="3536">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object name="S1" x="2017" y="3536">
+   <properties>
+    <property name="Spikes" value="1"/>
+   </properties>
+  </object>
+  <object name="S2" x="2145" y="3536">
+   <properties>
+    <property name="Spikes" value="2"/>
+   </properties>
+  </object>
+  <object name="S3" x="2273" y="3536">
+   <properties>
+    <property name="Spikes" value="3"/>
+   </properties>
+  </object>
+  <object name="S0" x="4321" y="3024">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object name="S0" x="353" y="3024">
+   <properties>
+    <property name="Spikes" value="0"/>
+   </properties>
+  </object>
+  <object name="S1" x="481" y="3024">
+   <properties>
+    <property name="Spikes" value="1"/>
+   </properties>
+  </object>
+  <object name="S2" x="609" y="3024">
+   <properties>
+    <property name="Spikes" value="2"/>
+   </properties>
+  </object>
+  <object name="S3" x="737" y="3024">
+   <properties>
+    <property name="Spikes" value="3"/>
+   </properties>
+  </object>
+  <object x="2343" y="2269">
+   <properties>
+    <property name="Health" value="1"/>
+   </properties>
+  </object>
+  <object x="6873" y="1516">
+   <properties>
+    <property name="Health" value="2"/>
+   </properties>
+  </object>
+  <object name="47" x="2142" y="2341">
+   <properties>
+    <property name="LooseTile_Full" value="48"/>
+   </properties>
+  </object>
+  <object name="LevelEntryGate" x="1018" y="1894">
+   <properties>
+    <property name="LevelEntryGate" value="0"/>
+   </properties>
+  </object>
+  <object name="CP" x="6774" y="1731">
+   <properties>
+    <property name="CheckPoint" value="1"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="Enemy" width="90" height="31">
+  <object x="2962" y="1779">
+   <properties>
+    <property name="Level" value="12"/>
+    <property name="Type" value="2"/>
+    <property name="Weak_Guard" value="0"/>
+   </properties>
+  </object>
+  <object x="7502" y="1779">
+   <properties>
+    <property name="Level " value="11"/>
+    <property name="Type" value="3"/>
+    <property name="Weak_Guard" value="1"/>
+   </properties>
+  </object>
+  <object x="10190" y="1779">
+   <properties>
+    <property name="Level " value="12"/>
+    <property name="Type" value="2"/>
+    <property name="Weak_Guard" value="2"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="SpawnPoint" width="90" height="31">
+  <object name="SpawnPoint" x="1048" y="1885">
+   <properties>
+    <property name="SpawnPoint" value="0"/>
+    <property name="direction" value="0"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="Flametracker" width="90" height="31">
+  <object name="TorchLight" x="265" y="1371">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="905" y="1371">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1417" y="1371">
+   <properties>
+    <property name="Torch" value="2"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1930" y="1371">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="2441" y="1371">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="319" y="2002">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="756" y="1883">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="2954" y="1371">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="3465" y="1371">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4233" y="1371">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="3209" y="1627">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4233" y="1627">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="4873" y="1371">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="5130" y="1883">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="5642" y="1755">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="5769" y="2267">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="6004" y="2267">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="5565" y="2258">
+   <properties>
+    <property name="Torch" value="2"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="5748" y="2904">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="6027" y="2905">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="6793" y="1371">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="7177" y="1371">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="7741" y="2006">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="8308" y="2011">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="8123" y="2523">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="8308" y="2779">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="8713" y="1755">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="9460" y="1755">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="9993" y="2011">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="9791" y="2255">
+   <properties>
+    <property name="Torch" value="2"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="9993" y="2651">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="10889" y="1627">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="10557" y="1875">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="SnapPrinceLayer" width="90" height="31">
+  <object x="1556" y="1763" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1564" y="2021" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="546" y="2020" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4130" y="1764" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4130" y="2014" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="5406" y="2014" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="5018" y="1764" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="6684" y="2020" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="6935" y="1509" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="7580" y="1758" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="7960" y="2274" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="9632" y="2018" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="10780" y="1760" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1692" y="2274" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="282" y="1766" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1945" y="1764" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1944" y="2277" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4124" y="2016" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="6040" y="2021" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="6812" y="1758" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="8224" y="2014" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="9368" y="1765" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1051" y="1762" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="282" y="1766" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="5392" y="2020" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="38"/>
+   </properties>
+  </object>
+  <object x="5520" y="2020" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="39"/>
+   </properties>
+  </object>
+  <object x="5648" y="2020" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="40"/>
+   </properties>
+  </object>
+  <object x="5776" y="2020" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="41"/>
+   </properties>
+  </object>
+  <object x="5532" y="2021" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="37"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="5660" y="2021" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="38"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="5788" y="2021" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="39"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="5916" y="2021" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="40"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="6684" y="1758" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="57"/>
+   </properties>
+  </object>
+  <object x="6684" y="1764" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="6812" y="1764" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="56"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="6432" y="1762" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="6686" y="1762" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1814" y="1508" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="2838" y="1508" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3863" y="1510" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="4130" y="1508" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3106" y="1508" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="2210" y="1508" width="384" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="0" x="281" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="0"/>
+   </properties>
+  </object>
+  <object name="1" x="407" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="1"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="2" x="536" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="2"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="3" x="668" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="3"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="4" x="793" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="4"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="5" x="922" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="5"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="6" x="1050" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="6"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="7" x="1178" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="7"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="8" x="1306" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="8"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="9" x="1434" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="9"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="10" x="1562" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="10"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="11" x="1690" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="11"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="12" x="1818" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="12"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="14" x="2330" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="14"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="15" x="2458" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="15"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="16" x="2586" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="16"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="17" x="2714" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="17"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="18" x="2842" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="18"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="20" x="3226" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="20"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="21" x="3354" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="21"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="22" x="3482" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="22"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="23" x="3610" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="23"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="24" x="3738" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="24"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="25" x="3866" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="25"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="27" x="4250" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="27"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="28" x="4378" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="28"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="29" x="4506" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="29"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="30" x="4634" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="30"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="32" x="5530" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="32"/>
+   </properties>
+  </object>
+  <object name="33" x="5658" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="33"/>
+   </properties>
+  </object>
+  <object name="34" x="5786" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="34"/>
+   </properties>
+  </object>
+  <object name="35" x="5914" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="35"/>
+   </properties>
+  </object>
+  <object name="36" x="6042" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="36"/>
+   </properties>
+  </object>
+  <object name="38" x="6810" y="1763" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="38"/>
+   </properties>
+  </object>
+  <object name="41" x="8091" y="2020" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="41"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="42" x="8217" y="2021" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="42"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="0" x="22" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="0"/>
+   </properties>
+  </object>
+  <object name="1" x="150" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="1"/>
+   </properties>
+  </object>
+  <object name="2" x="279" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="2"/>
+   </properties>
+  </object>
+  <object name="3" x="406" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="3"/>
+   </properties>
+  </object>
+  <object name="4" x="536" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="4"/>
+   </properties>
+  </object>
+  <object name="5" x="665" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="5"/>
+   </properties>
+  </object>
+  <object name="6" x="789" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LefttEnd" value=""/>
+    <property name="LooseTile" value="6"/>
+   </properties>
+  </object>
+  <object name="7" x="919" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="7"/>
+   </properties>
+  </object>
+  <object name="8" x="1046" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="8"/>
+   </properties>
+  </object>
+  <object name="9" x="1174" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="9"/>
+   </properties>
+  </object>
+  <object name="10" x="1302" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="10"/>
+   </properties>
+  </object>
+  <object name="11" x="1430" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="11"/>
+   </properties>
+  </object>
+  <object name="12" x="1558" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="12"/>
+   </properties>
+  </object>
+  <object name="13" x="1686" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="13"/>
+   </properties>
+  </object>
+  <object name="15" x="2198" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="15"/>
+   </properties>
+  </object>
+  <object name="16" x="2326" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="16"/>
+   </properties>
+  </object>
+  <object name="17" x="2454" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="17"/>
+   </properties>
+  </object>
+  <object name="18" x="2582" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="18"/>
+   </properties>
+  </object>
+  <object name="19" x="2710" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="19"/>
+   </properties>
+  </object>
+  <object name="21" x="3094" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="21"/>
+   </properties>
+  </object>
+  <object name="22" x="3222" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value=""/>
+    <property name="LeftEnd" value="1"/>
+    <property name="LooseTile" value="22"/>
+   </properties>
+  </object>
+  <object name="23" x="3350" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="23"/>
+   </properties>
+  </object>
+  <object name="24" x="3478" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="24"/>
+   </properties>
+  </object>
+  <object name="25" x="3606" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="25"/>
+   </properties>
+  </object>
+  <object name="26" x="3734" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="26"/>
+   </properties>
+  </object>
+  <object name="28" x="4118" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="28"/>
+   </properties>
+  </object>
+  <object name="29" x="4246" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="29"/>
+   </properties>
+  </object>
+  <object name="30" x="4374" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="30"/>
+   </properties>
+  </object>
+  <object name="31" x="4502" y="1507" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="31"/>
+   </properties>
+  </object>
+  <object name="33" x="5398" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="33"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="34" x="5526" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="34"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="35" x="5654" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="35"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="36" x="5782" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="36"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="37" x="5910" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="37"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="39" x="6678" y="1763" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LooseTile" value="39"/>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object name="41" x="7830" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LefthtEnd" value=""/>
+    <property name="LooseTile" value="41"/>
+   </properties>
+  </object>
+  <object name="42" x="7958" y="2019" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="42"/>
+   </properties>
+  </object>
+  <object name="43" x="8091" y="2018" width="384" height="54">
+   <properties>
+    <property name="IsPresent" value="1"/>
+    <property name="LeftEnd" value=""/>
+    <property name="LooseTile" value="43"/>
+   </properties>
+  </object>
+  <object x="4636" y="1504" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="6934" y="1509" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="8084" y="2277" width="384" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

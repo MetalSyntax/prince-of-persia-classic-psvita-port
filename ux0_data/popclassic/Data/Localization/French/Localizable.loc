@@ -1,0 +1,1250 @@
+<dict>
+<key>MENU_MAIN_MENU</key>
+<string>MENU PRINCIPAL</string>
+#
+<key>MENU_MAIN_QUICK</key>
+<string>DÉMARRAGE</string>
+#
+<key>MENU_SINGLE_PLAYER</key>
+<string>MODES DE JEU</string>
+#
+<key>MENU_REWARDS</key>
+<string>RÉCOMPENSES</string>
+#
+<key>MENU_OPTIONS</key>
+<string>OPTIONS</string>
+#
+<key>MENU_CREDITS</key>
+<string>CRÉDITS</string>
+#
+<key>MENU_SINGLE_PLAYER_DESC</key>
+<string>Choisir un mode jeu</string>
+#
+<key>MENU_REWARDS_DESC</key>
+<string>Succès, stats et éléments déverrouillés</string>
+#
+<key>MENU_OPTIONS_DESC</key>
+<string>Modifier les paramètres et la langue </string>
+#
+<key>MENU_CREDITS_DESC</key>
+<string>Découvrir les personnes à l'origine de ce jeu</string>
+#
+<key>SINGLE_PLAY_DESC</key>
+<string>Sélectionner un mode de jeu</string>
+#
+<key>SINGLE_PLAYER_NORM</key>
+<string>MODE NORMAL</string>
+#
+<key>SINGLE_PLAYER_NORM_DESC</key>
+<string>Jouer sans aucune pénalité</string>
+#
+<key>SINGLE_PLAYER_TIME</key>
+<string>MODE CHRONO</string>
+#
+<key>SINGLE_PLAYER_TIME_DESC</key>
+<string>Terminer le jeu en 1h</string>
+#
+<key>SINGLE_PLAYER_TIME_CONT</key>
+<string>CONTINUER</string>
+#
+<key>SINGLE_PLAYER_TIME_CONT_DESC</key>
+<string>Reprendre la session précédente</string>
+#
+<key>SINGLE_PLAYER_SURV</key>
+<string>MODE SURVIE</string>
+#
+<key>SINGLE_PLAYER_SURV_DESC</key>
+<string>Terminer le jeu en 1h sans mourir</string>
+#
+<key>SINGLE_PLAYER_NEWGAME</key>
+<string>NOUVELLE PARTIE</string>
+#
+<key>SINGLE_PLAYER_NORM_CONT</key>
+<string>CONTINUER</string>
+#
+<key>SINGLE_PLAYER_NORM_CONT_DESC</key>
+<string>Reprendre la session précédente</string>
+#
+<key>SINGLE_PLAYER_NORM_SELCTLVL</key>
+<string>REJOUER LE NIVEAU</string>
+#
+<key>SINGLE_PLAYER_NORM_SELCTLVL_DESC</key>
+<string>Rejouer un niveau déverrouillé</string>
+#
+<key>SINGLE_PLAYER_NORM_SELCTLVL_SEL</key>
+<string>CHOISIR UN NIVEAU</string>
+#
+<key>SINGLE_PLAYER_NORM_CUTSCN</key>
+<string>SCÈNES</string>
+#
+<key>SINGLE_PLAYER_NORM_CUTSCN_DESC</key>
+<string>Regarder les scènes déverrouillées</string>
+#
+<key>REWRD_ACHV</key>
+<string>SUCCÈS</string>
+#
+<key>REWRD_ACHV_DESC</key>
+<string>Voir tous les succès du jeu</string>
+#
+<key>REWRD_UNLOCK</key>
+<string>ÉLÉMENTS DÉVERROUILLABLES</string>
+#
+<key>REWRD_UNLOCK_DESC</key>
+<string>Parcourir les récompenses déverrouillables</string>
+#
+<key>REWRD_STATS</key>
+<string>MON SCORE</string>
+#
+<key>REWRD_STATS_DESC</key>
+<string>Consulter vos stats, exploits et comparer les classements</string>
+#
+<key>REWRD_LEADER</key>
+<string>CLASSEMENTS</string>
+#
+<key>REWRD_LEADER_DESC</key>
+<string>Comparer votre score avec celui de joueurs du monde entier</string>
+#
+<key>OPTIONS_SOUND</key>
+<string>AUDIO</string>
+#
+<key>OPTIONS_SOUND_DESC</key>
+<string>Modifier les paramètres audio</string>
+#
+<key>OPTIONS_SOUND_MUSIC</key>
+<string>MUSIQUE</string>
+#
+<key>OPTIONS_SOUND_FX</key>
+<string>EFFETS</string>
+#
+<key>OPTIONS_SHARE</key>
+<string>OPTIONS DE PARTAGE</string>
+#
+<key>OPTIONS_SHARE_DESC</key>
+<string>Modifier les éléments que le jeu partage avec vos amis</string>
+#
+<key>OPTIONS_LANG</key>
+<string>LANGUE</string>
+#
+<key>OPTIONS_LANG_DESC</key>
+<string>Choisir la langue du jeu</string>
+#
+<key>OPTIONS_LANG_ENG</key>
+<string>ENGLISH</string>
+#
+<key>OPTIONS_LANG_FR</key>
+<string>FRANÇAIS</string>
+#
+<key>OPTIONS_LANG_ESP</key>
+<string>ESPAÑOL</string>
+#
+<key>OPTIONS_LANG_IT</key>
+<string>ITALIANO</string>
+#
+<key>OPTIONS_LANG_GER</key>
+<string>DEUTSCH</string>
+#
+<key>OPTIONS_LANG_JP</key>
+<string>日本語</string>
+#
+<key>OPTIONS_LANG_CH</key>
+<string>中國的</string>
+#
+<key>OPTIONS_REST</key>
+<string>RÉINITIALISER</string>
+#
+<key>OPTIONS_REST_DESC</key>
+<string>Réinitialiser le jeu ?\nVous perdrez toutes les données sauvegardées.</string>
+#
+<key>OPTIONS_REST_CONF</key>
+<string>Jeu réinitialisé.</string>
+#
+<key>IGM_RESTART</key>
+<string>RECOMMENCER</string>
+#
+<key>IGM_RES_CHKPT</key>
+<string>DERN. SAUVEGARDE</string>
+#
+<key>IGM_RESUME</key>
+<string>REPRENDRE PARTIE</string>
+#
+<key>IGM_CONTROLS</key>
+<string>COMMANDES</string>
+#
+<key>IGM_CONTROLS_ORIENT</key>
+<string>CHOISIR L'ORIENTATION</string>
+#
+<key>IGM_CONTROLS_ORIENT_LH</key>
+<string>COMMANDES MAIN GAUCHE</string>
+#
+<key>IGM_CONTROLS_ORIENT_RH</key>
+<string>COMMANDES MAIN DROITE</string>
+#
+<key>IGM_CONTROLS_PLATFROM</key>
+<string>TOUCHER L'ÉCRAN POUR VOIR COMMANDES DÉPLACEMENT</string>
+#
+<key>IGM_CONTROLS_COMBAT</key>
+<string>TOUCHER L'ÉCRAN POUR VOIR LES COMMANDES DE COMBAT</string>
+#
+<key>IGM_EXIT</key>
+<string>QUITTER LE JEU</string>
+#
+<key>IGM_MAP</key>
+<string>CARTE</string>
+#
+<key>IGM_ACHIEVEMENTS</key>
+<string>SUCCÈS</string>
+#
+<key>IGM_CONTROLS_CONTROLSET</key>
+<string>MODIFIER COMMANDES</string>
+#
+<key>IGM_HELP_BUTTERFLY</key>
+<string>PAPILLON</string>
+#
+<key>IGM_HELP_TIPS</key>
+<string>ASTUCES</string>
+#
+<key>IGM_CONTROLS_CONTROLSET_DESC</key>
+<string>Déplacer les commandes dans le cadre</string>
+#
+<key>IGM_EXIT_SELECTLEVL</key>
+<string>CHOISIR LE NIVEAU</string>
+#
+<key>IGM_CONTROLS_ATTACK</key>
+<string>ATTAQUE</string>
+#
+<key>IGM_CONTROLS_PARRY</key>
+<string>PARADE/DÉF. (maintenir)</string>
+#
+<key>IGM_CONTROLS_SHEATH</key>
+<string>RENGAINER</string>
+#
+<key>IGM_CONTROLS_JUMP</key>
+<string>SAUTER</string>
+#
+<key>IGM_CONTROLS_CROUCH</key>
+<string>S'ACCROUPIR</string>
+#
+<key>IGM_CONTROLS_INTERACT</key>
+<string>INTERAGIR</string>
+#
+<key>IGM_CONTROLS_MOVE</key>
+<string>COURIR/MARCHER</string>
+#
+<key>IGM_EXIT_MAINMENU</key>
+<string>RETOUR AU MENU PRINCIPAL</string>
+#
+<key>GAMETXT_PROLOGUE1</key>
+<string>EN L'ABSENCE DU SULTAN, LE GRAND VIZIR\nJAFFAR IMPOSE SON RÈGNE DE TERREUR.\n\nUN SEUL OBSTACLE SE DRESSE ENTRE\nJAFFAR ET LE TRÔNE :\nLA RAVISSANTE JEUNE FILLE DU SULTAN. . . \n\n</string>
+#
+<key>GAME_TXT_EPILOGUE</key>
+<string>JAFFAR LE TYRAN EST MORT\nET SES POUVOIRS SONT ANÉANTIS.\n\nPARTOUT À TRAVERS LE ROYAUME,\nLE PEUPLE DE PERSE ACCLAME SA\nPRINCESSE ET LE BRAVE QUI L'A\nSAUVÉE DES FORCES DES TÉNÈBRES.\n\nDEPUIS CE JOUR, CELUI QUE L'ON CONSIDÉRAIT\nCOMME UN ÉTRANGER EST DORÉNAVANT\nCONNU SOUS LE NOM DE. . . \nPRINCE DE PERSE.\n\n\n</string>
+#
+<key>GAME_TXT_PROLOGUE2</key>
+<string>VOUS SEUL POUVEZ SAUVER\nLA FILLE DU SULTAN DES\nGRIFFES DE JAFFAR ET LIBÉRER\nLE ROYAUME DE SON RÈGNE\nDE TERREUR.\n\nVOUS DEVREZ VOUS\nÉVADER DE PRISON ET TROUVER UN CHEMIN À\nTRAVERS LE PALAIS POUR SAUVER VOTRE\nPRINCESSE BIEN-AIMÉE AVANT QUE\nLE SABLE DANS LE SABLIER\nNE SE SOIT TOTALEMENT ÉCOULÉ.\n\nPLUSIEURS PIÈGES ET DE NOMBREUX\nGARDES VOUS ATTENDENT DANS LE DONJON.\nVOUS DEVREZ SURMONTER LES DANGERS\nET VOUS FRAYER UN CHEMIN DANS\nLA PLUS HAUTE TOUR OÙ EST\nENFERMÉE LA PRINCESSE ET METTRE\nUN TERME AU PLAN MALÉFIQUE DE JAFFAR.</string>
+#
+<key>GAME_TXT_FINISH</key>
+<string>FÉLICITATIONS !\nVOUS AVEZ TERMINÉ\nPRINCE OF PERSIA CLASSIC HD.</string>
+#
+<key>GAME_TXT_CSTXT</key>
+<string>PENDANT CE TEMPS. . . </string>
+#
+<key>STANDBY_SCREEN</key>
+<string>TOUCHEZ POUR CONTINUER</string>
+#
+<key>GAME_OVER</key>
+<string>FIN DE PARTIE</string>
+#
+<key>BUY_FULL</key>
+<string>ACHETER LE JEU COMPLET</string>
+#
+<key>TRIGGER_CHECKPOINT</key>
+<string>POINT DE SAUVEGARDE</string>
+#
+<key>TRIGGER_EXIT_LVL</key>
+<string>Appuyez sur # pour quitter le niveau.</string>
+#
+<key>TRIGGER_FEATHER_POTION</key>
+<string>Vous êtes maintenant aussi léger qu'une plume.</string>
+#
+<key>GAMETXT_LOADING</key>
+<string>CHARGEMENT EN COURS. . . </string>
+#
+<key>GAMETXT_LVLCOMP</key>
+<string>NIVEAU TERMINÉ !</string>
+#
+<key>FEAT_UNLOCK</key>
+<string>VOUS AVEZ DÉVERROUILLÉ : %s !</string>
+#
+<key>TUTORIAL_01_MOVE</key>
+<string>Déplacez # pour marcher ou courir dans cette direction.</string>
+#
+<key>TUTORIAL_02_CROUCH</key>
+<string>Appuyez sur # pour vous accroupir.</string>
+#
+<key>TUTORIAL_03_DOWN</key>
+<string>Maintenez # enfoncé pour descendre d'un étage.</string>
+#
+<key>TUTORIAL_04_JUMP</key>
+<string>Appuyez sur # pour sauter sur place ou attraper un rebord et éviter une chute.</string>
+#
+<key>TUTORIAL_05_CLIMB</key>
+<string>Maintenez # enfoncé pour monter sur un rebord.</string>
+#
+<key>TUTORIAL_06_FALL</key>
+<string>En tombant, déplacez # dans le sens inverse pour attraper un rebord.</string>
+#
+<key>TUTORIAL_07_GRAB</key>
+<string>Appuyez sur # pour ramasser des objets.</string>
+#
+<key>TUTORIAL_08_SPIKES</key>
+<string>Vous pouvez sauter par-dessus des pics ou les traverser doucement.</string>
+#
+<key>TUTORIAL_09_SLICER</key>
+<string>Minutez vos actions lorsque vous traversez les lames.</string>
+#
+<key>TUTORIAL_10_BUTTON</key>
+<string>Trouvez le bon bouton pour ouvrir la porte.</string>
+#
+<key>TUTORIAL_11_FALSEBTN</key>
+<string>Certains boutons dissimulent des pièges. Évitez-les à tout prix.</string>
+#
+<key>TUTORIAL_12_ATTACK</key>
+<string>Appuyez sur # pour brandir votre épée.</string>
+#
+<key>TUTORIAL_13_DEFEND</key>
+<string>Maintenez # enfoncé pour passer en position défensive.</string>
+#
+<key>TUTORIAL_14_PARRY</key>
+<string>Appuyez sur # pour dévier une attaque ennemie.</string>
+#
+<key>TUTORIAL_15_COMBAT</key>
+<string>Minutez vos actions si vous ne souhaitez pas mourir au combat.</string>
+#
+<key>TIPS_1</key>
+<string>Appuyez sur DÉFENSE pour parer, \npuis sur ATTAQUE pour effectuer une contre-attaque rapide.</string>
+#
+<key>TIPS_2</key>
+<string>Ne courez surtout pas ! \nMarchez sur les pics pour éviter un douloureux problème.</string>
+#
+<key>TIPS_3</key>
+<string>Appuyez sur DÉFENSE pour éviter les contre-attaques \nadverses.</string>
+#
+<key>TIPS_4</key>
+<string>Vous ne remporterez pas ce combat sans arme. Cherchez un autre moyen.</string>
+#
+<key>TIPS_5</key>
+<string>Appuyez sur SAUTER pour vous suspendre à un rebord.</string>
+#
+<key>TIPS_6</key>
+<string>Une fois le rebord attrapé, appuyez sur SAUTER pour monter.</string>
+#
+<key>TIPS_7</key>
+<string>SAUTEZ en courant pour faire un long saut.</string>
+#
+<key>TIPS_8</key>
+<string>Le papillon peut vous aider à recouvrer la liberté.</string>
+#
+<key>TIPS_9</key>
+<string>Le Prince noir ne peut être vaincu par des méthodes ordinaires.</string>
+#
+<key>TIPS_10</key>
+<string>Le timing et la patience \nsont essentiels pour survivre aux lames.</string>
+#
+<key>TIPS_11</key>
+<string>Les dalles descellées soulèvent de la \npoussière quand vous sautez à côté.</string>
+#
+<key>TIPS_12</key>
+<string>Passez les pièges de pics en toute sécurité en marchant.</string>
+#
+<key>TIPS_13</key>
+<string>ACCROUPISSEZ-VOUS en courant pour plonger.</string>
+#
+<key>TIPS_14</key>
+<string>Les dalles descellées tombent si vous passez dessus \nou les frappez par-dessous.      </string>
+#
+<key>TIPS_15</key>
+<string>Accroupissez-vous ou roulez pour franchir \nune porte qui se ferme.</string>
+#
+<key>TIPS_16</key>
+<string>Glissez la TOUCHE DIRECTIONNELLE vers l'arrière en sautant \npour réaliser un saut arrière.</string>
+#
+<key>TIPS_17</key>
+<string>Sautez sur les murs pour prendre de l'élan\net monter plus vite.</string>
+#
+<key>TIPS_18</key>
+<string>Partagez votre progression avec vos amis \nsur Facebook et par e-mail.</string>
+#
+<key>TIPS_19</key>
+<string>SAUTEZ en MARCHANT pour SAUTER VERS L'AVANT.</string>
+#
+<key>TIPS_20</key>
+<string>Vous pouvez modifier les commandes \npendant la partie dans le menu.</string>
+#
+<key>POP_ACHV_01_DESC</key>
+<string>Récupérer l'épée dans la prison</string>
+#
+<key>POP_ACHV_02_DESC</key>
+<string>Réveiller le garde squelette</string>
+#
+<key>POP_ACHV_03_DESC</key>
+<string>Briser le miroir et libérer le Prince noir</string>
+#
+<key>POP_ACHV_04_DESC</key>
+<string>Tuer le Gardien de la porte</string>
+#
+<key>POP_ACHV_05_DESC</key>
+<string>Effectuer un saut après avoir consommé\nla potion plume</string>
+#
+<key>POP_ACHV_06_DESC</key>
+<string>Vous avez été sauvé par la souris de la princesse.</string>
+#
+<key>POP_ACHV_07_DESC</key>
+<string>Boire les deux potions contraires</string>
+#
+<key>POP_ACHV_08_DESC</key>
+<string>Ne faire qu'un avec le Prince noir</string>
+#
+<key>POP_ACHV_09_DESC</key>
+<string>Vaincre Jaffar</string>
+#
+<key>POP_ACHV_10_DESC</key>
+<string>Trouver tous les élixirs</string>
+#
+<key>POP_ACHV_11_DESC</key>
+<string>Battre un score dans n'importe quel\nniveau de n'importe quel mode</string>
+#
+<key>POP_ACHV_12_DESC</key>
+<string>Terminer le jeu en mode Chrono</string>
+#
+<key>POP_ACHV_13_DESC</key>
+<string>Terminer le jeu en mode Survie</string>
+#
+<key>POP_ACHV_14_DESC</key>
+<string>Terminer un niveau en conservant votre santé</string>
+#
+<key>POP_ACHV_15_DESC</key>
+<string>Terminer un niveau sans tuer un seul garde</string>
+#
+<key>POP_ACHV_16_DESC</key>
+<string>Tuer le premier</string>
+#
+<key>POP_ACHV_17_DESC</key>
+<string>Tuer un garde avec une lame ou un pic\nou en le faisant tomber</string>
+#
+<key>pop.hd.achv.01</key>
+<string>PRÉCIEUX OUTIL</string>
+#
+<key>pop.hd.achv.02</key>
+<string>PRISON ÉTERNELLE</string>
+#
+<key>pop.hd.achv.03</key>
+<string>MIROIR DE l'ÂME</string>
+#
+<key>pop.hd.achv.04</key>
+<string>EN AVANT !</string>
+#
+<key>pop.hd.achv.05</key>
+<string>PRENDS TON ENVOL</string>
+#
+<key>pop.hd.achv.06</key>
+<string>DES SOURIS ET DES PRINCES</string>
+#
+<key>pop.hd.achv.07</key>
+<string>EN HAUT, EN BAS, EN HAUT</string>
+#
+<key>pop.hd.achv.08</key>
+<string>SYNAPSE FATIDIQUE</string>
+#
+<key>pop.hd.achv.09</key>
+<string>AMOUR ET VENGEANCE</string>
+#
+<key>pop.hd.achv.10</key>
+<string>QUÊTE DE L'IMMORTALITÉ</string>
+#
+<key>pop.hd.achv.11</key>
+<string>TOUJOURS PLUS FORT</string>
+#
+<key>pop.hd.achv.12</key>
+<string>LES SABLES DU DESTIN</string>
+#
+<key>pop.hd.achv.13</key>
+<string>LE VÉRITABLE PRINCE</string>
+#
+<key>pop.hd.achv.14</key>
+<string>INDOMPTABLE</string>
+#
+<key>pop.hd.achv.15</key>
+<string>PORTEUR DE PAIX</string>
+#
+<key>pop.hd.achv.16</key>
+<string>RAGE INCOMMENSURABLE</string>
+#
+<key>pop.hd.achv.17</key>
+<string>PIQUER AU VIF</string>
+#
+<key>MEMOIR_GRAIN</key>
+<string>GRAINS DE SABLE</string>
+#
+<key>MEMOIR_HEART</key>
+<string>CŒUR D'OR</string>
+#
+<key>MEMOIR_WILL</key>
+<string>VOLONTÉ DE FER</string>
+#
+<key>MEMOIR_MIND</key>
+<string>ESPRIT DU GUERRIER</string>
+#
+<key>MEMOIR_MEMORIES</key>
+<string>SOUVENIRS D'AMOUR</string>
+#
+<key>MEMOIR_GRAIN_DESC</key>
+<string>Le prince remonte le temps et apprend à aller plus vite.</string>
+#
+<key>MEMOIR_HEART_DESC</key>
+<string>Le prince est en paix et se découvre ainsi un plus grand courage.</string>
+#
+<key>MEMOIR_WILL_DESC</key>
+<string>Le prince ne peut pas être blessé par les gardes pendant un certain temps.</string>
+#
+<key>MEMOIR_MIND_DESC</key>
+<string>La détermination du prince à secourir la princesse lui permet de frapper les gardes plus fort.</string>
+#
+<key>MEMOIR_MEMORIES_DESC</key>
+<string>Les blessures du prince sont guéries par l'amour qu'il porte à la princesse.</string>
+#
+<key>UPLAY_ACTION1</key>
+<string>Le prince du secours</string>
+#
+<key>UPLAY_ACTION2</key>
+<string>Le prince de la détermination</string>
+#
+<key>UPLAY_ACTION3</key>
+<string>Le prince du feu</string>
+#
+<key>UPLAY_ACTION4</key>
+<string>Le prince guerrier</string>
+#
+<key>UPLAY_ACTION1_DESC</key>
+<string>Prendre l'épée</string>
+#
+<key>UPLAY_ACTION2_DESC</key>
+<string>Terminer un niveau en conservant votre santé</string>
+#
+<key>UPLAY_ACTION3_DESC</key>
+<string>Tuer le Gardien de la porte</string>
+#
+<key>UPLAY_ACTION4_DESC</key>
+<string>Tuer Jaffar</string>
+#
+<key>UPLAY_REWARD1</key>
+<string>TBD</string>
+#
+<key>UPLAY_REWARD2</key>
+<string>TBD</string>
+#
+<key>UPLAY_REWARD3</key>
+<string>TBD</string>
+#
+<key>UPLAY_REWARD4</key>
+<string>TBD</string>
+#
+<key>LEVEL_01</key>
+<string>LA PRISON</string>
+#
+<key>LEVEL_02</key>
+<string>LA CASERNE</string>
+#
+<key>LEVEL_03</key>
+<string>LES CATACOMBES</string>
+#
+<key>LEVEL_04</key>
+<string>LE DÉBARRAS</string>
+#
+<key>LEVEL_05</key>
+<string>LA COUR</string>
+#
+<key>LEVEL_06</key>
+<string>L'ENTRÉE DE LA TOUR</string>
+#
+<key>LEVEL_07</key>
+<string>LA CAVE À VIN</string>
+#
+<key>LEVEL_08</key>
+<string>L'ENTREPÔT</string>
+#
+<key>LEVEL_09</key>
+<string>LE RÉSERVOIR DU PALAIS</string>
+#
+<key>LEVEL_10</key>
+<string>LE JARDIN</string>
+#
+<key>LEVEL_11</key>
+<string>LE BALCON</string>
+#
+<key>LEVEL_12</key>
+<string>LA HAUTE TOUR</string>
+#
+<key>LEVEL_13</key>
+<string>LES APPARTEMENTS DE JAFFAR</string>
+#
+<key>LEVEL_14</key>
+<string>LA CHAMBRE DE LA PRINCESSE</string>
+#
+<key>CS_1</key>
+<string>SCÈNE 1</string>
+#
+<key>CS_2</key>
+<string>SCÈNE 2</string>
+#
+<key>CS_3</key>
+<string>SCÈNE 3</string>
+#
+<key>CS_4</key>
+<string>SCÈNE 4</string>
+#
+<key>CS_5</key>
+<string>SCÈNE 5</string>
+#
+<key>CS_6</key>
+<string>SCÈNE 6</string>
+#
+<key>CS_7</key>
+<string>SCÈNE 7</string>
+#
+<key>CS_8</key>
+<string>SCÈNE 8</string>
+#
+<key>CS_9</key>
+<string>SCÈNE 9</string>
+#
+<key>CS_10</key>
+<string>SCÈNE 10</string>
+#
+<key>CS_11</key>
+<string>SCÈNE 11</string>
+#
+<key>CS_12</key>
+<string>SCÈNE 12</string>
+#
+<key>BUTTON_RESTART</key>
+<string>REPRENDRE NIV.</string>
+#
+<key>BUTTON_RESUME</key>
+<string>REPRENDRE LE JEU</string>
+#
+<key>BUTTON_CONTINUE</key>
+<string>CONTIN.</string>
+#
+<key>BUTTON_MAINMENU</key>
+<string>RETOUR AU MENU PRINCIPAL</string>
+#
+<key>BUTTON_CANCEL</key>
+<string>ANNULER</string>
+#
+<key>BUTTON_BACK</key>
+<string>RETOUR</string>
+#
+<key>BUTTON_LEVELSEL</key>
+<string>CHOISIR NIVEAU</string>
+#
+<key>BUTTON_RETRY</key>
+<string>Réessayer</string>
+#
+<key>BUTTON_YES</key>
+<string>OUI</string>
+#
+<key>BUTTON_NO</key>
+<string>NON</string>
+#
+<key>BUTTON_SHARE</key>
+<string>PARTAGER</string>
+#
+<key>BUTTON_EXIT</key>
+<string>QUITTER LE JEU</string>
+#
+<key>BUTTON_RESET</key>
+<string>RÉINITIALISER</string>
+#
+<key>BUTTON_BUY_NOW</key>
+<string>ACHETER</string>
+#
+<key>BUTTON_OK</key>
+<string>OK</string>
+#
+<key>BUTTON_ON</key>
+<string>OUI</string>
+#
+<key>BUTTON_OFF</key>
+<string>NON</string>
+#
+<key>BUTTON_SAVE</key>
+<string>SAUVEGARDER</string>
+#
+<key>BUTTON_DEFAULT</key>
+<string>DÉFAUT</string>
+#
+<key>BUTTON_SKIP</key>
+<string>PASSER</string>
+#
+<key>BUTTON_TRAILER</key>
+<string>REMORQUE</string>
+#
+<key>SCORE_COMP_TIME</key>
+<string>TEMPS NIVEAU :</string>
+#
+<key>SCORE_TOTAL_TIME</key>
+<string>TEMPS TOTAL :</string>
+#
+<key>SCORE_REMAIN_TIME</key>
+<string>TEMPS RESTANT :</string>
+#
+<key>SCORE_ENEMY_KILL</key>
+<string>ENNEMIS TUÉS :</string>
+#
+<key>SCORE_DEATH</key>
+<string>MORTS DU HÉROS :</string>
+#
+<key>SCORE_RETRIES</key>
+<string>TENTATIVES :</string>
+#
+<key>SCORE_TOTAL_DEATH</key>
+<string>TOTAL DE MORTS :</string>
+#
+<key>SCORE_TOTAL_KILLS</key>
+<string>TOTAL D'ENNEMIS TUÉS :</string>
+#
+<key>SCORE_TOTAL_NORMAL_SCORE</key>
+<string>SCORE MODE NORMAL :</string>
+#
+<key>SCORE_TOTAL_TIMEATTACK_SCORE</key>
+<string>SCORE MODE CHRONO :</string>
+#
+<key>SCORE_TOTAL_SURVIVAL_SCORE</key>
+<string>SCORE MODE SURVIE :</string>
+#
+<key>SCORE_TOTAL_GAMETIME</key>
+<string>PARTIES JOUÉES :</string>
+#
+<key>SCORE_ACHV_UNLOCK</key>
+<string>SUCCÈS OBTENUS :</string>
+#
+<key>SCORE_ACHV_UNLOCKED</key>
+<string>SUCCÈS\nOBTENUS</string>
+#
+<key>SCORE_TOTAL_ITEMS_FOUND</key>
+<string>OBJETS TROUVÉS :</string>
+#
+<key>SCORE_TOTAL_UNLOCKS</key>
+<string>ÉLÉMENTS DÉVERROUILLABLES OBTENUS :</string>
+#
+<key>SCORE_SCORE_LEVEL</key>
+<string>SCORE NIVEAU %d:</string>
+#
+<key>SCORE_SCORE_TOTAL</key>
+<string>SCORE TOTAL :</string>
+#
+<key>SCORE_SCORE_PREVIOUS</key>
+<string>SCORE DU NIVEAU PRÉCÉDENT :</string>
+#
+<key>SCORE_MULTIPLIER</key>
+<string>MULTIPLICATEUR :</string>
+#
+<key>SCORE_TIME_SCORE</key>
+<string>SCORE TEMPS :</string>
+#
+<key>SCORE_LEVEL_CONSTANT</key>
+<string>CONSTANTE DE NIVEAU :</string>
+#
+<key>SCORE_BONUS_SCORE</key>
+<string>SCORE BONUS :</string>
+#
+<key>SCORE_RETRY_COUNT</key>
+<string>NOMBRE D'ESSAIS :</string>
+#
+<key>SCORE_HIGHSCORE</key>
+<string>MEILLEUR SCORE !</string>
+#
+<key>SCORE_BEST_TIME</key>
+<string>MEILLEUR TEMPS :</string>
+#
+<key>SCORE_BEST_TIME_PREV</key>
+<string>MEILLEUR TEMPS PRÉCÉDENT :</string>
+#
+<key>SCORE_SCORE_BEAT</key>
+<string>RECORD À BATTRE :</string>
+#
+<key>POPUP_QUIT</key>
+<string>Êtes-vous sûr de vouloir quitter ?</string>
+#
+<key>POPUP_GAMECENTER</key>
+<string>Compte Game Center requis.</string>
+#
+<key>POPUP_GAMECENTER_DEV</key>
+<string>Votre appareil n'est pas compatible avec Game Center. Certains contenus ne seront pas disponibles.</string>
+#
+<key>POPUP_CONFIRM_SETT</key>
+<string>Voulez-vous sauvegarder les paramètres modifiés ?</string>
+#
+<key>POPUP_RETURN_MAIN</key>
+<string>Voulez-vous retourner au menu principal ?</string>
+#
+<key>POPUP_CONFIRM_RESET</key>
+<string>Voulez-vous réinitialiser votre profil ?</string>
+#
+<key>POPUPS_NET_NOTCONNECTED</key>
+<string>AUCUNE CONNEXION INTERNET</string>
+#
+<key>POPUPS_WIFI_3G_NOTCONNECTED_WARNING</key>
+<string>Vous n'êtes pas connecté à Internet. Certains contenus ne seront pas disponibles.</string>
+#
+<key>POPUPS_WIFI_3G_DISCONNECTED</key>
+<string>INTERRUPTION DE LA CONNEXION</string>
+#
+<key>POPUPS_DISCONNECTED_WARNING</key>
+<string>La connexion à Internet a été interrompue. Certains contenus ne seront pas disponibles.</string>
+#
+<key>POPUP_FACEBOOK_POST</key>
+<string>Votre progression dans le jeu sera affichée sur votre mur Facebook. Voulez-vous continuer ?</string>
+#
+<key>POPUP_RESTART_CHKPOINT</key>
+<string>Redémarrer à la sauvegarde ?</string>
+#
+<key>POPUP_RESTART_LEVEL</key>
+<string>Recommencer niveau ?</string>
+#
+<key>POPUP_ACHIEVEMENT_UNLOCK</key>
+<string>Succès %s déverrouillé !</string>
+#
+<key>POPUP_GC_ERROR</key>
+<string>L'opération demandée a été annulée.</string>
+#
+<key>FACEBOOK_X_GAME_START</key>
+<string> %s joue à <Prince of Persia Classic>.</string>
+#
+<key>FACEBOOK_X_HAS_UNLOCKED_X_ACHIEVEMENT</key>
+<string>%s a déverrouillé le succès en jouant à Prince of Persia Classic.</string>
+#
+<key>FACEBOOK_X_HAS_COMPLETED_X_LEVEL</key>
+<string>Jusqu'à maintenant, %s a terminé %d niveaux de Prince of Persia Classic.</string>
+#
+<key>FACEBOOK_X_HAS_NORMALSCORE_AND_RANK</key>
+<string>%s a réalisé un total de %d en mode Normal et est désormais en position %d au classement Prince of Persia Classic HD.</string>
+#
+<key>FACEBOOK_X_HAS_TIMESCORE_AND_RANK</key>
+<string>%s a réalisé un total de %d en mode Chrono et est désormais en position %d au classement Prince of Persia Classic HD.</string>
+#
+<key>FACEBOOK_X_HAS_SURVSCORE_AND RANK</key>
+<string>%s a réalisé un total de %d en mode Survie et est désormais en position %d au classement Prince of Persia Classic HD.</string>
+#
+<key>MAIL_CUSTOM</key>
+<string>Salut !!\n\nJe joue à Prince of Persia Classic !Regarde !</string>
+#
+<key>GAMETITLE</key>
+<string>PRINCE OF PERSIA CLASSIC HD</string>
+#
+<key>CREDITS_COPYRIGHT</key>
+<string>Prince of Persia Classic\nV 1.0.0 \n\n2012 Ubisoft Entertainment.\n All rights reserved. \nUbisoft and the Ubisoft logo\nare trademarks of Ubisoft \nEntertainment in the US\nand/or other countries.\n\n</string>
+#
+<key>CREDITS_DEV</key>
+<string>Développeur\nUbisoft Pune\n\nManager studio\nPauline Jacquey\n\nProducteur\nSashi Menon\n\nDesigner\nHaider CW\nChinmay Zende\n\n</string>
+#
+<key>CREDITS_ART</key>
+<string>Artistes graphiques\nNirmalendu Paul\nAshok Salunkhe\n\nArtiste technique\nRaj Pakhare\n\nAnimateur 3D\nDhairyasheel Patil\n\nArtistes stagiaires\nNils Velay\nLaurence Violet\nFlorian Thomasset\n\n</string>
+#
+<key>CREDITS_SOUND</key>
+<string>Illustrateur sonore\nMithun Gopal Poojari\n\nIntégrateur audio\nAmod Chavan\n\n</string>
+#
+<key>CREDITS_PROGRAM</key>
+<string>Programmeurs seniors\nSumit Lakkewar\nChinmay Das\nAvinash Damodhare\nKetan Sakariya\n\nProgrammeur généraliste\nPavan Narkhede\n\nProgrammeur gameplay\nSunil Motwani</string>
+#
+<key>CREDITS_OTHERS</key>
+<string>Manager international\nAkshay Paul\n\nTechnicien support\nutilisateur\nMilind Tanksale\n\nAdministrateur système\nMithun Gaikwad\n\nAssistant manager\nAmol Potdar\n\nRemerciements\nNiranjan Bonte\nSaprem Kini\nPreeti Panchal\n\n</string>
+#
+<key>CREDITS_QC</key>
+<string>Directeur assurance\nqualité\nRazvan Rotunjanu\n\nManager assurance\nqualité\nPrshanth Kannan\n\nCoordinateur assurance\nqualité\nRahul Khatal\n\nLead assurance qualité\nAbhay Mandhalkar\n\nTesteurs\nDeepak Parmar\nRahul Khanapurkar\nSagar Elawande\nShailesh Apte\nVasu Bangera\nVijayendra Piparia\n\n</string>
+#
+<key>CREDITS_LOC</key>
+<string>LOCALISATION\nINTERNATIONALE\n\n Manager localisation\nAsie\nYann Dang\n\nChef de projet\nlocalisation\nWu Zhao Xiang\n\n VERSION FRANÇAISE\nTraduction\n4-Real Intermedia GmbH\n\nTests\nEnzyme Testing Labs\n\nVERSION ALLEMANDE\nTraduction\n4-Real Intermedia GmbH\n\nTests\nEnzyme Testing Labs\n\nVERSION ITALIENNE\nTraduction\n4-Real Intermedia GmbH\n\nTests\nEnzyme Testing Labs\n\nVERSION ESPAGNOLE\nTraduction\n4-Real Intermedia GmbH\n\nTests\nEnzyme Testing Labs</string>
+#
+<key>CREDITS_LOC2</key>
+<string>ENZYME TESTING LABS ™\nnDirecteur de production\ninternationale\nCarolljo Maher\n\nProducteur en chef\nRémy Julita\n\nChefs de projet\nTrine Sofi Jacobsen\nGuillaume  Delisle\nVan Wijk\n\nTesteurs linguistiques\nFrançais : \nViviane Descombes\n\nItalien : \nLuisiana Casillo\n\nAllemand : \nBeate Rector\n\nEspagnol : \nFrancisca Butrón</string>
+#
+<key>CREDITS_UBI1</key>
+<string>Éditeur\nUbisoft Entertainment\n\nPDG\nYves Guillemot\n\nDirectrice exécutive,\nstudios internationaux\nChristine Burgess-Quémard\n\nDirecteur artistique\nSerge Hascoët\n\nDirecteur contenu\ninternational\nLionel Raynaud\n\nDirecteur de production\nJean-Marc Geffroy\n\nDirecteur de\npréproduction\nYann Masson\n\nDirecteur conception\net design\nEric Couzian\n\nDirecteur contenu\nen ligne\nElisabeth Pellen\n\nManagers contenu\nseniors\nFrédéric Duroc\nStéphane Varrault</string>
+#
+<key>CREDITS_UBI2</key>
+<string>Managers contenu\nBenjamin Dumaz\nGuillaume Patrux\nYohan Cazaux\nPascal Allançon\nXavier Marot\nJames Mouat\nPaola Jouyaux\nJulien Galloudec\n\nManager contenu junior\nOdile Deguercy\n\nManager contenu en ligne\njunior\nMatthieu Philippe\nGuillaume Volliez\n\nAssistant commercial\nexécutif\nMattheo Buxtorf\n\nAssistante de direction\néditoriale\nSarah Levy\n\nAssistant manager\ntechnique\nAdrien Anger\n\nDirecteur Ubi IP \nTommy François</string>
+#
+<key>CREDITS_UBI3</key>
+<string>Développement IP (Ubi IP)\nJulien Charpentier\nJulian Gerighty\nXavier Guilbert\nMichiel Verheijdt\nSam Strachman\n\nDirecteur d'ingénierie\net d'analyse\nCyril Derouineau\n\nDirecteur process\net méthodes\nMichel Pierfitte\n\nIngénieur de recherches\nutilisateur\nFranck Sacchi\n\nExpert FSO et design\nPatrick Plourde\n\nExpert animation\nGilles Monteil\n\nExpert narration\nArnaud Labaronne\n\nÉdition cinématique\nJulien Laurent\n\nExpert scénariste\nOlivier Henriot\n\nExpert marque\nJason Vanderbergh</string>
+#
+<key>CREDITS_UBI4</key>
+<string>Directrice en ligne\nstudios internationaux\nStephanie Perotti\n\nManager services\nen ligne\nJulien Hummer\n\nCoordinateurs services\nen ligne\nCécile Renaud\n\nJean-Philippe Durand\n\nAnalyste services\nen ligne\nJulien Csikai\n\nManager coordination\ncommerce en ligne\nAnne-Catherine Chartres\n\nManager coordination\ntechnique en ligne\nFabrice Pierre Elien\n\nManager services web\nCyril Beaudaux\n\nManager services web\ntechniques\nAlexandre Loisel\n\nAssistant services web\ntechniques\nSilvère Ducros\n\nManager production web\nGiovanni del Pozzo</string>
+#
+<key>CREDITS_UBI5</key>
+<string>Producteurs web\nJérôme Athier\nJuliette Becquart\nMaxence Leret d'Aubigny\n\nManager applications web\nEmmanuel Dru\n\nChefs de projets\napplications web\nSusan Papoz\nMatthieu Caix\nRomain Piegay\n\nDirectrice coordination\nproduction internationale\nAnne Blondel-Jouin\n\nDirecteur coordination\nprojet\nNicolas Schoener\n\nManagers coordination\nproduction\nThomas Baillet\nBenjamin Haddad\nFrançois Jaspart\nGrégory Spielmann\nLoic Jacolin\nGuillaume Gad\n\nChef de projets polyalent\nThomas Gerbaud</string>
+#
+<key>CREDITS_UBI6</key>
+<string>DMIS Manager\nPhilippe Ponce\n\nCoordinateur technique\nDMIS\nNicolae Jan Sercaianu\n\nSpécialiste DMIS\nYohann Robert\n\nManager certifications\nCorentin Francois\n\nManager certification\nclassification par âge\nCéline Paiva\n\nAssistant classification\npar âge\nJean-Marie Mogentale\n\nSpécialistes\ncertification EMEA\nAnis Boujaouane\nJulien Jacquet\n\nAssistante certification\nKarima Touali\n\nManager données\ncertification\nAlexandre Chamoy\n\nDirecteur USA,\nPlanning Production &\nService Client\nBrent Wilkinson</string>
+#
+<key>CREDITS_UBI7</key>
+<string>Manager planning\nproduction USA\nAdam Zachary\n\nCoordinateurs production\nUSA\nGregory Capuano\nAnthony Urso\n\nManager classification\npar âge\nAmérique du Nord\nShannon Kokoska\n\nCoordinateur classification\npar âge\nAmérique du Nord \nBen White\n\nSpécialiste classification\npar âge\nAmérique du Nord \nEdwin Zee\n\nDirecteur opérations\nstudio\nPierre Escaich\n\nManager studio\nSébastien Odasso\n\nCoordinateurs de test\nPhilippe Pellefigue\nJean-Baptiste Hallé\nNicolas Rousselot\nJérémy Fourmaux\nHugo Wyler\nMaxime Barbe</string>
+#
+<key>CREDITS_UBI8</key>
+<string>Assistants coordinateurs\nde test\nAudrey Laurent-André\nAudrey Le Roy\nJulien Huguenin\nLivia Simoni\n\nDirectrice stratégie\ncommerciale\ninternationale\nHélène Juguet\n\nDirecteurs développement\ncommercial\nJerome Durand\nOliver Green\nDamien Moret\nVincent Dubourdieu\n\nManagers développement\ncommercial\nYannick Spagna\nEmmanuel Fauchez\n\nDirecteur en chef\ncommercialisation et\nrecherche de marché\nFrédérique Burlot\n\nDirecteur\ncommercialisation et\nrecherche de marché\nCharles Du Réau\n\nDirectrice\ncommercialisation et\nrecherche de marché\nSophie Mourey</string>
+#
+<key>CREDITS_UBI9</key>
+<string>Managers\ncommercialisation et\nrecherche de marché\nSophie Stumpf\nSandra Bystrom\nRégis Decombe\nHicham Laabi\nLouis-Gabriel Le Foyer\n\nAnalystes seniors\ncommercialisation et\nrecherche de marché\nPierre-Henri Traboulsi\nSybille Lopez\n\nAnalystes\ncommercialisation et\nrecherche de marché \nAnnelise Bourelle\nAimeric Hauet\nNicolas Hoestlandt\nGrégoire Laloux\nSimon Lejarre\nMaxime Revol\nRaphaël Doyen\nMaude Blouin\nJérôme Collette\n\nResponsable des licences\ninternationales\nChristian Salomon\n\nDirecteur aux licences\nGrégoire Gabalda</string>
+#
+<key>CREDITS_AMA_NEW</key>
+<string>Éditeur : AMA Ltd\n\n  Président et directeur général\nChristian Guillemot\n\n  Vice-président des ventes\nJean-François Denis\n\nDirecteur production et marketing\nGuillaume Campion\n\nDirecteur des ventes\nFrédéric Sibert\n\nDirecteur financier\nAlex Paraschiv\n\nChef de produit\nMarine Fradet\nMarie-Anne Denis\n\nResponsable des ventes\nGary Kashefska\nOvidiu Husarencu\n\n"Prodiges" marketing \n et communauté\nDiana Tuica\nStefanita Mototolea\nMelania Lupu\nRaluca Mindrescu\n\nGourou Android\nFlorian Gheorghe\n\nAssistants des ventes\nCristina Radulescu\nOctavian Ciulea\nIuliana Manole\nAndreea Chifu\n\n</string>
+#
+<key>CREDITS_AMA</key>
+<string>Équipe de développement d'outils \n et de test Android AMA\n\nDirecteur du studio\nAlex Paraschiv\n\nResponsable du studio\nFlorian Gheorghe\n\nTesteur en chef\nMarian Dinca\n\nTesteurs Android\nBogdan Radu\nAlin Deminoiu\nAndrei Filip\n\nDéveloppeurs d'outils Android\nAndrei Urucu\nStefan Ivanovici\n\nNos "mamans" des RH ;-)\nLeila Circiumaru\nAdriana Tudora\n\n</string>
+#
+<key>CREDITS_THANKS</key>
+<string>Analyste licences senior\nMatt Marcheschi\n\nManager senior licences\ninternationales\nSandrine Mainemare\n\nManager licences\ninternationales\nFrançois Denoeux\n\nDirecteur commercial et\nlicences\ninternationales\nAnne-Sophie Foster\n\nCoordinateur commercial\net licences\ninternationales\nCamille Boyreau\n\nDirecteur international\nlicences musicales \nDidier Lord\n\nManager licences musicales\nJérémy Bléchet\n\nCoordinateur licences musicales \nNikolaos Bardanis\n\n\n\n\nMerci d'avoir joué !\n\n Rejoignez-nous sur\nFacebook :\nwww.facebook.com/PuneStudio\n\n\n\n</string>
+#
+<key>LITE_TEXT</key>
+<string>Terminez les 14 niveaux pour sauver la princesse.Affrontez les gardes redoutables et Jaffar le maléfique.Mettez vos talents à l'épreuve avec les modes supplémentaires.Progressez pour dévoiler d'obscurs secrets.Partagez vos aventures avec vos amis sur Facebook. Débloquez des succès pour prouver vos capacités.Gagnez votre place au classement et entrez dans l'histoire !Votre destinée vous attend… Vous êtes le seul espoir de la princesse.</string>
+#
+<key>RATE_1</key>
+<string>Évaluer</string>
+#
+<key>RATE_2</key>
+<string>Plus tard</string>
+#
+<key>RATE_3</key>
+<string>Non merci</string>
+#
+<key>RATE_4</key>
+<string>Si vous aimez jouer à %s, auriez-vous quelques instants pour l'évaluer ? Cela ne prendra qu'une minute. Merci de votre aide !</string>
+#
+<key>PROMO_MORE_GAMES</key>
+<string>PLUS DE JEUX</string>
+#
+<key>PROMO_NEWS</key>
+<string>NEWS</string>
+#
+<key>MENU_EXTRAS</key>
+<string>EXTRAS</string>
+#
+<key>MENU_STORE</key>
+<string>BOUTIQUE</string>
+#
+<key>MENU_LIVES</key>
+<string>VIES</string>
+#
+<key>MENU_ART</key>
+<string>GALERIE</string>
+#
+<key>MENU_GUIDE_ON</key>
+<string>GUIDE : AVEC</string>
+#
+<key>MENU_GUIDE_OFF</key>
+<string>GUIDE : SANS</string>
+#
+<key>MENU_MAP</key>
+<string>CARTE</string>
+#
+<key>MENU_REVIVE</key>
+<string>RANIMER AVEC 1 VIE</string>
+#
+<key>MENU_REVIVE_B</key>
+<string>RANIMER AVEC 1</string>
+#
+<key>MENU_MORE_LIVES</key>
+<string>OBTENIR PLUS DE VIES</string>
+#
+<key>GET_LIVES_1</key>
+<string>%d vies pour 0,79 Euros</string>
+#
+<key>GET_LIVES_2</key>
+<string>%d vies pour 3,99 Euros</string>
+#
+<key>GET_LIVES_3</key>
+<string>%d vies pour 7,99 Euros</string>
+#
+<key>GET_LIVES_4</key>
+<string>%d vies pour 15,99 Euros</string>
+#
+<key>GET_LIVES_5</key>
+<string>%d vies pour 39,99 Euros</string>
+#
+<key>GET_LIVES_6</key>
+<string>%d vies pour 79,99 Euros</string>
+#
+<key>GET_LIVES_1_B</key>
+<string>pour 0,79 Euros</string>
+#
+<key>GET_LIVES_2_B</key>
+<string>pour 3,99 Euros</string>
+#
+<key>GET_LIVES_3_B</key>
+<string>pour 7,99 Euros</string>
+#
+<key>GET_LIVES_4_B</key>
+<string>pour 15,99 Euros</string>
+#
+<key>GET_LIVES_5_B</key>
+<string>pour 39,99 Euros</string>
+#
+<key>GET_LIVES_6_B</key>
+<string>pour 79,99 Euros</string>
+#
+<key>LIVES_MOST_POPULAR</key>
+<string>HIT DU MOMENT!</string>
+#
+<key>LIVES_BEST_VALUE</key>
+<string>SUPER OFFRE !</string>
+#
+<key>LIVES_EXTRA</key>
+<string>EN PLUS</string>
+#
+<key>LIVES_INFO</key>
+<string>Utilisez une vie pour ranimer le Prince</string>
+#
+<key>LIFE_EARNED</key>
+<string>Vous avez gagné 1 vie</string>
+#
+<key>LIFE_EARNED_B</key>
+<string>Vous avez gagné 1</string>
+#
+<key>CONTROLS_JOYSTICK</key>
+<string>OPTION A : JOYSTICK</string>
+#
+<key>CONTROLS_BUTTONS</key>
+<string>OPTION B : TOUCHES</string>
+#
+<key>CONTROLS_SLIDER</key>
+<string>OPTION C : CURSEUR</string>
+#
+<key>CONTROLS_CUSTOMIZE</key>
+<string>MODIFIER COMMANDES</string>
+#
+<key>CONTROLS_MOVEMENT</key>
+<string>DÉPLACEMENT</string>
+#
+<key>CONTROLS_WALK</key>
+<string>MAINTENIR POUR \nAVANCER DOUCEMENT</string>
+#
+<key>TUTORIAL_1</key>
+<string>Utiliser # pour avancer.</string>
+#
+<key>TUTORIAL_2</key>
+<string>Maintenir # pour avancer doucement.</string>
+#
+<key>ART_PREVIEW</key>
+<string>APERÇU</string>
+#
+<key>ART_BUY_2</key>
+<string>SEULEMENT 1,59 Euros</string>
+#
+<key>ART_BUY_3</key>
+<string>SEULEMENT 2,39 Euros</string>
+#
+<key>ART_INFO</key>
+<string>Illustrations tirées d'anciens titres.</string>
+#
+<key>ART_BOOK_1</key>
+<string>Les Sables du temps</string>
+#
+<key>ART_BOOK_2</key>
+<string>L'Âme du guerrier</string>
+#
+<key>ART_BOOK_3</key>
+<string>Les Deux Royaumes</string>
+#
+<key>ART_BOOK_4</key>
+<string>Prince of Persia (2008)</string>
+#
+<key>ART_BOOK_5</key>
+<string>Les Sables oubliés</string>
+#
+<key>ART_BOOK_0</key>
+<string>Bande-annonce</string>
+#
+<key>UPDATE_WHATS_NEW</key>
+<string>NOUVEAUTÉS</string>
+#
+<key>UPDATE_WHATS_NEW_BODY</key>
+<string>NOUVEAUX CONTRÔLES \nChoisissez 3 façons de contrôler le Prince \n \nPOSSIBILITE DE RESSUCITER: \nMarre de mourrir? Utiliser une vie pour sauver le Prince. \n \nCARTE: \nBesoin d’aide? Utilisez la carte pour vous repérer.</string>
+#
+<key>BUTTON_BUY</key>
+<string>ACHETER</string>
+#
+<key>BUTTON_GET_MORE</key>
+<string>OBTENIR</string>
+#
+<key>BUTTON_GET</key>
+<string>ACHETEZ</string>
+#
+<key>MENU_BUY_COINS</key>
+<string>ACHETER PIÈCES</string>
+#
+<key>MENU_FREE_COINS</key>
+<string>PIÈCES GRATUITES</string>
+#
+<key>STORE_COINS</key>
+<string>PIÈCES</string>
+#
+<key>STORE_LIVES</key>
+<string>VIES</string>
+#
+<key>STORE_LEVELS</key>
+<string>NIVEAUX</string>
+#
+<key>STORE_MODES</key>
+<string>MODES</string>
+#
+<key>STORE_OFFERS</key>
+<string>OFFRES</string>
+#
+<key>STORE_PURCHASED</key>
+<string>ACHETÉ(ES)</string>
+#
+<key>STORE_COINS_TITLE</key>
+<string>OBTENIR DES PIÈCES</string>
+#
+<key>STORE_COINS_PACK1</key>
+<string>%d pièces pour 0,79 €</string>
+#
+<key>STORE_COINS_PACK2</key>
+<string>%d pièces pour 3,99 €</string>
+#
+<key>STORE_COINS_PACK3</key>
+<string>%d pièces pour 7,99 €</string>
+#
+<key>STORE_COINS_PACK4</key>
+<string>%d pièces pour 15,99 €</string>
+#
+<key>STORE_COINS_PACK5</key>
+<string>%d pièces pour 39,99 €</string>
+#
+<key>STORE_COINS_PACK6</key>
+<string>%d pièces pour 79,99 €</string>
+#
+<key>STORE_COINS_CONFIRM_A</key>
+<string>sac de pièces</string>
+#
+<key>STORE_COINS_CONFIRM_B</key>
+<string>Voulez-vous acheter %d pour %s ?</string>
+#
+<key>STORE_COINS_CONFIRM</key>
+<string>Confirmer</string>
+#
+<key>STORE_COINS_CANCEL</key>
+<string>Annuler</string>
+#
+<key>STORE_LIVES_SINGLE</key>
+<string>1 vie pour %d pièces</string>
+#
+<key>STORE_LIVES_PLURAL</key>
+<string>%d vies à %d pièces</string>
+#
+<key>STORE_LIVES_CONFIRM_SINGLE</key>
+<string>1 vie à %d pièces</string>
+#
+<key>STORE_LIVES_CONFIRM_PLURAL</key>
+<string>%d vies à %d pièces</string>
+#
+<key>STORE_LEVELS_TITLE</key>
+<string>NIVEAUX</string>
+#
+<key>STORE_LEVELS_ALL</key>
+<string>TOUS NIVEAUX</string>
+#
+<key>STORE_LEVELS_ALL_FEEDBACK</key>
+<string>Achetez tous les niveaux en mode NORMAL.</string>
+#
+<key>STORE_SAVE</key>
+<string>SAUV.</string>
+#
+<key>STORE_LEVELS_GET</key>
+<string>Achetez ce niveau.</string>
+#
+<key>STORE_CONFIRM_TITLE</key>
+<string>CONFIRMER</string>
+#
+<key>STORE_CONFIRM_BODY</key>
+<string>Achetez %s pour %d pièces.</string>
+#
+<key>STORE_LEVELS_PREVIOUS_FEEDBACK</key>
+<string>Achetez le niveau précédent.</string>
+#
+<key>STORE_WARNING_TITLE</key>
+<string>ATTENTION</string>
+#
+<key>STORE_X_FOR_Y</key>
+<string>%d # für ^ %d</string>
+#
+<key>STORE_WARNING_BODY</key>
+<string>Vous devez acheter le niveau précédent avant de pouvoir obtenir celui-ci.</string>
+#
+<key>LEVEL_SELECT_PURCHASED</key>
+<string>ACHETÉ(S)</string>
+#
+<key>LEVEL_SELECT_PURCHASED_ALL_FEEDBACK</key>
+<string>Terminez les niveaux précédents pour progresser.</string>
+#
+<key>LEVEL_SELECT_FREE</key>
+<string>GRATUIT</string>
+#
+<key>LEVEL_SELECT_COMPLETE_PREVIOUS</key>
+<string>Terminez les niveaux précédents.</string>
+#
+<key>STORE_MODES_TITLE</key>
+<string>MODES</string>
+#
+<key>STORE_MODES_ALL</key>
+<string>TOUS LES MODES</string>
+#
+<key>STORE_MODES_ALL_FEEDBACK</key>
+<string>Achetez les modes CHRONO et SURVIE.</string>
+#
+<key>STORE_MODES_SURVIVAL_FEEDBACK</key>
+<string>Achetez le mode SURVIE.</string>
+#
+<key>STORE_MODES_TIME_FEEDBACK</key>
+<string>Achetez le mode CHRONO.</string>
+#
+<key>STORE_OFFERS_TITLE</key>
+<string>OFFRES</string>
+#
+<key>STORE_OFFERS_SUPER_SAVER</key>
+<string>PACK INTÉGRAL</string>
+#
+<key>STORE_OFFERS_SUPER_SAVER_BODY</key>
+<string>Tous les Modes et tous les Niveaux à prix spécial.</string>
+#
+<key>STORE_OFFERS_STARTER</key>
+<string>PACK DÉMARRAGE</string>
+#
+<key>STORE_OFFERS_STARTER_BODY</key>
+<string>Tous les niveaux en mode NORMAL et 10 vies.</string>
+#
+<key>STORE_OFFERS_SURVIVAL</key>
+<string>PACK SURVIE</string>
+#
+<key>STORE_OFFERS_SURVIVAL_BODY</key>
+<string>Achetez le mode SURVIE et 5 vies.</string>
+#
+<key>STORE_OFFERS_TIME</key>
+<string>PACK CHRONO</string>
+#
+<key>STORE_OFFERS_TIME_BODY</key>
+<string>Achetez le mode CHRONO et 20 vies.</string>
+#
+<key>APPCIRCLE_TITLE</key>
+<string>PIÈCES GRATUITES</string>
+#
+<key>APPCIRCLE_DOWNLOAD_AND_EARN</key>
+<string>Téléchargez et GAGNEZ %d pièces.</string>
+#
+<key>APPCIRCLE_EARN</key>
+<string>GAGNEZ %d pièces.</string>
+#
+<key>APPCIRCLE_DOWNLOAD_NOW</key>
+<string>TÉLÉCHARGER</string>
+#
+</dict>

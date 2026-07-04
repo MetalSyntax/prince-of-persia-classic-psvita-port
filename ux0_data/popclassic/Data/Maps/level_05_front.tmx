@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="90" height="37" tilewidth="128" tileheight="128">
+ <tileset firstgid="1" name="Level_05_Texture_01" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/level_05/Level_05_Texture_01.png" trans="000000" width="2048" height="2048"/>
+ </tileset>
+ <layer name="over_layer_left_side_front" width="90" height="37">
+  <data encoding="base64" compression="zlib">
+   eJztmLFOwzAQhvMMrDxB1UdALAUqVd0qFhi7dc2WrerGyivwBkXiAYCNqRIoL8AjwMBQiVjyiV/HnR1XYJpwn2TZPl/qU/L7cmlRGIZhGIZhGIZhGEa32Sj2o6xR9J9SsT9mjaL/rGE8hnHt+yHYRrBWw3wIthquvW/aA/vdMVuj87QBm6Nv56lUxsQExjO2NhN8kEVgD75Wgs3xqvxmV7n2/WHTVsL6RdMu/XjO1uaCD/LE9sDxgM1dXxVfeu9b3iI9xTSJvny+KMJIep6wOe/7dp9JT06Tx8L6QPAlXG6fep+pbxJrWKczQ2eA3g8r1j+3iL1LxDSJOtfyBvpIOkQ9v7D9SuUax53vR8IavoMln5umnTXtlPWNfVkX33HX12wujaUYQjaKz+nH6QxzI5Kan8fF97oDz8Gb7yvYP6Zd/v5F20TxufX9Oesb+7LNHrPAWpu4CCkfS/VGan6WfgNtu9QR/PmijZ4x9zmI9LE95oG1NnERUo1AufIQbKn5mfugn2vvSswhQs9Oqh1xrvWxPWL1biwuQsrHUu2Rmp9/Q89SvUm2SvC5atqW2Xkf2wPnpL+PhLiIKuCDWk/Nz6jdqY8N987x/RF6t2qE/LHWPNkpIpmFMt4lP/P4c9xn96xT85N7Z2vf+mvwKQJ+qVTKWDtbIR9+X3N8f5TCvm3QYotpZx/4i/vs9Ed1Ja8zx0Ifi23L5vv4DcVjz6VnaYxzqf7QYttH/XL+Ij+j/rRcx+sRh6bTLvx3yGPMEXMb/aVotIt6zhFzm/yZEsc+5mMOjzFHzG1q3JRz9ZM183/gDsahetn4WbqQd/uA3ec82H3OQxfqiBx8AqTmsB8=
+  </data>
+ </layer>
+ <layer name="extra elements_1_front" width="90" height="37">
+  <data encoding="base64" compression="zlib">
+   eJztmNGNgzAMQLsKI9wIN0I3YoTOQSUG4CSU7/tA/HWak46oCTWuHYwLuSv4SSixcUwwiQ2cToZhGIZhGIZhGIbx/tQzsrEO7XCUoe+CbKxPNxyX0O+DfB1CfyNsr+GRVEjmznN7owbjblP9ofhC8cP6hrHD5+HecKDfMv73vpe+N/LbgX4/1ZfYtkb2R8GBWLgM19v7WobAvNlP+5tRhPYoa9kNceXy5trXgfKHYIyvr762Vvf+SAV8cTWZa7EdV9slNnMyxK9fKm+uhc+/xWm6TzyfgrG+vvra2tz7Iw3wxdVkrsV2XG2X2MzJGDftJ22Jsay99+vzr2TtUsR8Rr33Ed9Z7DxmrsGOxzpCpvyx8+infdaOGZv06/OvZO1SxHxG1Uqs0+a+9tE+jcc6Qqb8qeYhxSXOaeMc8xlVK7HO2xaEXYof4IfKnVhHyNS8nvxISe3fCNwT+H61cV6KNj/lxoW2RHpq/0YbMGYchu/3/PLMZGz1PLW5nyOuyQvSU/sX/hsJ8jiXXOsXs9XzzPHeq2Gt+z0/2lLrQ/uPCua+Ld9794L2u/5dcn1uuHeNTmBD8Ve5778jWX9L1qjFmUYSlyWxszjTSOKypD5bnGlScalQa+hJxblBraHH9nkeLM55sDgv4xchYKCC
+  </data>
+ </layer>
+</map>

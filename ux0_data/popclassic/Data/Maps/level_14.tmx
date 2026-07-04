@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="50" height="13" tilewidth="128" tileheight="128">
+ <tileset firstgid="1" name="Collision" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/Collision.png" width="512" height="512"/>
+  <tile id="0">
+   <properties>
+    <property name="Wall" value=""/>
+   </properties>
+  </tile>
+  <tile id="1">
+   <properties>
+    <property name="Path" value=""/>
+   </properties>
+  </tile>
+  <tile id="2">
+   <properties>
+    <property name="Loosetiles" value=""/>
+   </properties>
+  </tile>
+ </tileset>
+ <tileset firstgid="17" name="Tileset_Lvl14" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/level_14/Tileset_Lvl14.png" width="2048" height="2048"/>
+ </tileset>
+ <tileset firstgid="273" name="shadow_tileset" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/level_14/shadow_tileset.png" width="1024" height="1024"/>
+ </tileset>
+ <layer name=" Background 1" width="50" height="13">
+  <data encoding="base64" compression="zlib">
+   eJzt1LtKA1EQBuBj56UXOwUbO60keQMbX8BCwVK8gIWVl+29lqKCAUkQL6yViFGylVa6eQMtFRtLxcb/sP/AcNjdnGIhig58MGeymd1/IYmNMe8mv0Log11Yhz1YJT2rQdxil+wr8/pJmIKqc67RGsnZ1iFUEoH0M8zxAq+8TvdvvO8QHMM+nMAszDkznaPVvl5e/wCPcJAI5CzPvUWS09Y0XCQC6UvM8aHel+0/2X/xviXnmZdhJSNH09mRtm/JyXEG5+osz11VfV6OJ+bo7DCmi7pV3wMNfD4GV3AK17ABm87skvuePfaNQh3mYQFu4Fad6xmycsTMMZHD1qIyDtuwo2Z3MOi5L/TYp2e618+eliOvQr4DUVG/L5ndw1GB+/RM90Xm0N8vIkfEfVHGzKf3qaJztKv+c/ys+ms5+mHA/J4cUcr/izUMI6Y9Ob4B4ovgoQ==
+  </data>
+ </layer>
+ <layer name="Extra Elements 1" width="50" height="13">
+  <data encoding="base64" compression="zlib">
+   eJxjYBgYEEskrodiGB8feEOhPDLIopJ5RhDc0AekQdgQghtIcApFwIIEtffwyDlBcAOM7wjBDXdxqM8AYh8S7CYESDHvHRFq/gPxPyj7LxC/xaM2ioBZ0cQ4CgoiqWwesSBzkJtHLPAkQk01zV1BHzDqj8EFRv0xuMCoP+gHANAxHMg=
+  </data>
+ </layer>
+ <layer name="shadow" width="50" height="13" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJxjYCAOCDISh4kF0ozEYWEohvFHwSgYBaNgFIyCUTAKRgF9AAAb8wIt
+  </data>
+ </layer>
+ <layer name="Foreground elements" width="50" height="13" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJzjYWRg4CWA+YCYWMBDonkBaPrR+ehgAQNDAzbxh0D8CIgfA/ETIH6Kxn4GxM+J9wbJ5iWg6Ufno4MNOPxhDsSfgPgzlP8Vjf0NiL9D1REDiDVPDSq2Ek0/Oh8d4PKHOxCfAmJmYFyzADErIyobJGcKVUcMSAdiJkbc5rExQsw7BVVfgKYfnU+sPw4B8S0g/oIDg+RKgbicSH+AzPuIxzxGRoh5t6Dq0R2F1ZFE+IMYkA3E14lUm0mkeeQCSvxRTYJaTyqbN1CAGH8MBTDqj8EFRv0xuMBA+QMAbxFHmA==
+  </data>
+ </layer>
+ <layer name="Collision" width="50" height="13">
+  <data encoding="base64" compression="zlib">
+   eJxjYBhagHGgHUAlMOqPwQVw+YOJShhkPjMVzcNnDy0BIxo9VMGoPwYXGPXH4AKj/hhcgBEJDwQAALL2AG8=
+  </data>
+ </layer>
+ <objectgroup name="SpawnPoint" width="50" height="13">
+  <object name="SpawnPoint" x="4486" y="343">
+   <properties>
+    <property name="SpawnPoint" value="0"/>
+    <property name="direction" value="1"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="SnapPrinceLayer" width="50" height="13">
+  <object x="2330" y="491" width="386" height="53">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="2322" y="488" width="386" height="53">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="Enemy" width="50" height="13">
+  <object name="Jaffar" x="1498" y="510">
+   <properties>
+    <property name="Jaffar" value="0"/>
+    <property name="Level " value="18"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="game_objects" width="50" height="13">
+  <object name="Fountain" x="1920" y="371">
+   <properties>
+    <property name="Fountain" value="0"/>
+   </properties>
+  </object>
+  <object x="2527" y="549">
+   <properties>
+    <property name="LooseTile_Half" value="0"/>
+   </properties>
+  </object>
+  <object x="3823" y="422">
+   <properties>
+    <property name="IronGate" value="0"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object x="2592" y="422">
+   <properties>
+    <property name="IronGate" value="1"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object x="3680" y="509">
+   <properties>
+    <property name="yellow_button_half" value="1"/>
+   </properties>
+  </object>
+  <object x="4960" y="509">
+   <properties>
+    <property name="yellow_button_half" value="0"/>
+   </properties>
+  </object>
+  <object name="ExitTrigger" x="52" y="497">
+   <properties>
+    <property name="ExitTrigger" value=""/>
+   </properties>
+  </object>
+  <object name="LevelEntryGate" x="4475" y="358">
+   <properties>
+    <property name="LevelEntryGate" value="0"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

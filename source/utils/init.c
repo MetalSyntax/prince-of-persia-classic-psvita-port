@@ -29,10 +29,12 @@
 // Base address for the Android .so to be loaded at
 #define LOAD_ADDRESS 0x98000000
 
-extern so_module so_mod;
+so_module denshion_mod;
+so_module cocos2d_mod;
+so_module game_mod;
 
 void soloader_init_all() {
-	// Launch `app0:configurator.bin` on `-config` init param
+    // Launch `app0:configurator.bin` on `-config` init param
     sceAppUtilInit(&(SceAppUtilInitParam){}, &(SceAppUtilBootParam){});
     SceAppUtilAppEventParam eventParam;
     sceClibMemset(&eventParam, 0, sizeof(SceAppUtilAppEventParam));
@@ -61,34 +63,54 @@ void soloader_init_all() {
     }
     l_success("kubridge check passed.");
 
-    if (!file_exists(SO_PATH)) {
-        fatal_error("Looks like you haven't installed the data files for this "
-                    "port, or they are in an incorrect location. Please make "
-                    "sure that you have %s file exactly at that path.", SO_PATH);
+    char fname[256];
+
+    // Load CocosDenshion
+    sceClibPrintf("Loading libcocosdenshion\n");
+    sprintf(fname, "%slibcocosdenshion.so", DATA_PATH);
+    if (so_file_load(&denshion_mod, fname, LOAD_ADDRESS) < 0) {
+        fatal_error("Error: could not load %s.", fname);
     }
 
-    if (so_file_load(&so_mod, SO_PATH, LOAD_ADDRESS) < 0) {
-        l_fatal("SO could not be loaded.");
-        fatal_error("Error: could not load %s.", SO_PATH);
+    // Load Cocos2d
+    sceClibPrintf("Loading libcocos2d\n");
+    sprintf(fname, "%slibcocos2d.so", DATA_PATH);
+    if (so_file_load(&cocos2d_mod, fname, LOAD_ADDRESS + 0x1000000) < 0) {
+        fatal_error("Error: could not load %s.", fname);
+    }
+
+    // Load Game Logic
+    sceClibPrintf("Loading libgame_logic\n");
+    sprintf(fname, "%slibgame_logic.so", DATA_PATH);
+    if (so_file_load(&game_mod, fname, LOAD_ADDRESS + 0x2000000) < 0) {
+        fatal_error("Error: could not load %s.", fname);
     }
 
     settings_load();
     l_success("Settings loaded.");
 
-    so_relocate(&so_mod);
-    l_success("SO relocated.");
+    so_relocate(&denshion_mod);
+    so_relocate(&cocos2d_mod);
+    so_relocate(&game_mod);
+    l_success("SOs relocated.");
 
-    resolve_imports(&so_mod);
+    so_resolve(&denshion_mod, default_dynlib, sizeof(default_dynlib), 0);
+    so_resolve(&cocos2d_mod, default_dynlib, sizeof(default_dynlib), 0);
+    so_resolve(&game_mod, default_dynlib, sizeof(default_dynlib), 0);
     l_success("SO imports resolved.");
 
-    so_patch();
+    //so_patch();
     l_success("SO patched.");
 
-    so_flush_caches(&so_mod);
+    so_flush_caches(&denshion_mod);
+    so_flush_caches(&cocos2d_mod);
+    so_flush_caches(&game_mod);
     l_success("SO caches flushed.");
 
-    so_initialize(&so_mod);
-    l_success("SO initialized.");
+    so_initialize(&denshion_mod);
+    so_initialize(&cocos2d_mod);
+    so_initialize(&game_mod);
+    l_success("SOs initialized.");
 
     gl_preload();
     l_success("OpenGL preloaded.");

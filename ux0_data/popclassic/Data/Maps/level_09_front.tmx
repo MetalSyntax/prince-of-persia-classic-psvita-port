@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="80" height="31" tilewidth="128" tileheight="128">
+ <tileset firstgid="1" name="level_01_map01" tilewidth="128" tileheight="128">
+  <image source="imgs_dungeon/level_01_map01.png" width="2048" height="2048"/>
+ </tileset>
+ <tileset firstgid="257" name="level_01_map02" tilewidth="128" tileheight="128">
+  <image source="imgs_dungeon/level_01_map02.png" width="2048" height="2048"/>
+ </tileset>
+ <layer name="f_overlaping layer 1" width="80" height="31">
+  <data encoding="base64" compression="gzip">
+   H4sIAAAAAAAAC+2YS1LDMAyGVW7Q3oGDcJJ2xTl8hB6gO3oHZugmW8qGbemmO96PXYHSgpS0jGocRU4czDD+ZjSJY0tWG/u3HYBEIpFIJBK/zbHSXO2zhjFD2ATANPj5UbmMnQAU73CF9oG2RtugfVJFBwxeDZYNPjdYb1Yt/tdjdn8otDth9wtlXFe8ocJXg89YzQL1WQXNiQe8PqLd4f2E1dH77UHxrndtntCe0V4gH5PGjpcxvy7aRYu5S7Q1X4awPx7s9zZj/4mPVko+vL8xy0Fjtk/I+dIGg0j9apkJujZi9zQ/rtFu0G4hn1twD+55pG23wx4Ddg72mCFOIDw85pHS51z4//bqOo3Xe7O1vHylzK9Mr+ZoS7RXtDe0d9hfC/m6h3UG2xhsa5aF5X6Ovozjscha8FkX62+uv5vA6++c3UsaNGL98nZt7N/q7OckH0mbx45yle7uoHlyoMxP0pemTK3YdlnDWYQ9dCbU2brW2V5tPQqhfwOrLGmZNgbHJ0efttJeaC7UcUirXHt8rnVl2rg7J5xCPn6+mbF42n1in/Vh+/SUMQif/eGi5DmNMa0GhTzHlsWskwenbI10xfbSqU51k/+Adi4Rbeqo/W5da5V0DqiLa+3jORCSbmnXSCL2t5w6a2cISP+qdJbmW7co59rad+Qa83sS6WadtZPwOUv7+vvErpt/oiCLnUAAQp2pXeeHKn2OrX8hWEChWaRVVXpGezv7/E1+05LY/W19j105sfQ7JKH3k1WxOdrvKQk3PnvFxE989oqJxF/gC8RqrRnAJgAA
+  </data>
+ </layer>
+ <layer name="f_pillar" width="80" height="31">
+  <data encoding="base64" compression="gzip">
+   H4sIAAAAAAAAC+2Y7W3DIBCG0wHysUBSL5DEi+VHBkjVjJARMkI2bJGMdHp1d7xF2ISK508iwGcM5wfwatXpdDqdTucd2XyUjVUyXgscCj5viFUy3rvg5cSp4POGWCXjhX5fRLxLpblpNSdCv2+i77dKz7El77sT7TBnMRcismyn+G8D9dp/Cy2XmetKsyfvOYh2mLOYCxFZNij+OxgxPzPHYagwfmvynrIdzj3jtVHx38mIec4cB/Zd+iveGsHmH9uuJnO53IvL5p+cW81jlh89b5ZmbdwL3Yye9LyMcRHWNbKd5jGrXjop12sse6MP6Gb0pOdlrb2EdU3Kf2ejfizgNZat00cJ5lPK52OBfrewT8x5l5ZCzi36RPMaU2a5kT1L4PU5e4mlkA5An2i5yZSxvmL6FK5n9whLv0thbr+cdVRzDVN2TPjqajznb/l3+B3h+iM5LnPtEy3wfLHU/N2N+9yn8ctlaf/lnDcYrPNqzO+HUf+Yxo/ZT2rfHWv4bw6sPI7lT6P+OY0f8x5o3x1bOEsxWHkQ8/tl1L+m8WPeA+27I+vJd+e/5EEtrHUw7v9SfkO3We2983nLWOtgXOtTfkO3eT71vl+2Suo8nPIbus1qH8pxr9jptMwPgyWLNMAmAAA=
+  </data>
+ </layer>
+ <layer name="f_green_foliage" width="80" height="31">
+  <data encoding="base64" compression="gzip">
+   H4sIAAAAAAAAC+3WTwqCQBiH4ZldoDewC6gnMAvc2aLUXS3qLh7dnxAEYvg3VHwfGIRhFvIyDJ8xAABgjQ526T/AXpx11y6N+8b96++mVnetjGaDhJ9eL33f9nvnXGtKR2uxH9uIQI38lk5H7Xn063RSo4hOoyU/2l21n9K1U6FGeUunp/Ye9MOfxcwrEM1a9cw127m90axVz1yznQOwPrx/0/D+AQAAYIwKqvZG9cAmAAA=
+  </data>
+ </layer>
+</map>

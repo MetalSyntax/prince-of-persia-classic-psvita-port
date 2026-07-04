@@ -1,11 +1,6 @@
 #ifndef __FIOS_H__
 #define __FIOS_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include <stddef.h>
 #include <stdint.h>
 
 #define SCE_FIOS_FH_SIZE 80
@@ -21,9 +16,18 @@ extern "C" {
 #define SCE_FIOS_OP_STORAGE_SIZE(numOps, pathMax) SCE_FIOS_STORAGE_SIZE(numOps, SCE_FIOS_OP_SIZE + pathMax)
 #define SCE_FIOS_CHUNK_STORAGE_SIZE(numChunks) SCE_FIOS_STORAGE_SIZE(numChunks, SCE_FIOS_CHUNK_SIZE)
 
-#define SCE_FIOS_BUFFER_INITIALIZER  { 0, 0 }
+#define SCE_FIOS_BUFFER_INITIALIZER	{ 0, 0 }
 #define SCE_FIOS_PARAMS_INITIALIZER { 0, sizeof(SceFiosParams), 0, 0, 2, 1, 0, 0, 256 * 1024, 2, 0, 0, 0, 0, 0, SCE_FIOS_BUFFER_INITIALIZER, SCE_FIOS_BUFFER_INITIALIZER, SCE_FIOS_BUFFER_INITIALIZER, SCE_FIOS_BUFFER_INITIALIZER, NULL, NULL, NULL, { 66, 189, 66 }, { 0x40000, 0, 0x40000}, { 8 * 1024, 16 * 1024, 8 * 1024}}
 #define SCE_FIOS_RAM_CACHE_CONTEXT_INITIALIZER { sizeof(SceFiosRamCacheContext), 0, (64 * 1024), NULL, NULL, 0, {0, 0, 0} }
+
+typedef struct SceFiosPsarcDearchiverContext
+{
+    size_t size;
+    size_t  workBufferSize;
+    void *pWorkBuffer;
+    intptr_t flags;
+    intptr_t reserved[3];
+} SceFiosPsarcDearchiverContext;
 
 typedef enum SceFiosThreadType {
     SCE_FIOS_IO_THREAD = 0,
@@ -80,11 +84,10 @@ void sceFiosTerminate();
 
 int sceFiosIOFilterAdd(int index, void *pFilterCallback, void *pFilterContext);
 void sceFiosIOFilterCache();
+void sceFiosIOFilterPsarcDearchiver();
+int64_t sceFiosFHReadSync(void *attr, int32_t fh, void *pBuf, int64_t length);
+int64_t sceFiosFHSeek(int32_t fh, int64_t offset, int32_t whence);
 
-int fios_init(const char * path);
+int fios_init(void);
 
-#ifdef __cplusplus
-};
 #endif
-
-#endif // __FIOS_H__

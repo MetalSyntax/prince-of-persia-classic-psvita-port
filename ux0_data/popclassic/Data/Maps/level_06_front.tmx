@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="70" height="25" tilewidth="128" tileheight="128">
+ <tileset firstgid="1" name="Level_06_Texture_01" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/level_06/Level_06_Texture_01.png" trans="000000" width="2048" height="2048"/>
+ </tileset>
+ <layer name="over_layer_left_side_front" width="70" height="25">
+  <data encoding="base64" compression="zlib">
+   eJztVj1PwzAQtdKxTJ1Z2n/Qrkz9YIiYUsEASAzdKjYW1C10Y+t/YGdhR11YURZU8W+wid1cL3e1nRQIkp84Pfvu/Oy8qA5CBAQEBAQE/D1uNMdMfSRjg5hDjHo3xHyk+05lTABf5JFOUO3Ncv4nsO8h48Tiy5RhCjHTM0Vj03eOmMp97NlP4UXwZ6eQfv/Zcab5UsYVUZ8R/MxoGw3co+fbsenr6FynkCjlZmI/oB7Go4xPHcc6t3L05VrznKnfEfyKtNdIA/akxXxbm4M81Ob2WwseRs8gRTWDSEY3j52zc7jVvCBq9zKWemz4QcY70s6QxhL0rIr5dv0C5KG2qQtUywSPJTr7CtUMlC/9PHbOzkF52BO0j5THEbPGNde2nIfas858rVnpDvMoPScF5eFA0D5SHkfMGtdcZDkPtWedeaa5Jfx8GRZc6m8TWhGzxjXn4ovP+cFeO/vi9WNP3Sq+JHqcWDyg+lx8SdAaFyRoX2q9j+4+X6h3p7wae+pAuNwvTYDNF+yx+l/wyFMHa9apHwrwm9AF3Ms5tflCgXrn1G+GQlN8gd+EPuBBziVfoI8tRpPLu8D23HW0fQCfewhYEGPF0EfqHqkL2/3SFGBfXO+JqmjKvWpD8IVG8IUG9sH1u1IVv3Wv1gX24b+8z5/GF4I7nSI=
+  </data>
+ </layer>
+</map>

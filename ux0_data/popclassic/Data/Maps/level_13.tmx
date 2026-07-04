@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="50" height="19" tilewidth="128" tileheight="128">
+ <tileset firstgid="1" name="Tileset_Lvl13" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/level_13/Tileset_Lvl13.png" width="2048" height="2048"/>
+ </tileset>
+ <tileset firstgid="257" name="Collision" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/Collision.png" width="512" height="512"/>
+  <tile id="0">
+   <properties>
+    <property name="Wall" value=""/>
+   </properties>
+  </tile>
+  <tile id="1">
+   <properties>
+    <property name="Path" value=""/>
+   </properties>
+  </tile>
+  <tile id="2">
+   <properties>
+    <property name="Loosetiles" value=""/>
+   </properties>
+  </tile>
+  <tile id="3">
+   <properties>
+    <property name="LPath" value=""/>
+   </properties>
+  </tile>
+  <tile id="4">
+   <properties>
+    <property name="HalfWall" value=""/>
+   </properties>
+  </tile>
+ </tileset>
+ <tileset firstgid="273" name="shadow_tileset" tilewidth="128" tileheight="128">
+  <image source="imgs_palace/level_14/shadow_tileset.png" width="1024" height="1024"/>
+ </tileset>
+ <layer name="background 2" width="50" height="19">
+  <data encoding="base64" compression="zlib">
+   eJztlb9Lw1AQxw+d1NHJH5ujY8HFyQqlcydXK4g46KCuDlH8bScNUrVLof5oHTqou3+Z30fuyPXapAmmtoIPPryk3Hu5z73mskJE+QiK6noV3IA7cGmoAp/jlnjeNXOR1xLH5ynbsQCuwDXn6RgDB6ANmkwDPIFncG94VXEz7HTIe8nc5rUvHN8YgMcDeFQeXxTU1c1l8AGm+f7YUFZInNvjVs2+2kvHZTnqoAXeKKypY4JzKIFP9q1wbhXOTSiZOOsh9bFxWY516q7pBgXnYT1qnE9tBD1KBvcMd0ZyHp7JT5D/i/XIJfTI/YLHEYXn0cvDNy5b4BRsU9jXrEfexE2CKQp7oBtVc70JTlJ4eBR9Hrp+O/xcmYUzcA4u1G8VM/smbhbMgXnq7GP6ukDBu5rUQ7vo89DfD3dve6nUWtdQPGpm7hW3SJ19LIqkHp7xqHMt1ijsXwXq7GcNzkW+KVLDZgw6bpw99HvTCy+lh6x7p+4eZtHfiST1jFqftYde41H8vra/9ssjav0eWB6gR9I8fuKhz7xfbFKPNJ5ZeaRhWB6jOv49RmvE9Zt9+tsecf1mWOMbFMX3eg==
+  </data>
+ </layer>
+ <layer name="extra elements 1" width="50" height="19">
+  <data encoding="base64" compression="zlib">
+   eJxjYMAPJgLxJCj7HAG16GAPieqpBRQhuAFZbCEQL4Ky7+HQ9xaH+BnqOItkYAjBDQNk/YAA5PSGCyhBcAPtXUM+WEiEGiMIbqCxU0bBCADYyryhkE/QAbYyD1s+4aGfkzAAqJ54R0DNeyLNGkh/UBMMF39YDbQDRsEoGAWjYBRQBAA5sRIM
+  </data>
+ </layer>
+ <layer name="shadow" width="50" height="19" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJyTZmRgkCYCWwAxISCFpF4YjQZhUagZQLpBmgjzRgEESOEIfykccTUKaAvkiMwPo4A+gJT4QM8zuPQRq24UYAJYfEiNht8oGAWjYBSMglEwCugIACyfBsg=
+  </data>
+ </layer>
+ <layer name="over_layer_left_side" width="40" height="19" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJztlMEJwzAMRb1IR8govXShZoNmBI3gc2+51JBZMkRtKoMqIlm2WzClD4xI9C2+jC3nnDsX1sPZKNWhul/mhHGN6xrXzP5TdszPRHfEivm9oKthiaVur6hqFhJ7dZzUTz4j3hvgJyj7kwZI7NVx6Bnx3iz+fNR4Ent1HOoBWG8Wf9Z33jIPEh49HPVGc9/k3rivpd9aprg29/4ORiJgtMwKDWluTUrOUiP7A8Nd15DmVlBylhrZX+9dB2FuBSVnqXFp9GOpnUj+rDOtdvbVAIq/EYC/vy6kuzOKP4lPvT+JJ/k+a2w=
+  </data>
+ </layer>
+ <layer name="pillar_front" width="40" height="19" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJxjYMAN3KG0Kx41yACfOpBZvlBMrHmEQDiUDiVSPT514UhsYs3DBWD+S4fSqUTqw6cuHYlNrHm4AKX+ozUwHWgHEADDKfwc0NiMFKqDAVEgFsMhR0r4BeBgk6sOBlTxyMHCj5jybyYONrnqYABfHoeFHzHlXwIONrnqiAEwtxNT/hXgYJOrbhSMglEwCkYBBAAAznMS3g==
+  </data>
+ </layer>
+ <layer name="Collision" width="50" height="19">
+  <data encoding="base64" compression="zlib">
+   eJztleEKwCAIhHN7/3fer5gNZjdMd4EfiERSeYa2VrBzyO27nTKu38w6E4mLQGT0aPxsDz3vC5auO+WB3Dd7nzZv3CrEUQ8mnvXI0m81uh4ZeHqgRbb2UfcJoE+fJ+hMsTT+8896e2h2D456h675znmwUHlwUXlwwdJvNBclBQEu
+  </data>
+ </layer>
+ <objectgroup name="SnapPrinceLayer" width="50" height="19">
+  <object name="LE" x="666" y="226" width="388" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="663" y="486" width="388" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="662" y="745" width="388" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="661" y="225" width="388" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="666" y="996" width="388" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1171" y="228" width="388" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="2468" y="228" width="388" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3756" y="226" width="388" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3736" y="1252" width="388" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3866" y="996" width="388" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="3104" y="228" width="388" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1818" y="1250" width="388" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1818" y="1250" width="388" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1172" y="228" width="388" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1818" y="1250" width="388" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+  <object x="1682" y="1252" width="388" height="54">
+   <properties>
+    <property name="RightEnd" value=""/>
+   </properties>
+  </object>
+  <object x="403" y="229" width="388" height="54">
+   <properties>
+    <property name="LeftEnd" value=""/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="game_objects" width="50" height="19">
+  <object name="LevelUpGate" x="251" y="358">
+   <properties>
+    <property name="LevelUpGate" value="0"/>
+   </properties>
+  </object>
+  <object x="3294" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Half" value="11"/>
+   </properties>
+  </object>
+  <object x="3166" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Full" value="10"/>
+   </properties>
+  </object>
+  <object x="3038" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Full" value="9"/>
+   </properties>
+  </object>
+  <object x="2910" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Full" value="8"/>
+   </properties>
+  </object>
+  <object x="2782" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Full" value="7"/>
+   </properties>
+  </object>
+  <object x="2654" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Full" value="6"/>
+   </properties>
+  </object>
+  <object x="2014" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Half" value="14"/>
+   </properties>
+  </object>
+  <object x="1886" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Full" value="13"/>
+   </properties>
+  </object>
+  <object x="1758" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Full" value="3"/>
+   </properties>
+  </object>
+  <object x="1630" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Full" value="2"/>
+   </properties>
+  </object>
+  <object x="1502" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Full" value="1"/>
+   </properties>
+  </object>
+  <object x="1374" y="805">
+   <properties>
+    <property name="LooseTile_Auto_Full" value="0"/>
+   </properties>
+  </object>
+  <object x="1886" y="1317">
+   <properties>
+    <property name="LooseTile_Full" value="4"/>
+   </properties>
+  </object>
+  <object x="2014" y="1317">
+   <properties>
+    <property name="LooseTile_Half" value="5"/>
+   </properties>
+  </object>
+  <object x="1374" y="293">
+   <properties>
+    <property name="LooseTile_Full" value="12"/>
+   </properties>
+  </object>
+  <object x="4975" y="934">
+   <properties>
+    <property name="IronGate" value="0"/>
+    <property name="auto_close" value="1"/>
+   </properties>
+  </object>
+  <object name="ExitTrigger" x="198" y="299" width="123" height="177">
+   <properties>
+    <property name="ExitTrigger" value=""/>
+   </properties>
+  </object>
+  <object name="LooseTile_Trigger" x="3623" y="1208">
+   <properties>
+    <property name="LooseTile_Trigger" value="0"/>
+   </properties>
+  </object>
+  <object name="LooseTile_Trigger" x="2375" y="1226">
+   <properties>
+    <property name="LooseTile_Trigger" value="1"/>
+   </properties>
+  </object>
+  <object name="CP" x="1004" y="176">
+   <properties>
+    <property name="CheckPoint" value="0"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="SpawnPoint" width="50" height="19">
+  <object name="SpawnPoint" x="4692" y="906">
+   <properties>
+    <property name="SpawnPoint" value="0"/>
+    <property name="direction" value="1"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="Enemy" width="50" height="19">
+  <object name="Jaffar" x="2135" y="247">
+   <properties>
+    <property name="CallGateKeeper" value="3"/>
+    <property name="Jaffar" value="0"/>
+    <property name="Level" value="17"/>
+   </properties>
+  </object>
+  <object name="gk" x="2007" y="247">
+   <properties>
+    <property name="GateID" value="99"/>
+    <property name="GateKeeper" value="0"/>
+    <property name="Level" value="16"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup name="Flametracker" width="50" height="19">
+  <object name="TorchLight" x="158" y="320">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="352" y="316">
+   <properties>
+    <property name="Torch" value="1"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1140" y="91">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+  <object name="TorchLight" x="1908" y="475">
+   <properties>
+    <property name="Torch" value="0"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

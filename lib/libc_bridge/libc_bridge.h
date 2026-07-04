@@ -1,10 +1,6 @@
 #ifndef __SCE_LIBC_BRIDGE_H__
 #define __SCE_LIBC_BRIDGE_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdio.h>
 #include <setjmp.h>
 
@@ -44,32 +40,15 @@ char *sceLibcBridge_fgets(char * s, int n, FILE * stream);
 int sceLibcBridge_fputs(const char *s, FILE * stream);
 int sceLibcBridge_fscanf(FILE * stream, const char * format, ...);
 int sceLibcBridge_fsetpos(FILE *stream, const fpos_t *pos);
-int sceLibcBridge_fwide(FILE *stream, int mode);
 
 int sceLibcBridge_ungetc(int c, FILE *stream);
 int sceLibcBridge_getc(FILE *stream);
 
 int sceLibcBridge_fprintf( FILE * stream, const char * format, ... );
 int sceLibcBridge_fputc(int ch, FILE *stream);
+int sceLibcBridge_fgetc(FILE *stream);
 
 int sceLibcBridge_setjmp(jmp_buf env);
 void sceLibcBridge_longjmp(jmp_buf env, int val);
 
-FILE * sceLibcBridge_fdopen(int fd, const char *mode);
-int sceLibcBridge_fileno(FILE *stream);
-int sceLibcBridge_fgetc(FILE *stream);
-FILE * sceLibcBridge_freopen(const char * filename, const char * mode, FILE * stream);
-int sceLibcBridge_putc(int c, FILE *stream);
-int sceLibcBridge_putchar(int c);
-int sceLibcBridge_puts(const char *s);
-wint_t sceLibcBridge_putwc(wchar_t c, FILE * stream);
-int sceLibcBridge_setvbuf(FILE * stream, char * buf, int mode, size_t size);
-wint_t sceLibcBridge_getwc(FILE *stream);
-wint_t sceLibcBridge_ungetwc(wint_t c, FILE *stream);
-int sceLibcBridge_vfprintf(FILE * stream, const char * format, va_list args);
-
-#ifdef __cplusplus
-};
 #endif
-
-#endif // __SCE_LIBC_BRIDGE_H__

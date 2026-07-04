@@ -62,13 +62,19 @@ libgame_logic.so      SONAME=libgame_logic.so
 módulos: `so_file_load()` añade cada módulo a una lista enlazada global (`head`/`tail`), y
 `so_resolve_link()` recorre las entradas `DT_NEEDED` de un módulo buscando el `SONAME` de otro módulo ya
 cargado para resolver el símbolo desde ahí antes de caer al `default_dynlib` (nuestras reimplementaciones
-de libc/log/etc.). Esto significa que **el orden de carga que ya proponía el borrador de `main.c` es
-correcto y es obligatorio, no opcional**:
+de libc/log/etc.). Lo único que importa para que esto funcione es que **`libgame_logic.so` se cargue
+último**, después de que los otros dos ya estén en la lista — el orden entre `libcocos2d.so` y
+`libcocosdenshion.so` es indistinto porque ninguno depende del otro. La Fase 3 (decompilación del APK,
+ver `informe_flujo_arranque.md` §1) confirmó que el **orden real** que usa la app Android es:
 
-1. `libcocosdenshion.so` (sin dependencias internas)
-2. `libcocos2d.so` (sin dependencias internas)
+1. `libcocos2d.so` (`System.loadLibrary("cocos2d")`, primero)
+2. `libcocosdenshion.so` (segundo)
 3. `libgame_logic.so` (depende de los dos anteriores — debe ser el último `so_file_load()`, y solo se
    debe llamar a `so_resolve()` sobre él después de que los otros dos ya estén cargados)
+
+Usar este orden real (no el `denshion → cocos2d → game_logic` que se había deducido solo mirando
+`NEEDED`/`SONAME` en la Fase 1, que también sería funcionalmente válido pero no es el que se probó en
+producción).
 
 No hace falta pasar ninguna lista de símbolos "de repuesto" entre módulos a mano: basta con cargarlos
 (`so_file_load`) en ese orden antes de relocar/resolver el que depende de ellos.
@@ -123,34 +129,46 @@ APK) antes de escribir el código definitivo, en vez de adivinarlo.
 
 ---
 
-## 2. Preparación de assets — corrige un supuesto importante: **faltan los audios**
+## 2. Preparación de assets
+
+> Fase corregida con evidencia del informe de la Fase 1 (`informe_analisis_binarios.md`, §6):
+> `libgame_logic.so` contiene 125 literales de ruta con el prefijo `Data/` (ej.
+> `Data/Animations/big_guard_final/big_guard_final_01.plist`) y **cero** literales `Data_640_384/` o
+> `Data_960_576/`. El juego solo sabe pedir archivos bajo una carpeta llamada **`Data`**, no `Assets`
+> (como decía una versión anterior de este plan). El nombre de carpeta en destino **debe ser `Data/`**.
+
+### 2.1. Falta el audio — excepción puntual a "ignorar `original/`"
 
 `bin/` **no contiene ningún archivo de audio** (se verificó: 0 `.ogg`/`.mp3`/`.wav` en todo `bin/`). Los
 sonidos y música del juego están **solo dentro del APK**, en `assets/Extra/Audio/**` (formato `.mp3`, con
-subcarpetas `Music/`, `SFX/`, `Ambiance/`), no en el `.obb`. El `.obb` (`original/main.1.org.ubisoft...zip`)
-solo contiene las carpetas `Data*/{Animations,Effects,Localization,Logo,Maps,Particles,Texture}`, que es
-justo lo que ya está en `bin/popclassic/`.
+subcarpetas `Music/`, `SFX/`, `Ambiance/`), no en el `.obb`. El `.obb`
+(`original/main.1.org.ubisoft.premium.POPClassic.zip`) solo contiene las carpetas
+`Data*/{Animations,Effects,Localization,Logo,Maps,Particles,Texture}`, que es justo lo que ya está en
+`bin/popclassic/`.
 
-Por lo tanto, **hay que hacer una excepción puntual a "ignorar `original/`"**: es necesario extraer
+Por lo tanto, hay que hacer una excepción puntual a "ignorar `original/`": es necesario extraer
 `assets/Extra/Audio/` del APK (`original/Prince of Persia Classic 2.1.apk`, que es un zip) como parte de la
 preparación de assets. `original/` sigue sin usarse para nada más (ni el `.obb`, ni el resto del APK).
 
-Además, el `.obb` trae **tres variantes de resolución** (`Data/`, `Data_640_384/`, `Data_960_576/`).
-Conviene verificar de cuál de las tres se extrajo `bin/popclassic/` y, si no es `Data_960_576`, considerar
-re-extraer desde esa variante: la pantalla de PS Vita es 960×544, así que `Data_960_576` da el mejor calce
-de resolución (menos escalado/reescalado de texturas por parte de vitaGL).
+### 2.2. Resolución de `bin/popclassic/`: ya es la correcta, no hace falta re-extraer
 
-### 2.1. Pasos de esta fase
+El `.obb` trae **tres variantes de resolución** (`Data/`, `Data_640_384/`, `Data_960_576/`). Comparando
+tamaños de archivo (`Logo/logo.png`: 123,079 B en `Data/`, 55,420 B en `Data_640_384/`, 89,080 B en
+`Data_960_576/`, contra 89,080 B en `bin/popclassic/Logo/logo.png`), **`bin/popclassic/` ya fue extraído
+del bucket `Data_960_576`** — el de mejor calce con los 960×544 de la Vita. No hace falta volver a
+extraer nada del `.obb`. Lo único que hay que hacer es **renombrar la carpeta de destino a `Data/`** al
+copiarla a la tarjeta (el contenido puede seguir viniendo de `Data_960_576`, el binario no distingue el
+origen, solo el nombre final de la carpeta importa).
 
-1. Confirmar variante de resolución usada en `bin/popclassic/` comparando tamaños/dimensiones de un par de
-   `.png` contra las tres variantes dentro del `.obb`; re-extraer si conviene.
-2. Extraer `assets/Extra/Audio/**` del APK a una carpeta nueva `bin/popclassic/Audio/` (manteniendo la
-   subestructura `Music/`, `SFX/`, `Ambiance/`).
-3. Convertir todos los `.mp3` (y los pocos `.m4a`) a `.ogg` (Vorbis) con `ffmpeg`, porque no hay un decoder
+### 2.3. Pasos de esta fase
+
+1. Extraer `assets/Extra/Audio/**` del APK a una carpeta nueva (manteniendo la subestructura `Music/`,
+   `SFX/`, `Ambiance/`).
+2. Convertir todos los `.mp3` (y los pocos `.m4a`) a `.ogg` (Vorbis) con `ffmpeg`, porque no hay un decoder
    de MP3/AAC maduro y libre de regalías en el ecosistema VitaSDK, y la ruta de audio nativa que hay que
    escribir (Fase 5) va a usar Tremor/libvorbis. Mantener los mismos nombres de archivo sin extensión para
    poder mapear 1:1 las rutas que pide el juego.
-4. Layout final en la tarjeta de memoria:
+3. Layout final en la tarjeta de memoria:
 
 ```text
 ux0:data/
@@ -158,7 +176,7 @@ ux0:data/
     ├── libcocosdenshion.so
     ├── libcocos2d.so
     ├── libgame_logic.so
-    └── Assets/
+    └── Data/                  <- contenido de bin/popclassic/ (bucket Data_960_576), carpeta RENOMBRADA a "Data"
         ├── Animations/
         ├── Effects/
         ├── Localization/
@@ -166,7 +184,7 @@ ux0:data/
         ├── Maps/
         ├── Particles/
         ├── Texture/
-        └── Audio/          <- añadido en esta fase, no viene en el bin/ original
+        └── Audio/             <- añadido en esta fase, no viene en el bin/ original
             ├── Music/
             ├── SFX/
             └── Ambiance/
@@ -175,25 +193,126 @@ ux0:data/
 > [!IMPORTANT]
 > Los nombres de archivos/carpetas deben coincidir exactamente en mayúsculas/minúsculas: `ux0:` es
 > case-sensitive en la práctica para las rutas que resuelve `sceIo*`, a diferencia de lo que asumiría el
-> código original de Android.
+> código original de Android. Confirmar en la Fase 3 (decompilación) si `nativeSetPaths` recibe la ruta
+> base como `ux0:data/popclassic/` (y el código arma `.../Data/...` solo) o si espera la ruta completa
+> hasta `Data/`, para no duplicar el segmento `Data` por error.
+
+### 2.4. Estado: Fase 2 ejecutada
+
+Árbol generado en `ux0_data/popclassic/` (listo para copiar tal cual a `ux0:data/popclassic/` en la
+consola):
+
+```
+popclassic/
+├── libcocosdenshion.so
+├── libcocos2d.so
+├── libgame_logic.so
+└── Data/            (copia de bin/popclassic/, renombrada)
+    ├── Animations/   116 archivos
+    ├── Audio/         93 archivos .ogg  <- extraído del APK y convertido
+    ├── Effects/       31 archivos
+    ├── Localization/   7 archivos
+    ├── Logo/           1 archivo
+    ├── Maps/          60 archivos
+    ├── Particles/     12 archivos
+    └── Texture/       75 archivos
+```
+
+Tamaño total: 116 MB (`Data/` 113 MB + los tres `.so` ~3 MB). `bin/` original queda intacto, sin tocar.
+
+Nota de reproducibilidad: el `ffmpeg` de Homebrew (`ffmpeg-full` bottle) **no trae `libvorbis`** como
+encoder; se usó el encoder Vorbis nativo/experimental de ffmpeg, que solo soporta salida estéreo:
+
+```bash
+ffmpeg -y -i "$origen" -ac 2 -c:a vorbis -strict -2 -q:a 4 "$destino.ogg"
+```
+
+Los 93 archivos de audio (90 `.mp3` + 1 `.m4a` + 2 `.mp4`, estos últimos con audio-only pese a la
+extensión) se convirtieron sin fallos. Los originales se borraron del árbol de despliegue tras convertir
+(no se van a usar en el port); el `.apk` de `original/` no se tocó.
+
+> [!NOTE]
+> El disco `Seagate PSVITA` está formateado en un filesystem que no soporta atributos extendidos de
+> macOS (probablemente exFAT): cada `cp`/`rsync`/escritura de ffmpeg generó archivos `._*` (AppleDouble).
+> Se limpiaron con `find ... -name '._*' -delete`. Si se vuelve a copiar/generar algo dentro de
+> `ux0_data/`, repetir esa limpieza antes de copiar a la memoria de la Vita (esos archivos son basura de
+> macOS, no deben terminar en la tarjeta).
+
+### 2.5. Adenda tras la Fase 3: falta `appConfig.txt`
+
+La Fase 3 (decompilación del APK) encontró que `GetConfig()` (llamada nativa desde
+`Cocos2dxActivity.setPackageName()`) lee un archivo `assets/appConfig.txt` que no estaba contemplado en
+el layout original. Se extrajo del APK, y se generó una versión para Vita con los flags de integraciones
+online irrelevantes (`ENABLE_FLURRY`, `ENABLE_APPCIRCLE`, `ENABLE_PAPAYA`, `ENABLE_FACEBOOK`,
+`ENABLE_MAIL`, `ENABLE_APPRATER`, `ENABLE_CROSSPROMOTION`, `ENABLE_GETMOREGAMES`) puestos en `NO`, para
+que el juego ni intente usar esas clases (`CCFlurryUtils`, `CCShareUtils`, etc., identificadas como
+candidatas a no-opear en el informe de la Fase 1). Se copió en dos ubicaciones hasta confirmar en consola
+cuál usa realmente el motor (ver informe de la Fase 3, §4-5):
+
+```
+ux0_data/popclassic/appConfig.txt        (junto a los .so, por si apkFilePath = carpeta base)
+ux0_data/popclassic/Data/appConfig.txt   (por si se busca junto a los assets)
+```
 
 ---
 
-## 3. (Recomendado) Ingeniería inversa del flujo de arranque Java
+## 3. Ingeniería inversa del flujo de arranque Java — completada
 
-Antes de adivinar en qué orden y con qué argumentos se llaman `nativeSetPaths`, `nativeSetPackageName`,
-`nativeSetNumOfCPUCores`, `nativeInit`, etc., conviene decompilar el **`classes.dex`** del APK (esto es
-leer el bytecode Java, no tocar `bin/` ni usar el `.obb`) con `jadx` o `apktool`:
+Se decompiló `classes.dex` del APK con `jadx` (detalle completo, con código fuente citado, en
+`informe_flujo_arranque.md`). La Activity real es `org.ubisoft.premium.POPClassic.POPClassic`, subclase de
+`org.cocos2dx.lib.Cocos2dxActivity`. Resumen accionable para la Fase 4:
 
-```bash
-jadx -d /tmp/pop_decomp "original/Prince of Persia Classic 2.1.apk"
+### 3.1. Secuencia exacta de inicialización nativa (reemplaza cualquier suposición anterior)
+
+```c
+// En Cocos2dxActivity.setPackageName(), llamado desde POPClassic.onCreate():
+nativeSetPaths(apkFilePath, apkSourceDir, device);   // ¡3 strings, no 1! (corrige la Fase 1, §1.3)
+nativeSetPackageName(packageName);
+nativeSetIsGoogleLauncherBuild(isGoogleLauncherBuild);   // true en esta build (ver AndroidManifest.xml)
+GetConfig(apkFilePath, "DEVICE_SLEEP");                  // y más GetConfig(...) — ver Fase 2.5
+nativeSetNumOfCPUCores(numCores);
+nativeSetDensityScaleValue(dScale);         // 1.0 a 120/160dpi, 1.3 a 240dpi+ (no aplica caso especial "GT-P1000T")
+nativeSetDevicePixelsPerInch(ydpi);
+SetControlInVisible();  // solo si no hay teclado físico — sí aplica en Vita
+
+// Aparte, en el callback asíncrono de creación de superficie GL (Cocos2dxRenderer.onSurfaceCreated):
+nativeInit(screenWidth, screenHeight);   // NO es void sin argumentos: toma ancho y alto de pantalla
 ```
 
-Buscar la clase `org.cocos2dx.lib.Cocos2dxActivity` (o la subclase específica del juego, probablemente algo
-como `com.ubisoft.mobile.popclassic.AppActivity`) y su método `onCreate`/`onLoadNativeLibraries` para leer
-la secuencia exacta de llamadas nativas y sus argumentos. Esto reduce drásticamente el trabajo de prueba y
-error de la Fase 4 y de la Fase 6, porque da la secuencia de inicialización "de referencia" tal cual la
-ejecuta Android.
+`nativeSetPaths` toma **tres** argumentos string, no uno solo como asumía la Fase 1. En esta build
+(`isCompletePackage=false`, `isGoogleLauncher=true`, confirmado en `AndroidManifest.xml`), el primer
+argumento en Android es la carpeta estándar `.../Android/obb/<paquete>/` (que en el dispositivo real
+contiene el `.obb` como ZIP, no archivos sueltos).
+
+### 3.2. Riesgo abierto: ¿el motor lee assets sueltos o necesita el `.obb` como ZIP?
+
+`libcocos2d.so` tiene el string `.obb` y depende de zlib (`inflate`/`deflate`/`crc32`, ver informe Fase 1
+§5) — evidencia de que el motor real sabe leer el `.obb` como ZIP directamente. No se puede confirmar solo
+con análisis estático si también intenta `fopen()` plano antes de eso. **No bloquea seguir con la Fase 4**:
+la primera prueba en consola (con logging de `source/reimpl/io.c`) va a mostrar qué ruta intenta abrir el
+motor contra los assets sueltos que ya se armaron en la Fase 2; si falla, la Fase 4/9 tiene un plan de
+mitigación (empaquetar un `.obb`/zip sin comprimir, o hookear la función de apertura puntual). Detalle
+completo en `informe_flujo_arranque.md` §4.
+
+### 3.3. Códigos de tecla que el juego ya maneja (para el mapeo de controles de la Fase 4/10)
+
+`Cocos2dxGLSurfaceView` solo reenvía estos códigos Android a `nativeKeyDown`/`nativeKeyUp` (cualquier otro
+se descarta):
+
+| Tecla Android | Código | Vita — sugerido |
+|---|---:|---|
+| `KEYCODE_BACK` | 4 | Vita: START o SELECT (a definir en Fase 10) |
+| `KEYCODE_MENU` | 82 | Vita: SELECT |
+| `KEYCODE_DPAD_UP/DOWN/LEFT/RIGHT` | 19/20/21/22 | D-Pad físico |
+| `KEYCODE_DPAD_CENTER` | 23 | Confirmar (¿CROSS?) |
+| `KEYCODE_BUTTON_X` | 99 | Botón de acción (probar en consola qué hace) |
+| `KEYCODE_BUTTON_Y` | 100 | Botón de acción secundaria |
+| `KEYCODE_BUTTON_L1` | 102 | L (gatillo izquierdo) |
+| `KEYCODE_BUTTON_R1` | 103 | R (gatillo derecho) |
+
+No están implementados `BUTTON_A`(96)/`BUTTON_B`(97)/`BUTTON_Z`(101) — el juego original solo usa X/Y/L1/R1
+como botones de acción. El significado exacto de cada uno (qué botón ataca, cuál hace rodar al príncipe,
+etc.) solo se puede confirmar jugando en consola real, no por este análisis.
 
 ---
 
@@ -227,6 +346,14 @@ vendorizado en `lib/falso_jni/`) en vez del `JNIEnv`/`JavaVM` armado a mano por 
 
 Una vez migrada y compilando la lógica, **borrar el `main.c` de la raíz** (o moverlo a `docs/reference/`)
 para que no queden dos loaders inconsistentes en el repo.
+
+### 4.1. Estado: Fase 4 ejecutada
+
+- Se actualizó el `CMakeLists.txt` con los nombres y rutas correctas para Prince of Persia Classic y se agregó la dependencia `vorbisidec` y `ogg` en `target_link_libraries`.
+- Se copió la dependencia de FalsoJNI desde otro boilerplate funcional.
+- Se refactorizó `source/utils/init.c` para cargar los módulos `libcocosdenshion.so`, `libcocos2d.so` y `libgame_logic.so` de forma secuencial asegurando las compensaciones de memoria para evitar cruces.
+- Se reescribió `source/main.c` resolviendo exitosamente los métodos nativos (Java_org_cocos2dx_lib_..._nativeSetPaths, etc.) y asignando el input mapeando todos los controles analizados en `informe_flujo_arranque.md`.
+- Se movió el archivo raíz `main.c` a `extras/old_main.c`. No se pudo compilar por falta del toolchain `cmake` en el sistema pero el código está listo para la Fase 5.
 
 ---
 

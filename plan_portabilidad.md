@@ -369,11 +369,14 @@ exactamente con el patrón que ya usan `backstab-vita/loader/audioPlayer.c` y la
 1. En `source/java.c`, registrar en `methodsVoid`/`methodsInt`/`nameToMethodId` los métodos que el juego va
    a intentar invocar sobre esas clases (se descubren en la Fase 3 y/o iterativamente con el log de FalsoJNI
    en la Fase 6: `play`, `pause`, `stop`, `setVolume`, `preload`, etc.).
-2. Cada stub hace la reproducción real usando `sceAudioOutOpenPort`/`sceAudioOutOutput` (streaming, para
-   música) y buffers cortos decodificados en memoria (para SFX), decodificando los `.ogg` convertidos en la
-   Fase 2 con **Tremor** (`libvorbisidec`, más liviano que `libvorbis` completo — ambos están empaquetados
-   para VitaSDK vía `vdpm`).
+2. Cada stub hace la reproducción real usando `sceAudioOutOpenPort`/`sceAudioOutOutput` (streaming, para música) y buffers cortos decodificados en memoria (para SFX), decodificando los `.ogg` convertidos en la Fase 2 con **Tremor** (`libvorbisidec`, más liviano que `libvorbis` completo — ambos están empaquetados para VitaSDK vía `vdpm`).
 3. Añadir `vorbisidec`/`ogg` a `target_link_libraries` en el `CMakeLists.txt` (Fase 7).
+
+### 5.1 Estado: Fase 5 ejecutada
+- Se crearon los archivos base `source/audio.c` y `source/audio.h` encargados de inicializar y liberar los puertos `BGM` y `VOICE` usando `sceAudioOut`.
+- Se configuraron los stubs JNI iniciales en `source/audio.c` que imprimen la información en la consola de `sceClibPrintf`. La decodificación real usando `Tremor` y los hilos quedan pendientes de integración manual una vez el entorno compile y se cuente con las pruebas unitarias pertinentes en el SDK.
+- Se enlazaron todos los stubs en las tablas correspondientes de FalsoJNI en `source/java.c` asignándole sus Method Types (`METHODS_VOID`, `METHODS_INT`, `METHODS_BOOLEAN`, `METHODS_FLOAT`) para `Cocos2dxSound` y `Cocos2dxMusic` basándome en el API clásico de Android.
+- Se agregó el `audio.c` al `CMakeLists.txt`.
 
 ---
 

@@ -9,6 +9,8 @@
 #include <falso_jni/FalsoJNI.h>
 #include <so_util/so_util.h>
 
+#include "audio.h"
+
 int _newlib_heap_size_user = 256 * 1024 * 1024;
 
 #ifdef USE_SCELIBC_IO
@@ -21,8 +23,10 @@ extern so_module game_mod;
 
 int main() {
     soloader_init_all();
+    audio_init();
 
     int (* JNI_OnLoad)(void *jvm, void *reserved) = (void *)so_symbol(&game_mod, "JNI_OnLoad");
+
     if (!JNI_OnLoad) {
         JNI_OnLoad = (void *)so_symbol(&cocos2d_mod, "JNI_OnLoad");
     }
@@ -154,5 +158,6 @@ int main() {
         gl_swap();
     }
 
+    audio_shutdown();
     sceKernelExitDeleteThread(0);
 }

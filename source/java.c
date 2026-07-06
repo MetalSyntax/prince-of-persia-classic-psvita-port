@@ -44,6 +44,7 @@ NameToMethodID nameToMethodId[] = {
     // Cocos2dxActivity / Cocos2dxHelper
     { 40, "getDeviceName", METHOD_TYPE_OBJECT },
     { 41, "showMessageBox", METHOD_TYPE_VOID },
+    { 42, "getCurrentLanguage", METHOD_TYPE_OBJECT },
 
     // Cocos2dxBitmap
     { 50, "createTextBitmap", METHOD_TYPE_VOID },
@@ -68,6 +69,11 @@ NameToMethodID nameToMethodId[] = {
 jobject Cocos2dxActivity_getDeviceName(jmethodID id, va_list args) {
     JNIEnv *jniEnv = &jni;
     return (*jniEnv)->NewStringUTF(jniEnv, "PSVita");
+}
+
+jobject Cocos2dxActivity_getCurrentLanguage(jmethodID id, va_list args) {
+    JNIEnv *jniEnv = &jni;
+    return (*jniEnv)->NewStringUTF(jniEnv, "en");
 }
 
 void Cocos2dxHelper_showMessageBox(jmethodID id, va_list args) {
@@ -241,6 +247,7 @@ MethodsInt methodsInt[] = {
 MethodsLong methodsLong[] = {};
 MethodsObject methodsObject[] = {
     { 40, Cocos2dxActivity_getDeviceName },
+    { 42, Cocos2dxActivity_getCurrentLanguage },
 };
 MethodsShort methodsShort[] = {};
 MethodsVoid methodsVoid[] = {

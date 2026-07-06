@@ -50,11 +50,15 @@ fi
 cmake "$SRC_DIR" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release $CMAKE_FLAGS
 make -j$(sysctl -n hw.ncpu)
 
-echo "[3/4] Exportando VPK generado..."
+echo "[3/4] Exportando archivos generados..."
 mkdir -p "$PROJECT_DIR/build"
 cp "$VPK_NAME" "$PROJECT_DIR/build/$VPK_NAME"
+if [ -f "eboot.bin" ]; then
+    cp "eboot.bin" "$PROJECT_DIR/build/eboot.bin"
+fi
 
 echo "✅ Build exitoso: $PROJECT_DIR/build/$VPK_NAME"
+echo "✅ eboot.bin exportado a: $PROJECT_DIR/build/eboot.bin"
 
 echo "[4/4] Instalación..."
 VITA3K_APP="/Applications/Vita3K.app/Contents/MacOS/Vita3K"

@@ -11,6 +11,7 @@
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/io/fcntl.h>
 #include <psp2/io/stat.h>
+#include <time.h>
 
 #include <stdbool.h>
 #include <stdatomic.h>
@@ -79,7 +80,13 @@ void _log_print(int t, const char* fmt, ...) {
     sceClibPrintf(buffer_b);
 
 #ifdef DATA_PATH
-    int fd = sceIoOpen(DATA_PATH "log.txt", SCE_O_WRONLY | SCE_O_CREAT | SCE_O_APPEND, 0777);
+    static char log_file_path[256] = {0};
+    if (log_file_path[0] == '\0') {
+        sceIoMkdir(DATA_PATH "logs", 0777);
+        time_t t = time(NULL);
+        sceClibSnprintf(log_file_path, sizeof(log_file_path), "%slogs/log_%u_.txt", DATA_PATH, (unsigned int)t);
+    }
+    int fd = sceIoOpen(log_file_path, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_APPEND, 0777);
     if (fd >= 0) {
         sceIoWrite(fd, buffer_b, sceClibStrnlen(buffer_b, sizeof(buffer_b)));
         sceIoClose(fd);

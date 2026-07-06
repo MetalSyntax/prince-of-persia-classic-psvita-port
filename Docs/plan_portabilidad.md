@@ -1217,6 +1217,50 @@ tres hipótesis descartadas (extensión NPOT, backend OpenGL) y una pista concre
 (ruta DXT de `vitaGL`). También queda listo `INSTALL_HARDWARE.md` (raíz del repo) para probar en consola
 real, donde este bug de swizzling en software no debería existir (lo hace el silicio de la GPU).
 
+### 9.19. Diagnóstico y fix del crash en hardware real (Data abort al arrancar) + reducción de `.apk`/`.obb`
+
+Confirmado en consola real (no Vita3K): el crash reportado por el usuario (`Bug_psvita_real.md`, Data abort,
+R0=0/R3=0) era por `ux0:data/popclassic/original.apk` faltante — `fopen()` devolvía `NULL` y el motor seguía
+leyendo `assets/appConfig.txt` desde ese handle nulo. Se agregó un chequeo con `file_exists()` antes de
+`nativeSetPaths` en `source/main.c` que ahora muestra un `fatal_error()` explícito en ese caso, en vez del
+crash opaco. También se agregó logging a archivo (`ux0:data/popclassic/logs/log_<unix_timestamp>_.txt`, uno
+nuevo por ejecución) en `source/utils/logger.c`, bajable por FTP con VitaShell sin plugins de red.
+
+Con el `.apk`/`.obb` reales copiados, el juego llegó al menú (con una pantalla sin texto — pendiente de
+diagnosticar, posiblemente relacionado a `getCurrentLanguage`, ya stubbeado en `java.c`). El usuario pidió no
+depender de los archivos pesados originales (48MB apk / 186MB obb). Investigando qué se lee realmente vía la
+ruta ZIP (`cocos2d::CCFileUtils::getFileData`, no vía `fopen()` suelto):
+
+- Del `.apk`: **solo `assets/appConfig.txt`** (824 bytes) — el audio que también vive en `assets/Extra/Audio/*.mp3`
+  dentro del apk ya se resuelve por otra vía (`Data/Audio/*.ogg`, agregado en la Fase 5 de reimplementación de
+  audio), confirmado porque el juego llegó al menú sin ese contenido.
+- Del `.obb`: **solo `Localization/*.loc`** (bajo los 3 prefijos de resolución `Data/`, `Data_640_384/`,
+  `Data_960_576/`, por las dudas de cuál usa realmente `s_strResourcePath` en runtime) — el resto de `Data*/`
+  ya se lee suelto vía `fopen()`.
+
+Se generaron `original.apk` (824 B) y `main.1.org.ubisoft.premium.POPClassic.obb` (~247 KB) mínimos con
+exactamente ese contenido en `ux0_data/popclassic/` (los originales quedaron como `.full` de respaldo, no se
+borraron). Si al probar aparece un `fopen(...): 0x0` para algún otro archivo dentro de esas rutas, agregar
+solo ese archivo puntual al zip mínimo correspondiente — no hace falta volver a los archivos completos.
+
+**Pendiente, no implementado todavía (decisión del usuario: primero probar los zips mínimos, esto queda para
+después de tener el juego jugable de punta a punta):** eliminar por completo la dependencia de `.apk`/`.obb`
+hookeando `cocos2d::CCFileUtils::getFileData(char const*, char const*, unsigned long*)` — exportada en
+`libcocos2d.so`, símbolo mangled `_ZN7cocos2d11CCFileUtils11getFileDataEPKcS2_Pm`, dirección confirmada con
+`nm -D` (offset `0x9f670` sobre `cocos2d_mod.text_base`) — para que siempre lea archivos sueltos vía `fopen()`
+en vez de ZIPs, igual que hacen otros ports de cocos2d-x a Vita. La infraestructura de hooking ya existe
+(`source/patch.c`, `hook_addr()` en `lib/so_util/so_util.c`) pero está deshabilitada (`so_patch()` comentado
+en `init.c:114`, y el hook de ejemplo usa un `so_mod` que no existe en este proyecto de 3 módulos — habría que
+apuntarlo a `cocos2d_mod`). **Riesgo real a resolver antes de activarlo:** `getFileData` devuelve un
+`unsigned char*` que el motor libera con su propio `delete[]` interno — si el buffer que devuelve el hook se
+reserva con un allocator distinto (p. ej. `malloc()` de nuestro runtime en vez del `operator new[]` que
+espera el `delete[]` del `.so`), no crashea al toque sino que corrompe el heap silenciosamente, con síntomas
+que aparecen después y son difícil de atar de vuelta a esto. Antes de activar el hook: confirmar con qué
+allocator hay que reservar el buffer devuelto (revisar si `libcocos2d.so` importa `_Znaj`/`_Znwj` — sí lo hace,
+ver `source/dynlib.c:63,77` — lo cual sugiere que sus `new[]` ya pasan por el runtime del loader, pero no
+confirma qué pasa con symbols de `delete` definidos localmente en el propio `.so`, `_ZdaPv`/`_ZdlPv`, vistos
+como `T` — definidos, no importados — en `nm -D` de `libcocos2d.so`).
+
 ---
 
 ## 10. Pulido final

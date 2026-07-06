@@ -75,6 +75,7 @@ int main() {
         //   at the .apk, not at a folder.
         // Data/* loose assets under DATA_PATH are unaffected either way, since
         // those are read via plain fopen(), not through either of these.
+
         if (!file_exists(DATA_PATH "original.apk")) {
             fatal_error("Error: " DATA_PATH "original.apk not found.\n"
                         "Copy the original game's .apk there (renamed to "
@@ -127,16 +128,16 @@ int main() {
                 int y = (int)((float)touch.report[i].y * 544.0f / 1088.0f);
 
                 if (lastX[i] == -1 || lastY[i] == -1) {
-                    if (nativeTouchesBegin) nativeTouchesBegin(jniEnv, NULL, touch.report[i].id, x, y);
+                    if (nativeTouchesBegin) nativeTouchesBegin(jniEnv, NULL, touch.report[i].id, (jfloat)x, (jfloat)y);
                 } else {
                     if (lastX[i] != x || lastY[i] != y)
-                        if (nativeTouchesMove) nativeTouchesMove(jniEnv, NULL, touch.report[i].id, x, y);
+                        if (nativeTouchesMove) nativeTouchesMove(jniEnv, NULL, touch.report[i].id, (jfloat)x, (jfloat)y);
                 }
                 lastX[i] = x;
                 lastY[i] = y;
             } else {
                 if (lastX[i] != -1 || lastY[i] != -1) {
-                    if (nativeTouchesEnd) nativeTouchesEnd(jniEnv, NULL, i, lastX[i], lastY[i]);
+                    if (nativeTouchesEnd) nativeTouchesEnd(jniEnv, NULL, i, (jfloat)lastX[i], (jfloat)lastY[i]);
                     lastX[i] = -1;
                     lastY[i] = -1;
                 }

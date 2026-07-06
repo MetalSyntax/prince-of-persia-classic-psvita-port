@@ -147,8 +147,11 @@ int main() {
         // dispatch is sized for CC_MAX_TOUCHES == 5, so id 5 is already one
         // past the end of its internal array -- confirmed the hard way, that
         // exact off-by-one corrupted the heap on real hardware.
-        const int JOY_BASE_X = 120, JOY_BASE_Y = 450;
-        const int JOY_LEFT_X = 60, JOY_RIGHT_X = 180;
+        const int JOY_BASE_X = 150, JOY_BASE_Y = 450;
+        // Wider offset than before -- turning (but not walking) with the
+        // D-Pad suggests the drag was crossing the joystick's small
+        // "turn/face direction" deadzone but not its "walk" threshold.
+        const int JOY_LEFT_X = 30, JOY_RIGHT_X = 270;
         const int DPAD_VIRTUAL_HWID = -2; // never a real SceTouchReport::id (0-255) or the -1 "free" sentinel
 
         int reportHwId[5], reportX[5], reportY[5], reportCount = 0;

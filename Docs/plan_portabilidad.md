@@ -1423,6 +1423,25 @@ se usa para reconocer qué dedo es cuál entre frames (buscar en qué slot ya es
 nuevo) — el valor que efectivamente se manda a `nativeTouchesBegin/Move/End` es siempre el índice del slot,
 nunca el id crudo.
 
+### 9.26. Nuevo crash (sin `.dmp` disponible) + cruceta implementada como joystick táctil sintético
+
+Con el fix de §9.25 aplicado (ya viendo `input tick` en el log, gracias a que ahora pasa por `l_debug`), el
+usuario probó de nuevo: caminar con touch sostenido funcionó bien por muchos frames (`reportNum=1` seguido),
+pero apareció otro crash — diálogo "unknown symbol ???" en `0x99165940` — sin generar `.psp2dmp` esta vez, así
+que no se pudo confirmar con `vita-parse-core`. Esa dirección **no resuelve a código real** de
+`libcocos2d.so` (cae en datos de RTTI, `typeinfo for __cxxabiv1::__pbase_type_info`), lo cual es la firma
+típica de un `PC` corrupto (salto a una dirección basura) — probablemente corrupción de memoria, pero de una
+fuente todavía no identificada (puede ser residual del mismo problema de §9.25 en un caso límite distinto, o
+algo nuevo). **Pendiente**: la próxima vez que aparezca, insistir en conseguir el `.psp2dmp` para confirmar.
+
+Aparte, se confirmó con `nm -D` sobre `libgame_logic.so` que el juego original **no tiene ningún código de
+DPAD/keycode para movimiento** — solo strings de `joystick`/`joystick_base`. El movimiento siempre fue
+exclusivamente por drag de un joystick táctil virtual; no existe ningún keycode que lo vaya a mover. Se
+implementó la cruceta izquierda/derecha como un touch sintético sobre la posición del joystick (el usuario
+confirmó que está abajo a la izquierda; coordenadas exactas puestas a ojo, `(120, 450)` base ±60px, a ajustar
+si no calzan bien en la próxima prueba) usando un slot de touch dedicado (`5`) que nunca choca con los slots
+0-4 que ya usan los dedos reales.
+
 ---
 
 ## 10. Pulido final

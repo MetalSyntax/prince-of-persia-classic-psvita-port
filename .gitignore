@@ -43,3 +43,4 @@ lib/libc_bridge/out/*
 
 # Sony firmware content (never redistribute)
 *.suprx
+logs

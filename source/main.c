@@ -8,6 +8,7 @@
 #include "utils/glutil.h"
 #include "utils/utils.h"
 #include "utils/dialog.h"
+#include "utils/logger.h"
 #include <falso_jni/FalsoJNI.h>
 #include <so_util/so_util.h>
 
@@ -112,7 +113,15 @@ int main() {
 
     int lastX[5] = {-1, -1, -1, -1, -1};
     int lastY[5] = {-1, -1, -1, -1, -1};
-    int lastId[5] = {-1, -1, -1, -1, -1};
+    // Vita hardware touch id currently occupying each slot, -1 = free. This is
+    // NOT the id we hand to the engine -- SceTouchReport::id is an 8-bit
+    // counter that keeps growing for the whole session (not a small 0-4 range
+    // like Android's pointer ids), and nativeTouchesBegin/Move/End index a
+    // fixed-size array with it internally. Passing the raw hardware id writes
+    // out of bounds and corrupts the heap (confirmed via vita-parse-core on
+    // two real crash dumps -- both showed the crash inside/downstream of
+    // nativeTouchesEnd). The slot index (0-4) is what actually gets sent.
+    int slotHwId[5] = {-1, -1, -1, -1, -1};
     uint32_t oldpad = 0;
     int frame = 0;
 
@@ -123,36 +132,47 @@ int main() {
         SceCtrlData debug_pad;
         sceCtrlPeekBufferPositive(0, &debug_pad, 1);
         if ((frame++ % 120) == 0 || touch.reportNum > 0 || debug_pad.buttons != 0) {
-            sceClibPrintf("input tick: touch.reportNum=%i pad.buttons=0x%08x\n",
-                           touch.reportNum, (unsigned int) debug_pad.buttons);
+            l_debug("input tick: touch.reportNum=%i pad.buttons=0x%08x",
+                    touch.reportNum, (unsigned int) debug_pad.buttons);
         }
 
-        for (int i = 0; i < 5; i++) {
-            if (i < touch.reportNum) {
-                int x = (int)((float)touch.report[i].x * 960.0f / 1920.0f);
-                int y = (int)((float)touch.report[i].y * 544.0f / 1088.0f);
+        int seenThisFrame[5] = {0, 0, 0, 0, 0};
 
-                if (lastX[i] == -1 || lastY[i] == -1) {
-                    if (nativeTouchesBegin) nativeTouchesBegin(jniEnv, NULL, touch.report[i].id, (jfloat)x, (jfloat)y);
-                } else {
-                    if (lastX[i] != x || lastY[i] != y)
-                        if (nativeTouchesMove) nativeTouchesMove(jniEnv, NULL, touch.report[i].id, (jfloat)x, (jfloat)y);
+        for (int r = 0; r < touch.reportNum && r < 5; r++) {
+            int hwId = touch.report[r].id;
+            int x = (int)((float)touch.report[r].x * 960.0f / 1920.0f);
+            int y = (int)((float)touch.report[r].y * 544.0f / 1088.0f);
+
+            int slot = -1;
+            for (int s = 0; s < 5; s++) {
+                if (slotHwId[s] == hwId) { slot = s; break; }
+            }
+            if (slot == -1) {
+                for (int s = 0; s < 5; s++) {
+                    if (slotHwId[s] == -1) { slot = s; break; }
                 }
-                lastX[i] = x;
-                lastY[i] = y;
-                lastId[i] = touch.report[i].id;
-            } else {
-                if (lastX[i] != -1 || lastY[i] != -1) {
-                    // Use the touch ID that was actually passed to Begin/Move,
-                    // not the loop slot index -- the touch panel's per-finger
-                    // id doesn't necessarily match its slot, so using "i" here
-                    // sends an End for the wrong id and the engine never learns
-                    // the real touch ended (it stays stuck "held" forever).
-                    if (nativeTouchesEnd) nativeTouchesEnd(jniEnv, NULL, lastId[i], (jfloat)lastX[i], (jfloat)lastY[i]);
-                    lastX[i] = -1;
-                    lastY[i] = -1;
-                    lastId[i] = -1;
-                }
+                if (slot == -1) continue; // more than 5 simultaneous touches -- drop it
+                slotHwId[slot] = hwId;
+                lastX[slot] = -1;
+                lastY[slot] = -1;
+            }
+            seenThisFrame[slot] = 1;
+
+            if (lastX[slot] == -1 || lastY[slot] == -1) {
+                if (nativeTouchesBegin) nativeTouchesBegin(jniEnv, NULL, slot, (jfloat)x, (jfloat)y);
+            } else if (lastX[slot] != x || lastY[slot] != y) {
+                if (nativeTouchesMove) nativeTouchesMove(jniEnv, NULL, slot, (jfloat)x, (jfloat)y);
+            }
+            lastX[slot] = x;
+            lastY[slot] = y;
+        }
+
+        for (int s = 0; s < 5; s++) {
+            if (slotHwId[s] != -1 && !seenThisFrame[s]) {
+                if (nativeTouchesEnd) nativeTouchesEnd(jniEnv, NULL, s, (jfloat)lastX[s], (jfloat)lastY[s]);
+                lastX[s] = -1;
+                lastY[s] = -1;
+                slotHwId[s] = -1;
             }
         }
 

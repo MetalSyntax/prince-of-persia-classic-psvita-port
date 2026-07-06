@@ -6,6 +6,8 @@
 
 #include "utils/init.h"
 #include "utils/glutil.h"
+#include "utils/utils.h"
+#include "utils/dialog.h"
 #include <falso_jni/FalsoJNI.h>
 #include <so_util/so_util.h>
 
@@ -73,6 +75,14 @@ int main() {
         //   at the .apk, not at a folder.
         // Data/* loose assets under DATA_PATH are unaffected either way, since
         // those are read via plain fopen(), not through either of these.
+        if (!file_exists(DATA_PATH "original.apk")) {
+            fatal_error("Error: " DATA_PATH "original.apk not found.\n"
+                        "Copy the original game's .apk there (renamed to "
+                        "\"original.apk\") -- see INSTALL_HARDWARE.md step 2.2. "
+                        "Without it, the game reads assets/appConfig.txt from a "
+                        "NULL handle and crashes with a Data abort instead of "
+                        "this message.");
+        }
         jstring apkFilePathStr = (*jniEnv)->NewStringUTF(jniEnv, DATA_PATH);
         jstring apkSourceDirStr = (*jniEnv)->NewStringUTF(jniEnv, DATA_PATH "original.apk");
         jstring deviceStr = (*jniEnv)->NewStringUTF(jniEnv, "PSVita");

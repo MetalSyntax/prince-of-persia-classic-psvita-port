@@ -9,6 +9,8 @@
 
 #include <psp2/kernel/clib.h>
 #include <psp2/kernel/threadmgr.h>
+#include <psp2/io/fcntl.h>
+#include <psp2/io/stat.h>
 
 #include <stdbool.h>
 #include <stdatomic.h>
@@ -75,6 +77,14 @@ void _log_print(int t, const char* fmt, ...) {
     sceClibVsnprintf(buffer_b, sizeof(buffer_b), buffer_a, list);
     va_end(list);
     sceClibPrintf(buffer_b);
+
+#ifdef DATA_PATH
+    int fd = sceIoOpen(DATA_PATH "log.txt", SCE_O_WRONLY | SCE_O_CREAT | SCE_O_APPEND, 0777);
+    if (fd >= 0) {
+        sceIoWrite(fd, buffer_b, sceClibStrnlen(buffer_b, sizeof(buffer_b)));
+        sceIoClose(fd);
+    }
+#endif
 
     if (atomic_load_explicit(&_log_mutex_ready, memory_order_relaxed)) {
         sceKernelUnlockLwMutex(&_log_mutex, 1);

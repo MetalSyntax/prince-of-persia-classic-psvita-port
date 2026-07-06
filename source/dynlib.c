@@ -132,6 +132,21 @@ void *dlsym_soloader(void * handle, const char * symbol) {
     return NULL;
 }
 
+void custom_glTexImage2D(GLenum target, GLint level, GLint internalformat,
+                          GLsizei width, GLsizei height, GLint border,
+                          GLenum format, GLenum type, const void *pixels) {
+    GLboolean w_pot = (width & (width - 1)) == 0;
+    GLboolean h_pot = (height & (height - 1)) == 0;
+    if (!w_pot || !h_pot) {
+        l_warn("glTexImage2D<%p>: NPOT texture %ix%i (level %i, fmt 0x%x)",
+               __builtin_return_address(0), width, height, level, internalformat);
+    } else {
+        l_debug("glTexImage2D<%p>: %ix%i (level %i, fmt 0x%x)",
+                __builtin_return_address(0), width, height, level, internalformat);
+    }
+    glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
+}
+
 const GLubyte* custom_glGetString(GLenum name) {
     const GLubyte *res = glGetString(name);
     if (name == 0x1F03 /* GL_EXTENSIONS */ && res != NULL) {
@@ -731,7 +746,7 @@ so_default_dynlib default_dynlib[] = {
         { "glTexGenivOES", (uintptr_t)&ret0 },
         { "glTexGenxOES", (uintptr_t)&ret0 },
         { "glTexGenxvOES", (uintptr_t)&ret0 },
-        { "glTexImage2D", (uintptr_t)&glTexImage2D },
+        { "glTexImage2D", (uintptr_t)&custom_glTexImage2D },
         { "glTexParameterf", (uintptr_t)&glTexParameterf },
         { "glTexParameterfv", (uintptr_t)&ret0 },
         { "glTexParameteri", (uintptr_t)&glTexParameteri },

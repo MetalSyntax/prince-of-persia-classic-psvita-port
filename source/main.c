@@ -136,12 +136,49 @@ int main() {
                     touch.reportNum, (unsigned int) debug_pad.buttons);
         }
 
+        SceCtrlData pad;
+        sceCtrlPeekBufferPositive(0, &pad, 1);
+        uint32_t current_pad = pad.buttons;
+
+        // Build one combined list of "virtual fingers" for this frame: the
+        // real touches plus (if held) a synthetic one for the D-Pad-driven
+        // joystick drag -- see below. They all compete for the SAME 5 engine
+        // touch slots (0-4), never a 6th one: cocos2d-x's Android touch
+        // dispatch is sized for CC_MAX_TOUCHES == 5, so id 5 is already one
+        // past the end of its internal array -- confirmed the hard way, that
+        // exact off-by-one corrupted the heap on real hardware.
+        const int JOY_BASE_X = 120, JOY_BASE_Y = 450;
+        const int JOY_LEFT_X = 60, JOY_RIGHT_X = 180;
+        const int DPAD_VIRTUAL_HWID = -2; // never a real SceTouchReport::id (0-255) or the -1 "free" sentinel
+
+        int reportHwId[5], reportX[5], reportY[5], reportCount = 0;
+        for (int r = 0; r < touch.reportNum && reportCount < 5; r++) {
+            reportHwId[reportCount] = touch.report[r].id;
+            reportX[reportCount] = (int)((float)touch.report[r].x * 960.0f / 1920.0f);
+            reportY[reportCount] = (int)((float)touch.report[r].y * 544.0f / 1088.0f);
+            reportCount++;
+        }
+
+        // The original game only ever drives movement through a touch-drag
+        // virtual joystick (confirmed: libgame_logic.so has no DPAD/keycode
+        // strings at all, only "joystick"/"joystick_base") -- KEYCODE_DPAD_*
+        // below does nothing for walking. Synthesize a drag on the on-screen
+        // joystick (bottom-left) instead.
+        int dpadWantLeft = (current_pad & SCE_CTRL_LEFT) != 0;
+        int dpadWantRight = (current_pad & SCE_CTRL_RIGHT) != 0;
+        if ((dpadWantLeft || dpadWantRight) && reportCount < 5) {
+            reportHwId[reportCount] = DPAD_VIRTUAL_HWID;
+            reportX[reportCount] = dpadWantLeft ? JOY_LEFT_X : JOY_RIGHT_X;
+            reportY[reportCount] = JOY_BASE_Y;
+            reportCount++;
+        }
+
         int seenThisFrame[5] = {0, 0, 0, 0, 0};
 
-        for (int r = 0; r < touch.reportNum && r < 5; r++) {
-            int hwId = touch.report[r].id;
-            int x = (int)((float)touch.report[r].x * 960.0f / 1920.0f);
-            int y = (int)((float)touch.report[r].y * 544.0f / 1088.0f);
+        for (int k = 0; k < reportCount; k++) {
+            int hwId = reportHwId[k];
+            int x = reportX[k];
+            int y = reportY[k];
 
             int slot = -1;
             for (int s = 0; s < 5; s++) {
@@ -173,38 +210,6 @@ int main() {
                 lastX[s] = -1;
                 lastY[s] = -1;
                 slotHwId[s] = -1;
-            }
-        }
-
-        SceCtrlData pad;
-        sceCtrlPeekBufferPositive(0, &pad, 1);
-        uint32_t current_pad = pad.buttons;
-
-        // The original game only ever drives movement through a touch-drag
-        // virtual joystick (confirmed: libgame_logic.so has no DPAD/keycode
-        // strings at all, only "joystick"/"joystick_base") -- KEYCODE_DPAD_*
-        // below does nothing for walking. Synthesize a drag on the on-screen
-        // joystick (bottom-left) instead, using a touch slot (5) that never
-        // collides with the 0-4 slots real fingers use.
-        {
-            static int dpad_touch_active = 0;
-            const int JOY_BASE_X = 120, JOY_BASE_Y = 450;
-            const int JOY_LEFT_X = 60, JOY_RIGHT_X = 180;
-            const int DPAD_TOUCH_SLOT = 5;
-
-            int wantLeft = (current_pad & SCE_CTRL_LEFT) != 0;
-            int wantRight = (current_pad & SCE_CTRL_RIGHT) != 0;
-
-            if (wantLeft || wantRight) {
-                int x = wantLeft ? JOY_LEFT_X : JOY_RIGHT_X;
-                if (!dpad_touch_active) {
-                    if (nativeTouchesBegin) nativeTouchesBegin(jniEnv, NULL, DPAD_TOUCH_SLOT, (jfloat)JOY_BASE_X, (jfloat)JOY_BASE_Y);
-                    dpad_touch_active = 1;
-                }
-                if (nativeTouchesMove) nativeTouchesMove(jniEnv, NULL, DPAD_TOUCH_SLOT, (jfloat)x, (jfloat)JOY_BASE_Y);
-            } else if (dpad_touch_active) {
-                if (nativeTouchesEnd) nativeTouchesEnd(jniEnv, NULL, DPAD_TOUCH_SLOT, (jfloat)JOY_BASE_X, (jfloat)JOY_BASE_Y);
-                dpad_touch_active = 0;
             }
         }
 

@@ -28,9 +28,9 @@ void audio_shutdown() {
 
 // Cocos2dxMusic (BGM)
 void Cocos2dxMusic_playBackgroundMusic(jmethodID id, va_list args) {
-    jobject obj = va_arg(args, jobject);
+
     jstring j_path = va_arg(args, jstring);
-    jboolean isLoop = va_arg(args, jboolean);
+    jboolean isLoop = (jboolean)va_arg(args, int);
     sceClibPrintf("Cocos2dxMusic_playBackgroundMusic(%p, %i)\n", j_path, isLoop);
     // TODO: Implement Tremor vorbis decoding and thread streaming
 }
@@ -62,13 +62,13 @@ jfloat Cocos2dxMusic_getBackgroundMusicVolume(jmethodID id, va_list args) {
 }
 
 void Cocos2dxMusic_setBackgroundMusicVolume(jmethodID id, va_list args) {
-    jobject obj = va_arg(args, jobject);
-    jfloat volume = va_arg(args, jfloat);
+
+    jfloat volume = (jfloat)va_arg(args, double);
     sceClibPrintf("Cocos2dxMusic_setBackgroundMusicVolume(%f)\n", (float)volume);
 }
 
 void Cocos2dxMusic_preloadBackgroundMusic(jmethodID id, va_list args) {
-    jobject obj = va_arg(args, jobject);
+
     jstring j_path = va_arg(args, jstring);
     sceClibPrintf("Cocos2dxMusic_preloadBackgroundMusic(%p)\n", j_path);
 }
@@ -76,19 +76,19 @@ void Cocos2dxMusic_preloadBackgroundMusic(jmethodID id, va_list args) {
 
 // Cocos2dxSound (SFX)
 jint Cocos2dxSound_playEffect(jmethodID id, va_list args) {
-    jobject obj = va_arg(args, jobject);
+
     jstring j_path = va_arg(args, jstring);
-    jboolean isLoop = va_arg(args, jboolean);
-    jfloat pitch = va_arg(args, jfloat);
-    jfloat pan = va_arg(args, jfloat);
-    jfloat gain = va_arg(args, jfloat);
+    jboolean isLoop = (jboolean)va_arg(args, int);
+    jfloat pitch = (jfloat)va_arg(args, double);
+    jfloat pan = (jfloat)va_arg(args, double);
+    jfloat gain = (jfloat)va_arg(args, double);
     sceClibPrintf("Cocos2dxSound_playEffect(%p, %i, %f, %f, %f)\n", j_path, isLoop, (float)pitch, (float)pan, (float)gain);
     // TODO: Implement Tremor vorbis decoding and output to SFX port
     return 1;
 }
 
 void Cocos2dxSound_stopEffect(jmethodID id, va_list args) {
-    jobject obj = va_arg(args, jobject);
+
     jint soundId = va_arg(args, jint);
     sceClibPrintf("Cocos2dxSound_stopEffect(%i)\n", soundId);
 }
@@ -98,13 +98,13 @@ void Cocos2dxSound_stopAllEffects(jmethodID id, va_list args) {
 }
 
 void Cocos2dxSound_pauseEffect(jmethodID id, va_list args) {
-    jobject obj = va_arg(args, jobject);
+
     jint soundId = va_arg(args, jint);
     sceClibPrintf("Cocos2dxSound_pauseEffect(%i)\n", soundId);
 }
 
 void Cocos2dxSound_resumeEffect(jmethodID id, va_list args) {
-    jobject obj = va_arg(args, jobject);
+
     jint soundId = va_arg(args, jint);
     sceClibPrintf("Cocos2dxSound_resumeEffect(%i)\n", soundId);
 }
@@ -118,14 +118,14 @@ void Cocos2dxSound_resumeAllEffects(jmethodID id, va_list args) {
 }
 
 jint Cocos2dxSound_preloadEffect(jmethodID id, va_list args) {
-    jobject obj = va_arg(args, jobject);
+
     jstring j_path = va_arg(args, jstring);
     sceClibPrintf("Cocos2dxSound_preloadEffect(%p)\n", j_path);
     return 1;
 }
 
 void Cocos2dxSound_unloadEffect(jmethodID id, va_list args) {
-    jobject obj = va_arg(args, jobject);
+
     jstring j_path = va_arg(args, jstring);
     sceClibPrintf("Cocos2dxSound_unloadEffect(%p)\n", j_path);
 }
@@ -136,7 +136,7 @@ jfloat Cocos2dxSound_getEffectsVolume(jmethodID id, va_list args) {
 }
 
 void Cocos2dxSound_setEffectsVolume(jmethodID id, va_list args) {
-    jobject obj = va_arg(args, jobject);
-    jfloat volume = va_arg(args, jfloat);
+
+    jfloat volume = (jfloat)va_arg(args, double);
     sceClibPrintf("Cocos2dxSound_setEffectsVolume(%f)\n", (float)volume);
 }

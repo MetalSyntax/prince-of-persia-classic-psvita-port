@@ -17,6 +17,20 @@
 
 extern void fatal_error(const char * fmt, ...);
 
+#ifdef EMULATOR_BUILD
+// Vita3K does not implement the kuKernelCpuUnrestrictedMemcpy NID either; under
+// the emulator all the memory we write into here is memory we allocated
+// ourselves (see the EMULATOR_BUILD path in _so_load), so a plain memcpy works.
+#define ku_memcpy(dst, src, n) memcpy((dst), (src), (n))
+// Nor does it implement kuKernelFlushCaches. Vita3K's CPU emulation always
+// reads fresh memory (no real instruction cache to keep coherent), so this is
+// a safe no-op under EMULATOR_BUILD.
+#define ku_flush_caches(addr, size) ((void)0)
+#else
+#define ku_memcpy(dst, src, n) kuKernelCpuUnrestrictedMemcpy((dst), (src), (n))
+#define ku_flush_caches(addr, size) kuKernelFlushCaches((addr), (size))
+#endif
+
 typedef struct b_enc {
     union {
         struct __attribute__((__packed__)) {
@@ -64,7 +78,7 @@ so_hook hook_thumb(uintptr_t addr, uintptr_t dst) {
     addr &= ~1;
     if (addr & 2) {
         uint16_t nop = 0xbf00;
-        kuKernelCpuUnrestrictedMemcpy((void *)addr, &nop, sizeof(nop));
+        ku_memcpy((void *)addr, &nop, sizeof(nop));
         addr += 2;
         //sceClibPrintf("THUMB UNALIGNED\n");
     }
@@ -72,8 +86,8 @@ so_hook hook_thumb(uintptr_t addr, uintptr_t dst) {
     h.addr = addr;
     h.patch_instr[0] = 0xf000f8df; // LDR PC, [PC]
     h.patch_instr[1] = dst;
-    kuKernelCpuUnrestrictedMemcpy(&h.orig_instr, (void *)addr, sizeof(h.orig_instr));
-    kuKernelCpuUnrestrictedMemcpy((void *)addr, h.patch_instr, sizeof(h.patch_instr));
+    ku_memcpy(&h.orig_instr, (void *)addr, sizeof(h.orig_instr));
+    ku_memcpy((void *)addr, h.patch_instr, sizeof(h.patch_instr));
 
     return h;
 }
@@ -87,8 +101,8 @@ so_hook hook_arm(uintptr_t addr, uintptr_t dst) {
     h.addr = addr;
     h.patch_instr[0] = 0xe51ff004; // LDR PC, [PC, #-0x4]
     h.patch_instr[1] = dst;
-    kuKernelCpuUnrestrictedMemcpy(&h.orig_instr, (void *)addr, sizeof(h.orig_instr));
-    kuKernelCpuUnrestrictedMemcpy((void *)addr, h.patch_instr, sizeof(h.patch_instr));
+    ku_memcpy(&h.orig_instr, (void *)addr, sizeof(h.orig_instr));
+    ku_memcpy((void *)addr, h.patch_instr, sizeof(h.patch_instr));
 
     return h;
 }
@@ -105,12 +119,12 @@ so_hook hook_addr(uintptr_t addr, uintptr_t dst) {
 }
 
 void so_unhook(so_hook *hook) {
-    kuKernelCpuUnrestrictedMemcpy((void *)hook->addr, hook->orig_instr, sizeof(hook->orig_instr));
-    kuKernelFlushCaches((void *)hook->addr, sizeof(hook->orig_instr));
+    ku_memcpy((void *)hook->addr, hook->orig_instr, sizeof(hook->orig_instr));
+    ku_flush_caches((void *)hook->addr, sizeof(hook->orig_instr));
 }
 
 void so_flush_caches(so_module *mod) {
-    kuKernelFlushCaches((void *)mod->text_base, mod->text_size);
+    ku_flush_caches((void *)mod->text_base, mod->text_size);
 }
 
 int _so_load(so_module *mod, SceUID so_blockid, void *so_data, uintptr_t load_addr) {
@@ -128,6 +142,38 @@ int _so_load(so_module *mod, SceUID so_blockid, void *so_data, uintptr_t load_ad
 
     mod->shstr = (char *)((uintptr_t)so_data + mod->shdr[mod->ehdr->e_shstrndx].sh_offset);
 
+#ifdef EMULATOR_BUILD
+    // Vita3K does not implement kuKernelAllocMemBlock (fixed-address allocation),
+    // which the code below normally relies on to place the patch/text/data blocks
+    // at exact, contiguous addresses (mirroring a single mmap of the whole module
+    // image, like a real ELF loader would do). Since we can't request specific
+    // addresses under Vita3K, reserve ONE big block up front sized to fit the
+    // whole image contiguously, and sub-allocate patch/text/data regions from it
+    // via pointer arithmetic instead of separate fixed-address OS allocations.
+    size_t emu_patch_size = 0;
+    uintptr_t emu_cursor = 0; // relative distance from the text segment's start
+    for (int i = 0; i < mod->ehdr->e_phnum; i++) {
+        if (mod->phdr[i].p_type != PT_LOAD)
+            continue;
+        if ((mod->phdr[i].p_flags & PF_X) == PF_X) {
+            emu_patch_size = ALIGN_MEM(PATCH_SZ, mod->phdr[i].p_align);
+            emu_cursor = ALIGN_MEM(mod->phdr[i].p_memsz, mod->phdr[i].p_align);
+        } else {
+            size_t seg_size = ALIGN_MEM(mod->phdr[i].p_memsz + mod->phdr[i].p_vaddr - emu_cursor, mod->phdr[i].p_align);
+            emu_cursor += seg_size;
+        }
+    }
+    size_t emu_total_size = ALIGN_MEM(emu_patch_size + emu_cursor, 0x1000);
+    SceUID emu_blockid = sceKernelAllocMemBlock("so_arena", SCE_KERNEL_MEMBLOCK_TYPE_USER_RX, emu_total_size, NULL);
+    if (emu_blockid < 0) {
+        res = emu_blockid;
+        goto err_free_so;
+    }
+    void *emu_arena_base;
+    sceKernelGetMemBlockBase(emu_blockid, &emu_arena_base);
+    uintptr_t emu_load_addr = (uintptr_t)emu_arena_base + emu_patch_size;
+#endif
+
     for (int i = 0; i < mod->ehdr->e_phnum; i++) {
         if (mod->phdr[i].p_type == PT_LOAD) {
             void *prog_data;
@@ -137,6 +183,15 @@ int _so_load(so_module *mod, SceUID so_blockid, void *so_data, uintptr_t load_ad
                 // Allocate arena for code patches, trampolines, etc
                 // Sits exactly under the desired allocation space
                 mod->patch_size = ALIGN_MEM(PATCH_SZ, mod->phdr[i].p_align);
+                prog_size = ALIGN_MEM(mod->phdr[i].p_memsz, mod->phdr[i].p_align);
+#ifdef EMULATOR_BUILD
+                mod->patch_blockid = emu_blockid;
+                mod->patch_base = emu_arena_base;
+                mod->patch_head = mod->patch_base;
+
+                mod->text_blockid = emu_blockid;
+                prog_data = (void *)emu_load_addr;
+#else
                 SceKernelAllocMemBlockKernelOpt opt;
                 memset(&opt, 0, sizeof(SceKernelAllocMemBlockKernelOpt));
                 opt.size = sizeof(SceKernelAllocMemBlockKernelOpt);
@@ -149,7 +204,6 @@ int _so_load(so_module *mod, SceUID so_blockid, void *so_data, uintptr_t load_ad
                 sceKernelGetMemBlockBase(mod->patch_blockid, &mod->patch_base);
                 mod->patch_head = mod->patch_base;
 
-                prog_size = ALIGN_MEM(mod->phdr[i].p_memsz, mod->phdr[i].p_align);
                 memset(&opt, 0, sizeof(SceKernelAllocMemBlockKernelOpt));
                 opt.size = sizeof(SceKernelAllocMemBlockKernelOpt);
                 opt.attr = 0x1;
@@ -159,6 +213,7 @@ int _so_load(so_module *mod, SceUID so_blockid, void *so_data, uintptr_t load_ad
                     goto err_free_so;
 
                 sceKernelGetMemBlockBase(mod->text_blockid, &prog_data);
+#endif
 
                 mod->phdr[i].p_vaddr += (Elf32_Addr)prog_data;
 
@@ -183,6 +238,10 @@ int _so_load(so_module *mod, SceUID so_blockid, void *so_data, uintptr_t load_ad
 
                 prog_size = ALIGN_MEM(mod->phdr[i].p_memsz + mod->phdr[i].p_vaddr - (data_addr - mod->text_base), mod->phdr[i].p_align);
 
+#ifdef EMULATOR_BUILD
+                mod->data_blockid[mod->n_data] = emu_blockid;
+                prog_data = (void *)data_addr;
+#else
                 SceKernelAllocMemBlockKernelOpt opt;
                 memset(&opt, 0, sizeof(SceKernelAllocMemBlockKernelOpt));
                 opt.size = sizeof(SceKernelAllocMemBlockKernelOpt);
@@ -193,6 +252,7 @@ int _so_load(so_module *mod, SceUID so_blockid, void *so_data, uintptr_t load_ad
                     goto err_free_text;
 
                 sceKernelGetMemBlockBase(mod->data_blockid[mod->n_data], &prog_data);
+#endif
                 data_addr = (uintptr_t)prog_data + prog_size;
 
                 mod->phdr[i].p_vaddr += (Elf32_Addr)mod->text_base;
@@ -204,10 +264,10 @@ int _so_load(so_module *mod, SceUID so_blockid, void *so_data, uintptr_t load_ad
 
             char *zero = malloc(prog_size - mod->phdr[i].p_filesz);
             memset(zero, 0, prog_size - mod->phdr[i].p_filesz);
-            kuKernelCpuUnrestrictedMemcpy(prog_data + mod->phdr[i].p_filesz, zero, prog_size - mod->phdr[i].p_filesz);
+            ku_memcpy(prog_data + mod->phdr[i].p_filesz, zero, prog_size - mod->phdr[i].p_filesz);
             free(zero);
 
-            kuKernelCpuUnrestrictedMemcpy((void *)mod->phdr[i].p_vaddr, (void *)((uintptr_t)so_data + mod->phdr[i].p_offset), mod->phdr[i].p_filesz);
+            ku_memcpy((void *)mod->phdr[i].p_vaddr, (void *)((uintptr_t)so_data + mod->phdr[i].p_offset), mod->phdr[i].p_filesz);
         }
     }
 
@@ -268,6 +328,16 @@ int _so_load(so_module *mod, SceUID so_blockid, void *so_data, uintptr_t load_ad
 
     return 0;
 
+#ifdef EMULATOR_BUILD
+    // patch/text/data_blockid[] all alias the single emu_blockid arena here,
+    // so only free it once instead of once per alias.
+    err_free_data:
+    err_free_text:
+    if (mod->patch_blockid >= 0)
+        sceKernelFreeMemBlock(mod->patch_blockid);
+    err_free_so:
+    sceKernelFreeMemBlock(so_blockid);
+#else
     err_free_data:
     for (int i = 0; i < mod->n_data; i++)
         sceKernelFreeMemBlock(mod->data_blockid[i]);
@@ -275,6 +345,7 @@ int _so_load(so_module *mod, SceUID so_blockid, void *so_data, uintptr_t load_ad
     sceKernelFreeMemBlock(mod->text_blockid);
     err_free_so:
     sceKernelFreeMemBlock(so_blockid);
+#endif
 
     return res;
 }
@@ -332,19 +403,19 @@ int so_relocate(so_module *mod) {
             case R_ARM_ABS32:
                 if (sym->st_shndx != SHN_UNDEF) {
                     val = *ptr + mod->text_base + sym->st_value;
-                    kuKernelCpuUnrestrictedMemcpy(ptr, &val, sizeof(uintptr_t));
+                    ku_memcpy(ptr, &val, sizeof(uintptr_t));
                 }
                 break;
             case R_ARM_RELATIVE:
                 val = *ptr + mod->text_base;
-                kuKernelCpuUnrestrictedMemcpy(ptr, &val, sizeof(uintptr_t));
+                ku_memcpy(ptr, &val, sizeof(uintptr_t));
                 break;
             case R_ARM_GLOB_DAT:
             case R_ARM_JUMP_SLOT:
             {
                 if (sym->st_shndx != SHN_UNDEF) {
                     val = mod->text_base + sym->st_value;
-                    kuKernelCpuUnrestrictedMemcpy(ptr, &val, sizeof(uintptr_t));
+                    ku_memcpy(ptr, &val, sizeof(uintptr_t));
                 }
                 break;
             }
@@ -447,10 +518,10 @@ int so_resolve(so_module *mod, so_default_dynlib *default_dynlib, int size_defau
                             // logv_debug("Resolved from dependencies: %s", mod->dynstr + sym->st_name);
                             if (type == R_ARM_ABS32) {
                                 val = *ptr + link;
-                                kuKernelCpuUnrestrictedMemcpy(ptr, &val, sizeof(uintptr_t));
+                                ku_memcpy(ptr, &val, sizeof(uintptr_t));
                             } else {
                                 val = link;
-                                kuKernelCpuUnrestrictedMemcpy(ptr, &val, sizeof(uintptr_t));
+                                ku_memcpy(ptr, &val, sizeof(uintptr_t));
                             }
                             resolved = 1;
                         }
@@ -459,7 +530,7 @@ int so_resolve(so_module *mod, so_default_dynlib *default_dynlib, int size_defau
                     for (int j = 0; j < size_default_dynlib / sizeof(so_default_dynlib); j++) {
                         if (strcmp(mod->dynstr + sym->st_name, default_dynlib[j].symbol) == 0) {
                             val = default_dynlib[j].func;
-                            kuKernelCpuUnrestrictedMemcpy(ptr, &val, sizeof(uintptr_t));
+                            ku_memcpy(ptr, &val, sizeof(uintptr_t));
                             resolved = 1;
                             break;
                         }
@@ -631,8 +702,8 @@ static void trampoline_ldm(so_module *mod, uint32_t *dst) {
     // Create sign extended relative address rel_addr
     trampoline[0] = B(dst, patch_addr).raw;
 
-    kuKernelCpuUnrestrictedMemcpy((void*)patch_addr, funct, trampoline_sz);
-    kuKernelCpuUnrestrictedMemcpy(dst, trampoline, sizeof(trampoline));
+    ku_memcpy((void*)patch_addr, funct, trampoline_sz);
+    ku_memcpy(dst, trampoline, sizeof(trampoline));
 }
 
 uintptr_t so_symbol(so_module *mod, const char *symbol) {

@@ -18,6 +18,11 @@ Thumbs.db
 # Game-specific assets and binaries (Must NOT be uploaded)
 bin/
 original/
+# Locally-staged deployment tree for testing on Vita3K/hardware -- same
+# copyrighted game assets as bin/, just laid out under the on-device path
+# (Data/, the three .so's, original.apk/.obb copies). Was accidentally
+# tracked in Fase 4 (9894b9e); untracked going forward, see git history.
+ux0_data/
 
 # Compiled objects and artifacts
 *.so
@@ -35,3 +40,6 @@ lib/libc_bridge/out/*
 *.zip
 *.obb
 *.apk
+
+# Sony firmware content (never redistribute)
+*.suprx

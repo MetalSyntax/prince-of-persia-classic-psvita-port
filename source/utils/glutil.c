@@ -37,7 +37,21 @@ void gl_preload() {
 }
 
 void gl_init() {
+    static GLboolean initialized = GL_FALSE;
+    if (initialized)
+        return;
+    initialized = GL_TRUE;
+#ifdef EMULATOR_BUILD
+    // Under Vita3K, requesting 4x MSAA here has been observed to make vitaGL's
+    // internal init retry sceGxmCreateContext a second time (which then fails
+    // with SCE_GXM_ERROR_ALREADY_INITIALIZED and crashes, since vitaGL doesn't
+    // check that return value). Disabling MSAA avoids the retry.
+    vglUseTripleBuffering(GL_FALSE);
+    vglInitExtended(0, 960, 544, 6 * 1024 * 1024, SCE_GXM_MULTISAMPLE_NONE);
+#else
+    vglUseTripleBuffering(GL_FALSE);
     vglInitExtended(0, 960, 544, 6 * 1024 * 1024, SCE_GXM_MULTISAMPLE_4X);
+#endif
 }
 
 void gl_swap() {

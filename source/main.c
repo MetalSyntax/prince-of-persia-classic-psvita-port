@@ -25,13 +25,19 @@ int main() {
     soloader_init_all();
     audio_init();
 
-    int (* JNI_OnLoad)(void *jvm, void *reserved) = (void *)so_symbol(&game_mod, "JNI_OnLoad");
+    JNIEnv *jniEnv = &jni;
 
-    if (!JNI_OnLoad) {
-        JNI_OnLoad = (void *)so_symbol(&cocos2d_mod, "JNI_OnLoad");
-    }
-    if (JNI_OnLoad) {
-        JNI_OnLoad(&jvm, NULL);
+    // Each loaded .so that exports JNI_OnLoad caches the JavaVM* it's given in
+    // its own internal global for later use (e.g. SimpleAudioEngine in
+    // libcocosdenshion.so attaches a background thread and calls
+    // (*jvm)->GetEnv(...) on it) -- so it must be called on every module that
+    // exports it, not just whichever module happens to export it first.
+    so_module *jni_onload_mods[] = { &denshion_mod, &cocos2d_mod, &game_mod };
+    for (int i = 0; i < 3; i++) {
+        int (* JNI_OnLoad)(void *jvm, void *reserved) = (void *)so_symbol(jni_onload_mods[i], "JNI_OnLoad");
+        if (JNI_OnLoad) {
+            JNI_OnLoad(&jvm, NULL);
+        }
     }
 
     // Resolve Native methods
@@ -55,10 +61,22 @@ int main() {
 
     // Initialize Cocos2d-x environment
     if (nativeSetPaths) {
-        // According to the flow analysis, the path might be just the base path without Data/
-        jstring dataPathStr = (*jniEnv)->NewStringUTF(jniEnv, DATA_PATH);
+        // Confirmed by testing (two different native codepaths, matching real
+        // Android semantics):
+        // - apkFilePath (arg 1) is treated as the *folder* that would hold the
+        //   real Android /Android/obb/<package>/ directory: the engine appends
+        //   the known obb filename to it directly (e.g. reads
+        //   <apkFilePath>/main.1.org.ubisoft.premium.POPClassic.obb as a zip)
+        //   to pull Data*/ files such as Localization/*.loc.
+        // - apkSourceDir (arg 3) is opened natively (via zlib) *directly* as a
+        //   zip/apk file, to read assets/appConfig.txt -- it must point straight
+        //   at the .apk, not at a folder.
+        // Data/* loose assets under DATA_PATH are unaffected either way, since
+        // those are read via plain fopen(), not through either of these.
+        jstring apkFilePathStr = (*jniEnv)->NewStringUTF(jniEnv, DATA_PATH);
+        jstring apkSourceDirStr = (*jniEnv)->NewStringUTF(jniEnv, DATA_PATH "original.apk");
         jstring deviceStr = (*jniEnv)->NewStringUTF(jniEnv, "PSVita");
-        nativeSetPaths(jniEnv, NULL, dataPathStr, dataPathStr, deviceStr);
+        nativeSetPaths(jniEnv, NULL, apkFilePathStr, apkSourceDirStr, deviceStr);
     }
     
     if (nativeSetPackageName) {
@@ -80,10 +98,18 @@ int main() {
     int lastX[5] = {-1, -1, -1, -1, -1};
     int lastY[5] = {-1, -1, -1, -1, -1};
     uint32_t oldpad = 0;
+    int frame = 0;
 
     while (1) {
         SceTouchData touch;
         sceTouchPeek(SCE_TOUCH_PORT_FRONT, &touch, 1);
+
+        SceCtrlData debug_pad;
+        sceCtrlPeekBufferPositive(0, &debug_pad, 1);
+        if ((frame++ % 120) == 0 || touch.reportNum > 0 || debug_pad.buttons != 0) {
+            sceClibPrintf("input tick: touch.reportNum=%i pad.buttons=0x%08x\n",
+                           touch.reportNum, (unsigned int) debug_pad.buttons);
+        }
 
         for (int i = 0; i < SCE_TOUCH_MAX_REPORT; i++) {
             if (i < touch.reportNum) {

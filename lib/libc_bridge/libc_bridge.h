@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include <setjmp.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern void *sceLibcBridge__ZdaPv;
 extern void *sceLibcBridge__ZdlPv;
 extern void *sceLibcBridge__Znaj;
@@ -50,5 +54,9 @@ int sceLibcBridge_fgetc(FILE *stream);
 
 int sceLibcBridge_setjmp(jmp_buf env);
 void sceLibcBridge_longjmp(jmp_buf env, int val);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

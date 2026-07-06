@@ -30,12 +30,43 @@
 // void stat_newlib_to_bionic(struct stat * src, stat64_bionic * dst);
 #include "reimpl/bits/_struct_converters.c"
 
+// The game reads some files (e.g. Data_960_576/Localization/*.loc) via plain
+// relative paths with no device prefix, the same way Android resolves paths
+// relative to the app's data directory. There's no real per-process cwd here
+// (chdir()/getcwd() are just passed through to newlib, unrelated to how
+// sceIo resolves paths), so relative paths must be rewritten to DATA_PATH by
+// hand before reaching fopen()/open()/stat()/opendir().
+//
+// Save data (profile, per-mode progress, etc.) is read/written against
+// Android's app-private storage path (/data/data/<package>/pop_save_*,
+// tempBuffer.txt, etc. -- baked into libgame_logic.so). That device doesn't
+// exist here ("Cannot find device for path"), and critically the game does
+// NOT handle a failed save-file open gracefully: it goes on to dereference
+// the (never-populated) profile data, which crashes with a null function
+// pointer call. So this must be redirected, not merely tolerated as missing.
+#define ANDROID_DATA_PREFIX "/data/data/org.ubisoft.premium.POPClassic/"
+
+static const char * resolve_data_path(const char * path, char * buf, size_t buf_size) {
+    if (strncmp(path, ANDROID_DATA_PREFIX, sizeof(ANDROID_DATA_PREFIX) - 1) == 0) {
+        snprintf(buf, buf_size, "%ssave/%s", DATA_PATH, path + sizeof(ANDROID_DATA_PREFIX) - 1);
+        return buf;
+    }
+    if (path[0] != '/' && strchr(path, ':') == NULL) {
+        snprintf(buf, buf_size, "%s%s", DATA_PATH, path);
+        return buf;
+    }
+    return path;
+}
+
 FILE * fopen_soloader(const char * filename, const char * mode) {
     if (strcmp(filename, "/proc/cpuinfo") == 0) {
         return fopen_soloader("app0:/cpuinfo", mode);
     } else if (strcmp(filename, "/proc/meminfo") == 0) {
         return fopen_soloader("app0:/meminfo", mode);
     }
+
+    char resolved[512];
+    filename = resolve_data_path(filename, resolved, sizeof(resolved));
 
 #ifdef USE_SCELIBC_IO
     FILE* ret = sceLibcBridge_fopen(filename, mode);
@@ -57,6 +88,9 @@ int open_soloader(const char * path, int oflag, ...) {
     } else if (strcmp(path, "/proc/meminfo") == 0) {
         return open_soloader("app0:/meminfo", oflag);
     }
+
+    char resolved[512];
+    path = resolve_data_path(path, resolved, sizeof(resolved));
 
     mode_t mode = 0666;
     if (((oflag & BIONIC_O_CREAT) == BIONIC_O_CREAT) ||
@@ -88,6 +122,9 @@ int fstat_soloader(int fd, stat64_bionic * buf) {
 }
 
 int stat_soloader(const char * path, stat64_bionic * buf) {
+    char resolved[512];
+    path = resolve_data_path(path, resolved, sizeof(resolved));
+
     struct stat st;
     int res = stat(path, &st);
 
@@ -116,6 +153,9 @@ int close_soloader(int fd) {
 }
 
 DIR* opendir_soloader(char* _pathname) {
+    char resolved[512];
+    _pathname = (char *) resolve_data_path(_pathname, resolved, sizeof(resolved));
+
     DIR* ret = opendir(_pathname);
     l_debug("opendir(\"%s\"): %p", _pathname, ret);
     return ret;

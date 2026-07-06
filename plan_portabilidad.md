@@ -435,6 +435,29 @@ tal cual, ya que `extras/livearea/*` y `extras/scripts/get_dump.sh` ya existen e
 reutilizables sin cambios (opcionalmente, más adelante, reemplazar los PNG de LiveArea genéricos por arte
 de POP tomado de `bin/popclassic/Logo/logo.png`).
 
+### 7.1. Estado: Fase 7 ejecutada (contenido ya cubierto por el commit de la Fase 4)
+
+Al revisar el `CMakeLists.txt` actual contra lo pedido en esta fase, se confirmó que el cambio ya se había
+hecho como parte del trabajo de la Fase 4 (commit `9894b9e`), no quedaba pendiente:
+
+- `VITA_APP_NAME` → `"Prince of Persia Classic"`, `VITA_TITLEID` → `"POPC00001"` (4 letras + 5 dígitos,
+  formato válido), `VITA_VPKNAME` → `"popclassic"` — ya no quedan los valores genéricos del boilerplate
+  (`so-loader` / `SOLOADER0` / `so_loader`).
+- `DATA_PATH` → `"ux0:data/popclassic/"`. Se eliminó por completo el `SO_PATH` único del boilerplate
+  original (`${DATA_PATH}main.so`): verificado con `grep -rn "SO_PATH" source/ lib/`, sin resultados — los
+  tres nombres de `.so` se arman directamente a partir de `DATA_PATH` en `source/utils/init.c`
+  (`libcocosdenshion.so`, `libcocos2d.so`, `libgame_logic.so`, en ese orden, ver §1.1/§4).
+- `target_link_libraries` ya incluye `vorbisidec` y `ogg` (añadidas en la Fase 4, antes incluso de escribir
+  el código de audio de la Fase 5, que solo sumó `source/audio.c` a `add_executable` en su propio commit).
+- Se mantuvo intacto el resto del boilerplate (`vita_create_self`, `vita_create_vpk`, targets
+  `send`/`send_kvdb`/`dump`/`reboot`, `extras/livearea/*`).
+
+Pendiente real que **no** depende de esta fase: no hay toolchain de VitaSDK/cmake instalado en esta máquina
+de desarrollo (`$VITASDK` vacío, sin `cmake` ni `arm-vita-eabi-gcc` en `PATH`), así que no se puede
+confirmar aquí que los paquetes `vorbisidec`/`ogg` estén instalados vía `vdpm` ni compilar para verificar
+que el link resuelve — eso corresponde a la Fase 8 (Compilación y despliegue), en la máquina/entorno que sí
+tenga el SDK.
+
 ---
 
 ## 8. Compilación y despliegue
@@ -462,15 +485,674 @@ de POP tomado de `bin/popclassic/Logo/logo.png`).
 
 - Usar el target `dump` ya definido en `CMakeLists.txt` (`extras/scripts/get_dump.sh` + un core dump
   parser) para capturar y analizar crashes en consola real vía `kubridge`.
-- Los puntos de fallo más probables, en orden esperado de aparición:
-  1. Relocación/carga de los 3 `.so` (verificar direcciones base, ver §4.1).
+- Los puntos de fallo más probables, en orden esperado de aparición (actualizado tras la primera
+  compilación + iteración real en Vita3K, ver §9.1-9.5):
+  1. ~~Relocación/carga de los 3 `.so`~~ — **superado en Vita3K** (con `EMULATOR_BUILD`, ver §9.2). Falta
+     confirmar en hardware real (donde no hace falta `EMULATOR_BUILD`, ya que ahí `kubridge` sí provee
+     `kuKernelAllocMemBlock`/`kuKernelCpuUnrestrictedMemcpy`/`kuKernelFlushCaches`).
   2. Símbolos de `libgame_logic.so` sin resolver por dependerse de `libcocos2d.so`/`libcocosdenshion.so`
-     antes de que estén cargados (si el orden de carga de §1.1 no se respeta).
-  3. Llamadas JNI no implementadas en `source/java.c` (Fase 6) — típicamente el primer bloqueo real tras
-     lograr que los `.so` carguen.
-  4. Llamadas a `libGLESv1_CM` no cubiertas por la capa de compatibilidad ES1 (Fase 4, punto 6).
+     antes de que estén cargados (si el orden de carga de §1.1 no se respeta) — no se observó ningún error
+     de este tipo en los logs de Vita3K hasta ahora (los 3 `.so` resuelven símbolos sin errores), pero
+     tampoco se llegó todavía al punto de ejecutar código real de `libgame_logic.so` (ver punto 3).
+  3. Llamadas JNI no implementadas en `source/java.c` (Fase 6) — **todavía no alcanzado**: el bloqueo
+     actual (§9.3-9.5) ocurre antes, en la inicialización de gráficos (`gl_preload()`), que corre dentro de
+     `soloader_init_all()` antes de que `main()` llegue a resolver/llamar los `nativeXxx` por JNI.
+  4. Llamadas a `libGLESv1_CM` no cubiertas por la capa de compatibilidad ES1 (Fase 4, punto 6) — no
+     alcanzado todavía, bloqueado por el punto anterior.
   5. Audio: crashes o silencio si las rutas de `Audio/*.ogg` (Fase 2) no calzan con lo que pide
-     `Cocos2dxMusic`/`Cocos2dxSound` (Fase 5).
+     `Cocos2dxMusic`/`Cocos2dxSound` (Fase 5) — parcialmente adelantado: en los logs de Vita3K se ve
+     `"Audio Initialized: BGM port 1, SFX port 2"` (el `audio_init()` de la Fase 5 corre sin crashear), pero
+     no se probó reproducción real todavía (bloqueado por el mismo punto 3).
+
+### 9.1. Estado: primera compilación real + primera iteración en el emulador Vita3K
+
+Hasta ahora todo el trabajo de las Fases 4/5/7 se había escrito sin poder compilar (sin toolchain
+instalado). En esta sesión se instaló `vitasdk-softfp/vdpm` completo en `~/vitasdk` (Mac, Apple Silicon;
+requirió `arch -x86_64 brew install zstd` porque el `cc1` del cross-compiler es x86_64 y depende de un
+`libzstd` de Homebrew "clásico" en `/usr/local`, no del de `/opt/homebrew`) y se compiló el proyecto por
+primera vez. Esto expuso una serie de bugs reales en el código escrito "a ciegas" en las Fases 4/5, ya
+corregidos:
+
+- `source/main.c`: usaba una variable `jniEnv` nunca declarada. FalsoJNI expone `extern JNIEnv jni;` /
+  `extern JavaVM jvm;` (objetos, no punteros) en `lib/falso_jni/FalsoJNI.h` — se agregó
+  `JNIEnv *jniEnv = &jni;` al inicio de `main()`.
+- `source/dynlib.c`: la tabla `default_dynlib[]` (heredada del boilerplate genérico de SoLoBoP) mapeaba
+  `fdopen`, `fileno`, `freopen`, `fwide`, `getwc`, `putc`, `putchar`, `puts`, `putwc`, `setvbuf`, `ungetwc`,
+  `vfprintf` a símbolos `sceLibcBridge_*` que **no existen** en el `SceLibcBridge` vendorizado en este repo
+  (`lib/libc_bridge/nids.yml` solo expone un subconjunto — confirmado comparando ambos archivos). Se
+  separaron esas funciones para que usen siempre la newlib normal, sin importar `USE_SCELIBC_IO`.
+- `source/utils/init.c`: `fios_init(DATA_PATH)` — la firma real es `fios_init(void)` (sin argumentos);
+  `so_resolve(&mod, default_dynlib, sizeof(default_dynlib), 0)` — `default_dynlib` es un array `static`
+  de `dynlib.c` sin declaración `extern`; la función pensada para usarse desde fuera es
+  `resolve_imports(so_module *mod)` (ya declarada en `utils/init.h`), que internamente llama a
+  `so_resolve()` con el array correcto. Faltaba también `#include <stdio.h>` para `sprintf`.
+- `lib/libc_bridge/libc_bridge.h`: no tenía guard `extern "C"`, así que al incluirse desde
+  `source/reimpl/asset_manager.cpp` (C++) el linker buscaba los símbolos con *name mangling* de C++ y
+  fallaba (`undefined reference to sceLibcBridge_fopen(char const*, char const*)`, etc.). Se agregó el
+  guard `#ifdef __cplusplus extern "C" { ... } #endif`.
+- `CMakeLists.txt`: faltaba el paquete `zlib` de vdpm (`dynlib.c` incluye `<zlib.h>`); `source/reimpl/egl.c`
+  redefine un subconjunto de las funciones `eglXxx` que `libvitaGL.a` (versión de vdpm usada) también trae
+  built-in, causando "multiple definition" al linkear — se agregó `-Wl,--allow-multiple-definition` (con
+  los objetos del proyecto listados antes que las librerías, gana nuestra versión). `SceShaccCgExt` sí es
+  un paquete real de `vdpm` (lo confirma `exports.yml` — es la librería que usa `vitaShaRK` internamente
+  para `shark_init`/`shark_end`), solo faltaba instalarlo.
+- El propio path del proyecto (`.../Prince of Persia ` con espacio final) rompe `vita-pack-vpk` dentro de
+  `vita.cmake` (usa `separate_arguments` sobre una cadena de flags que incluye la ruta, partiéndola por los
+  espacios). Solución sin tocar el SDK ni renombrar la carpeta: compilar a través de un symlink sin
+  espacios (`~/popc-src` → la carpeta real) con el build dir también fuera de la ruta con espacios
+  (`~/popc-build`).
+
+**`popclassic.vpk` y `eboot.bin` compilan y generan correctamente** desde entonces.
+
+### 9.2. Flag `EMULATOR_BUILD`: qué cambia y por qué
+
+Con el ejecutable ya compilando, se probó dentro de **Vita3K** (instalado por el usuario en
+`/Applications/Vita3K.app`; se automatizó la instalación colocando el contenido del `.vpk` directamente en
+`fs/ux0/app/POPC00001/` y ejecutando con `Vita3K -r POPC00001 -S eboot.bin -l 0 -A`, sin pasar por el
+instalador gráfico). La primera ejecución murió inmediatamente: nuestro propio chequeo
+`module_loaded("kubridge")` en `soloader_init_all()` (necesario en hardware real) siempre falla en Vita3K
+porque el emulador no registra un módulo de kernel llamado `"kubridge"` — y el `fatal_error()` que se
+dispara en ese caso también fallaba (su diálogo depende de compilar un shader, y falta
+`libshacccg.suprx`).
+
+Se agregó la opción de CMake `EMULATOR_BUILD` (`OFF` por defecto — **no afecta la build de hardware real**)
+que activa `-DEMULATOR_BUILD` y releva tres cosas que hoy Vita3K no implementa (confirmado cruzando los NIDs
+que reporta como "Import function for NID 0x... not found" contra `exports.yml` de
+[TheOfficialFloW/kubridge](https://github.com/TheOfficialFloW/kubridge)):
+
+| NID | Función | Por qué hace falta en hardware real | Qué hace `EMULATOR_BUILD` |
+|---|---|---|---|
+| `0x2EF7C290` | `kuKernelAllocMemBlock` | Reservar los bloques `patch`/`text`/`data_N` en **direcciones absolutas exactas y contiguas** (imita el mmap único que haría el linker de Android), algo que la API de usuario normal de Vita no permite sin el bypass de kernel de kubridge. | `lib/so_util/so_util.c`, función `_so_load()`: en vez de una reserva por segmento en una dirección fija, se hace **una sola reserva grande** con `sceKernelAllocMemBlock` normal (dirección libre, elegida por el SO) dimensionada para todo el "arena" del módulo (patch + text + todos los data), y luego se sub-asignan las regiones dentro de ese bloque con aritmética de punteros. El resto del código (relocaciones, `so_resolve_link`, etc.) no cambia porque siempre trabajó con la dirección *real* devuelta por el kernel, nunca con la constante `LOAD_ADDRESS` a pelo. |
+| `0x91D9CABC` | `kuKernelCpuUnrestrictedMemcpy` | Escribir código/datos en memoria marcada `RX` sin el exploit de kernel. | Macro `ku_memcpy(...)`: bajo `EMULATOR_BUILD` es un `memcpy` normal (la memoria ya es nuestra, recién reservada). |
+| `0x38B70744` | `kuKernelFlushCaches` | Invalidar la caché de instrucciones ARM tras escribir código nuevo. | Macro `ku_flush_caches(...)`: no-op bajo `EMULATOR_BUILD` (el CPU emulado de Vita3K no tiene una caché de instrucciones real que se pueda desincronizar). |
+| — | `module_loaded("kubridge")` en `source/utils/init.c` | Salvaguarda legítima: sin `kubridge.skprx` instalado, todo lo anterior fallaría en consola real. | Se cambia el `fatal_error()` por un `l_warn(...)` no bloqueante. |
+
+Con estos cuatro cambios, **los tres `.so` (`libcocosdenshion`, `libcocos2d`, `libgame_logic`) cargan,
+relocan y resuelven símbolos correctamente dentro de Vita3K** — el punto de fallo #1 de la lista de arriba
+(§9, "Relocación/carga de los 3 .so") queda superado en el emulador.
+
+Un bug real independiente encontrado en el camino (no relacionado con Vita3K, también aplicaría en hardware
+real): `gl_init()` en `source/utils/glutil.c` no era idempotente pese a poder ser llamado más de una vez
+(desde `main()` y desde `source/reimpl/egl.c`'s `eglInitialize()`); se agregó una guarda `static` para que
+`vglInitExtended()` se ejecute una sola vez.
+
+### 9.3. Bloqueo actual: `vitaGL` crashea al crear el contexto GXM bajo Vita3K
+
+Tras resolver lo anterior, la ejecución llega hasta el primer intento real de inicializar gráficos
+(`gl_preload()` → primera vez que algo dispara la inicialización de `vitaGL`/`vitaShaRK`) y crashea ahí:
+
+```
+sceGxmCreateContext returned SCE_GXM_ERROR_ALREADY_INITIALIZED (0x805B0001)
+Unhandled EXC_BAD_ACCESS ... Unhandled access to 0x78
+```
+
+Es decir, **algo dentro de la propia `libvitaGL.a`** (la instalada vía `vdpm`, no código de este repo)
+llama a `sceGxmCreateContext` dos veces en su propia secuencia interna de inicialización — no es nuestro
+`gl_init()` duplicado (ya se descartó con la guarda de idempotencia de §9.2: el crash persiste igual). La
+segunda llamada falla con `ALREADY_INITIALIZED`, `vitaGL` no chequea ese código de retorno, y termina
+desreferenciando un puntero de contexto nulo.
+
+**`ur0:/data/libshacccg.suprx` ya está resuelto**: el usuario consiguió una copia legítima (descargada de
+GitHub, verificada por cabecera `SCE` válida) y se colocó en
+`~/Library/Application Support/Vita3K/Vita3K/fs/ur0/data/libshacccg.suprx` (excluida de git vía
+`.gitignore`: `*.suprx`, nunca debe commitearse contenido de firmware de Sony). Con el archivo presente,
+Vita3K carga y parchea el módulo `SceShaccCg` real correctamente (vía hooks de `taiHEN`) — pero el crash de
+`sceGxmCreateContext` persiste igual, confirmando que es independiente del compilador de shaders.
+
+Se investigó el código fuente de `vitaGL` (Rinnegatamante/vitaGL en GitHub): `sceGxmCreateContext` solo se
+llama **una vez** dentro de `init_gxm_context()`, invocada a su vez una sola vez desde `vglInit`. Es decir,
+`vitaGL` no duplica la llamada por diseño — el `ALREADY_INITIALIZED` que reporta Vita3K en lo que para el
+juego es su *primera* llamada sugiere que **Vita3K ya tiene un contexto GXM activo antes de que arranque
+nuestro loader** (probablemente de su propia UI/compositor, y el que ese contexto no se libere antes de
+pasarle el control al juego).
+
+### 9.4. Contraste con otro port real: `pop2-vita` (Prince of Persia 2: The Shadow and the Flame)
+
+Por pedido del usuario se revisó el código de
+[`pop2-vita`](https://github.com/usineur/pop2-vita) (copia local en
+`/Volumes/Seagate/PSVITA Develop/pop2-vita-master`), un port homebrew real y publicado de otro juego de
+Ubisoft con el mismo patrón de "cargar el `.so` de Android nativo" (aunque con un solo `.so`, estilo
+`backstab-vita`/`deadspace-vita`: `JNIEnv` armado a mano con offsets de vtable, no FalsoJNI). Comparación
+relevante para nuestro bloqueo:
+
+- **Mismo patrón de inicialización gráfica que el nuestro**: `loader/main.c` de `pop2-vita` llama a
+  `vglInitWithCustomThreshold(...)` **una sola vez**, inmediatamente después de `so_resolve()` y antes de
+  `so_flush_caches()`/`so_initialize()`/`JNI_OnLoad()` — exactamente la misma secuencia y la misma
+  cardinalidad (una sola llamada) que ya tenemos en `source/main.c` + `source/utils/glutil.c`. Esto
+  **descarta definitivamente que el doble `sceGxmCreateContext` sea un error de nuestro propio código**: es
+  la segunda base de código independiente (además del propio código fuente de `vitaGL`) que confirma que un
+  loader de este estilo solo debería llamar a `vglInit*` una vez.
+- Mismas dependencias de `vdpm` (`vitaGL`, `vitashark`, `SceShaccCgExt`, `mathneon`, `kubridge_stub`), mismo
+  chequeo de `kubridge`/`libshacccg.suprx` al arrancar `main()`, sin ninguna mención de Vita3K en todo el
+  repo (`grep -rn "Vita3K" .` → sin resultados) ni en su `README.md`. Es decir, **este port fue escrito y
+  probado solo para hardware real** — no aporta una solución ya hecha para el problema de Vita3K, pero sí
+  confirma con un segundo caso independiente que la estructura de nuestro loader es correcta y que el
+  problema está específicamente en la interacción `vitaGL` ↔ Vita3K (o en cómo se lanzó el proceso en
+  Vita3K), no en algo que tengamos mal escrito.
+- Su `README.md` documenta los flags de compilación recomendados para `vitaGL` cuando se compila desde
+  código fuente (no el paquete genérico de `vdpm`): `make SOFTFP_ABI=1 NO_DEBUG=1 HAVE_SHADER_CACHE=1
+  STORE_DEPTH_STENCIL=1 install`. Es una pista útil si se decide reconstruir `vitaGL` desde código fuente
+  en vez de usar el binario precompilado de `vdpm` (opción 2 de "próximos pasos" más abajo), aunque nada
+  garantiza que esos flags en particular cambien el comportamiento bajo Vita3K.
+
+### 9.5. Intento de automatizar el lanzamiento manual por GUI — bloqueado por permisos de Accesibilidad
+
+Se intentó confirmar la hipótesis de "Vita3K ya tiene un contexto GXM vivo de su propia UI" con dos
+experimentos adicionales, además de pedirle a este agente que reprodujera el flujo normal (instalar +
+doble clic) vía automatización:
+
+1. **`osascript`/System Events para controlar la ventana de Vita3K**: falla con
+   `execution error: System Events got an error: osascript is not allowed assistive access. (-1728)` — la
+   Terminal/proceso que ejecuta estos comandos no tiene permiso de Accesibilidad concedido en
+   `Ajustes del Sistema → Privacidad y Seguridad → Accesibilidad`. No se intentó forzar ni activar ese
+   permiso por scripting (es una config de seguridad que debe habilitar el usuario a propósito).
+2. **`Vita3K -z` (modo consola) combinado con `-r/-S`**: en vez de evitar el problema, produjo un crash
+   *distinto y más temprano* — Vita3K crea su propia ventana/swapchain de Vulkan nativa para este modo
+   (`Created 3 swapchain images ... on screen MSI MD241PB`, warnings de Metal sobre "primitive restart" no
+   soportado), y el proceso muere con otro `EXC_BAD_ACCESS` en una dirección de código distinta, antes
+   incluso de llegar a la carga de `libgame_logic.so`. No aporta una ruta mejor.
+
+**Conclusión:** confirmar o descartar la hipótesis del contexto heredado de la UI requiere que **una
+persona** haga la prueba manual en la ventana real de Vita3K (instalar `popclassic.vpk` con
+`File → Install Firmware/PKG/Zip...` y luego doble clic en el ícono del juego en la biblioteca), o bien que
+el usuario le otorgue permiso de Accesibilidad a la Terminal para que este agente pueda intentar controlarla
+por `osascript`. Ninguna de las dos cosas se pudo completar en esta sesión sin esa intervención.
+
+**Por lo tanto, la Fase 6 (tablas JNI de `source/java.c`) todavía no se pudo iterar con datos reales**: el
+crash ocurre en `gl_preload()`, que corre en `soloader_init_all()` *antes* de que `main()` llegue a resolver
+y llamar los métodos `nativeXxx` por JNI. El log de FalsoJNI (necesario para la metodología iterativa del
+§6) todavía no se generó.
+
+**Próximos pasos posibles** (a decidir con el usuario):
+1. Hacer la prueba manual en la ventana de Vita3K (instalar + doble clic) para confirmar o descartar la
+   hipótesis del contexto GXM heredado de la UI — o darle permiso de Accesibilidad a la Terminal para que
+   el agente lo intente por `osascript`.
+2. Probar una versión/fork distinta de `vitaGL`, o reconstruirlo desde código fuente con los flags que usa
+   `pop2-vita` (§9.4) en vez del paquete genérico de `vdpm`.
+3. En paralelo, seguir iterando la Fase 6 por análisis estático (sin ejecución) hasta que 1 y/o 2 se
+   resuelvan.
+
+### 9.6. Root cause confirmado del crash de §9.3: el "Splashscreen" interno de `vitaGL`
+
+Con permiso de Accesibilidad ya concedido a la Terminal, se automatizó el flujo real de usuario (clic físico,
+vía eventos de mouse a nivel de Quartz/`CGEvent` — los clics sintéticos de Accessibility/`osascript`
+(`click`/`click at`) no llegan a disparar los widgets de Qt que usa Vita3K, hace falta un evento de mouse
+real) sobre el ícono de "Prince of Persia Classic" en la biblioteca de Vita3K. El crash de §9.3 se reprodujo
+de forma idéntica (mismo `EXC_BAD_ACCESS`/`SIGTRAP`), confirmado con el crash report real de macOS
+(`~/Library/Logs/DiagnosticReports/Vita3K-*.ips`): el hilo que falla se llama **`vitaGL Splashscreen`**, con
+`call_import` en la pila — es decir, un hilo interno de la propia `libvitaGL.a`, no de Vita3K ni de nuestro
+código.
+
+Se confirmó la causa exacta leyendo el código fuente de
+[Rinnegatamante/vitaGL](https://github.com/Rinnegatamante/vitaGL): a menos que se compile con
+`NO_SPLASHSCREEN=1` (define `-DSKIP_SPLASHSCREEN`), `vitaGL` crea **dos** contextos GXM
+(`source/shared.h`: `VGL_CONTEXT_MAIN` y `VGL_CONTEXT_SPLASHSCREEN`, `GXM_CONTEXTS_NUM = 2`), cada uno con su
+propio `sceGxmCreateContext()` (`source/gxm.c`, `init_gxm_context()`) — el segundo, para el hilo que dibuja el
+splashscreen animado de arranque mientras se compilan shaders en paralelo. Vita3K no soporta un segundo
+contexto GXM concurrente: la segunda llamada devuelve `SCE_GXM_ERROR_ALREADY_INITIALIZED`, `vitaGL` no
+revisa ese código de retorno, y el hilo `vitaGL Splashscreen` termina desreferenciando un puntero inválido.
+El comentario ya presente en `source/utils/glutil.c:44-48` (agregado en una sesión anterior, sin poder
+verificarlo por el bloqueo de Accesibilidad) documentaba correctamente la mitad del problema (desactivar MSAA
+evita que `vitaGL` *reintente* `sceGxmCreateContext`), pero no alcanza: el hilo del splashscreen sigue
+existiendo y sigue creando su propio contexto independientemente del MSAA.
+
+**Fix aplicado:** el `master` actual de `vitaGL` además requiere flags de `sceGxm` (`SCE_GXM_INITIALIZE_FLAG_EXTENDED_FORMAT`,
+etc.) que no existen en los headers de VitaSDK-softfp instalados en esta máquina (`~/vitasdk`, instalados vía
+`vdpm`, que distribuye binarios precompilados sin exponer qué commit exacto de `vitaGL` usa). En vez de
+actualizar el SDK completo, se hizo `git checkout` al commit `aa75c61` de `vitaGL` (el último antes de que se
+introdujera esa API nueva, vía `git log --oneline -S "SCE_GXM_INITIALIZE_FLAG_EXTENDED_FORMAT"`) — y resultó
+que en ese commit **la feature de splashscreen todavía no existía** (`source/splashscreen.c` no existe,
+`grep -n SPLASHSCREEN Makefile` sin resultados): compila limpio contra nuestros headers y **no tiene el bug
+en absoluto**, sin necesitar siquiera pasar `NO_SPLASHSCREEN=1`. Se compiló e instaló sobre el paquete de
+`vdpm`:
+
+```bash
+git clone https://github.com/Rinnegatamante/vitaGL.git && cd vitaGL
+git checkout aa75c61          # último commit compatible con los headers de vitasdk-softfp instalados
+make install SOFTFP_ABI=1 NO_DEBUG=1 HAVE_SHADER_CACHE=1 STORE_DEPTH_STENCIL=1
+# (flags recomendados por el README de pop2-vita, ver §9.4; instala sobre
+#  $VITASDK/arm-vita-eabi/lib/libvitaGL.a y .../include/vitaGL.h, pisando el binario de vdpm)
+```
+
+Tras recompilar el proyecto y redesplegar el `eboot.bin` en Vita3K, **el crash de §9.3 desapareció por
+completo**: `sceGxmVshInitialize`/`sceGxmCreateContext` ya no aparecen como error en el log, y la ejecución
+avanza mucho más allá del punto de bloqueo anterior (ver §9.7). El punto de fallo #1 de la lista de §9 queda
+superado también en Vita3K (antes solo se había superado la carga/relocación de los `.so`, no la
+inicialización gráfica).
+
+> [!NOTE]
+> Riesgo a revalidar: `aa75c61` es de febrero 2026, varios meses de historia por detrás del `master` actual.
+> Se pierden mejoras/fixes posteriores de `vitaGL` que no tienen que ver con el splashscreen. Si en el futuro
+> se actualiza el VitaSDK instalado (headers más nuevos), reintentar con `master` + `NO_SPLASHSCREEN=1`
+> (el flag correcto, confirmado en el `Makefile` de `vitaGL`) en vez de quedarse en este commit fijo.
+
+### 9.7. Automatización del flujo GUI real (para las próximas sesiones de prueba)
+
+Notas operativas de cómo se automatizó el "instalar + doble clic" real (no CLI) en Vita3K, para reproducir en
+futuras sesiones:
+
+- Los clics de `osascript`/Accessibility (`click`, `click at`, y hasta `set selected of row to true`) **no
+  funcionan** contra los widgets Qt de Vita3K: no seleccionan la fila ni disparan el doble clic, aunque
+  apunten a las coordenadas correctas (confirmado con `UI element ... of row 1 of table 1` como hit-test
+  correcto). Hace falta un evento de mouse real a nivel de HID, generado con `Quartz.CGEventCreateMouseEvent`
+  / `CGEventPost` (Python + `pyobjc`, ya disponible en este sistema) marcando `kCGMouseEventClickState` para
+  que cuente como doble clic.
+- La ventana de Vita3K cambia de posición/tamaño entre lanzamientos (no es una posición fija), así que hay
+  que releer `position of window 1` / `position of row 1 of table 1 of window 1` por `osascript` **cada vez**
+  antes de calcular las coordenadas del clic real — no reusar coordenadas de una sesión anterior.
+- El log en vivo del panel derecho de la UI (`text area 1 of window 1`, leíble por Accessibility con
+  `value of text area 1 of window 1`) deja de ser consultable en cuanto el proceso crashea. Para
+  diagnosticar un crash ya ocurrido, son más confiables dos fuentes que sí persisten en disco:
+  1. El log por-juego: `~/Library/Application Support/Vita3K/Vita3K/logs/<TITLEID> - [<nombre>].log`
+     (requiere `archive-log: true` en `config.yml`, ya activado por defecto).
+  2. El crash report nativo de macOS: `~/Library/Logs/DiagnosticReports/Vita3K-<fecha>.ips` (JSON con
+     `exception`, `termination` y `threads[faultingThread].frames` — permite ver el nombre del hilo que
+     falló y los símbolos de Vita3K, aunque no de nuestro código ARM emulado).
+- Tras cada crash, hay que volver a abrir Vita3K (`open -a Vita3K`) — el emulador entero muere, no solo el
+  proceso del juego emulado.
+
+### 9.8. Primera ejecución real más allá de gráficos: llega a la Fase 6 (FalsoJNI) por primera vez
+
+Con el fix de §9.6, el log por-juego mostró por primera vez progreso real después de la inicialización
+gráfica:
+
+```
+[export_sceClibPrintf]: Audio Initialized: BGM port 1, SFX port 2
+[export_sceClibPrintf]: [ERROR][.../FalsoJNI.c:852][GetStaticMethodID] GetStaticMethodID(env, ..., "getDeviceName", "()Ljava/lang/String;"): not found
+[operator()]: _sceKernelLockLwMutex returned SCE_KERNEL_ERROR_UNKNOWN_LW_MUTEX_ID
+[export_sceClibPrintf]: ! fatal    Abort called from address ...
+```
+
+Es decir: los tres `.so` cargan y resuelven símbolos, el audio se inicializa, `sceGxmVshInitialize` ya no
+crashea — y el primer bloqueo real es exactamente lo que la metodología de la Fase 6 (§6) anticipaba: un
+método JNI no registrado en `source/java.c`. Siguiendo esa metodología, se agregaron dos entradas nuevas
+(`nameToMethodId`/`methodsObject`/`methodsVoid`) y se recompiló/redesplegó/reprobó entre cada una:
+
+1. **`getDeviceName` (`()Ljava/lang/String;`, `METHOD_TYPE_OBJECT`)**: devuelve `NewStringUTF(&jni, "PSVita")`.
+   Tras agregarlo, el juego avanzó al siguiente método faltante (confirmando que el mecanismo de
+   resolución/tabla de `source/java.c` funciona en la práctica, no solo en teoría).
+2. **`showMessageBox` (`(Ljava/lang/String;Ljava/lang/String;)V`, `METHOD_TYPE_VOID`)**: solo hace
+   `sceClibPrintf` con el título y el mensaje recibidos (`GetStringUTFChars`). Este método resultó ser
+   **muy útil para diagnosticar**, no solo un bloqueo a destrabar: el propio juego lo usa para reportar sus
+   propios errores de carga, y su primer uso reveló el mensaje real
+   `"Notification: Get data from file(assets/appConfig.txt) failed!"` — esto es lo que llevó directo al
+   hallazgo de §9.9.
+
+Ambos son candidatos placeholder razonables (no se conoce el string exacto que Android reportaría para
+`getDeviceName`, y `showMessageBox` no necesita mostrar un diálogo real todavía) — revisar si el juego llega a
+depender de un valor específico de `getDeviceName` más adelante (ej. para lógica condicional por dispositivo).
+
+### 9.9. Nuevo hallazgo, confirma el riesgo abierto de §3.2: el motor exige abrir `apkFilePath`/`apkSourceDir` como ZIPs reales, no como carpetas sueltas — y cada uno espera un ZIP *distinto*
+
+Tras agregar `showMessageBox`, el mensaje que el propio juego reporta (ver §9.8) más el log de I/O justo
+antes:
+
+```
+[export_sceIoOpen]: Opening file: ux0:/data/popclassic
+[open_file]: Cannot open directory: ".../fs/ux0/data/popclassic"
+[export_sceClibPrintf]: Cocos2dxHelper_showMessageBox(Notification, Get data from file(assets/appConfig.txt) failed!)
+... (le sigue un acceso a memoria inválido y un abort fatal)
+```
+
+confirmó el riesgo que §3.2 había dejado abierto sin poder probarlo: el motor no lee `assets/appConfig.txt`
+como archivo suelto bajo `DATA_PATH`, sino que abre uno de los argumentos de `nativeSetPaths` (ver §3.1)
+directamente como un ZIP/APK real. Se descartó primero (probado sin éxito) la hipótesis de que solo faltaba
+el archivo suelto: crear `ux0_data/popclassic/assets/appConfig.txt` (para calzar con la ruta que construye
+`source/reimpl/asset_manager.cpp`, `AAssetManager_open`: `DATA_PATH + "assets/" + filename`) no cambió el log
+en nada — el fallo ocurre en código nativo de `libcocos2d.so` **antes** de llegar a nuestra reimplementación
+de `AAssetManager`.
+
+Iterando con pruebas reales se descubrió que **hay dos argumentos distintos de `nativeSetPaths`, cada uno
+abierto por un código nativo distinto, y cada uno espera un ZIP distinto** — el mapeo real (confirmado con el
+log, no supuesto) es:
+
+| Argumento | Qué espera en Android real | Qué usa el motor para abrirlo | Qué hay que darle en el port |
+|---|---|---|---|
+| `apkFilePath` (arg 1) | La carpeta estándar `.../Android/obb/<paquete>/` | Se trata como **carpeta**: el motor le concatena el nombre de archivo del `.obb` real (`main.1.org.ubisoft.premium.POPClassic.obb`) y abre eso como ZIP — confirmado viendo el log intentar `ux0:/data/popclassic/original.apk/main.1.org.ubisoft.premium.POPClassic.obb` cuando por error se le había pasado la ruta del `.apk` en este argumento | `DATA_PATH` a secas (una carpeta), con el `.obb` real copiado adentro con **ese nombre exacto** |
+| `apkSourceDir` (arg 3) | `context.getApplicationInfo().sourceDir` — la ruta al `.apk` en sí | Se abre **directamente** como archivo/ZIP (sin concatenarle nada) — confirmado por `sceIoOpen` intentando abrir exactamente el string que se le pasó | La ruta al `.apk` real (copiado a `ux0:data/popclassic/original.apk`) |
+
+Primer intento (parcialmente equivocado, documentado por transparencia): se probó pasando la ruta del `.apk`
+en **ambos** argumentos — funcionó para `apkSourceDir` (`assets/appConfig.txt` se leyó bien, el `showMessageBox`
+de config desapareció), pero `apkFilePath` seguía fallando porque el motor le agregaba el nombre del `.obb`
+por detrás, y ese archivo no existía ahí. Al corregirlo (arg 1 = `DATA_PATH`, con el `.obb` real copiado
+adentro; arg 3 = ruta al `.apk`) el siguiente error (`Data_960_576/Localization/English/Localizable.loc`,
+ver §9.10) **también desapareció**, confirmando el mapeo de la tabla de arriba.
+
+**Fix aplicado** (`source/main.c`, dentro de `nativeSetPaths`):
+
+```c
+jstring apkFilePathStr  = (*jniEnv)->NewStringUTF(jniEnv, DATA_PATH);                 // arg 1: carpeta
+jstring apkSourceDirStr = (*jniEnv)->NewStringUTF(jniEnv, DATA_PATH "original.apk");  // arg 3: archivo
+nativeSetPaths(jniEnv, NULL, apkFilePathStr, apkSourceDirStr, deviceStr);
+```
+
+y en el árbol de datos (`ux0_data/popclassic/`, replicado también en el `fs/ux0/data/popclassic/` de Vita3K
+para las pruebas de esta sesión):
+
+```
+ux0:data/popclassic/
+├── original.apk                                        <- copia de original/Prince of Persia Classic 2.1.apk
+├── main.1.org.ubisoft.premium.POPClassic.obb            <- copia de original/main.1.org.ubisoft.premium.POPClassic.obb
+├── libcocosdenshion.so / libcocos2d.so / libgame_logic.so
+└── Data/ (+ symlink Data_960_576 → Data, ver §9.10)
+```
+
+`original/` no está en git (`.gitignore`: `original/`, `*.apk`, `*.suprx`), así que estas copias son locales,
+no algo que vaya a commitearse — hay que repetirlas manualmente en cualquier entorno nuevo (o en consola real,
+copiando ambos archivos al mismo lugar en la tarjeta de memoria).
+
+### 9.10. `source/reimpl/io.c` no reescribía rutas relativas — algunos `fopen()`/`open()`/`stat()` del motor las usan sin prefijo de dispositivo
+
+Con el fix de §9.9 aplicado, el siguiente (y último, por ahora) `showMessageBox` de esta sesión fue
+`"Get data from file(Data_960_576/Localization/English/Localizable.loc) failed!"` — una ruta **relativa**, sin
+`ux0:`/`app0:` ni ningún prefijo. Se probaron dos hipótesis en orden:
+
+1. **`chdir(DATA_PATH)` al inicio de `main()`** — no tuvo ningún efecto observable (el error persistió
+   idéntico). Conclusión: `chdir()`/`getcwd()` en `source/dynlib.c` son alias directos a los de newlib
+   (`{ "chdir", (uintptr_t)&chdir }`), sin relación real con cómo `sceIoOpen` resuelve rutas — no existe un
+   "cwd" real a nivel de `sceIo` que `fopen()` vaya a consultar. Se revirtió este cambio (no aportaba nada).
+2. **Reescribir la ruta a mano en `source/reimpl/io.c`** (el fix que sí quedó aplicado): se agregó
+   `resolve_data_path()`, que si el `path` recibido no empieza con `/` y no contiene `:` (es decir, no es ya
+   una ruta absoluta con dispositivo Vita), le antepone `DATA_PATH`. Se aplicó en `fopen_soloader`,
+   `open_soloader`, `stat_soloader` y `opendir_soloader`. **No tuvo efecto tampoco** sobre este error en
+   particular — el log mostró que esta apertura en concreto no pasa por ninguna de esas cuatro funciones.
+
+La causa real (confirmada leyendo más contexto del log, no solo la línea del error) es la misma de §9.9: esta
+ruta también se resuelve por el mecanismo de "abrir `apkFilePath` + nombre de archivo conocido" — al arreglar
+`apkFilePath` en §9.9 (pasarle `DATA_PATH`, con el `.obb` real adentro), **este mensaje de error desapareció
+por completo**, sin necesitar ningún symlink ni cambio adicional en `io.c`. El `resolve_data_path()` de
+`io.c` se deja en el código igual (documentado en el propio comentario de la función): no hizo daño, y sigue
+siendo una red de seguridad razonable para cualquier otra ruta relativa que aparezca más adelante y que sí
+pase por `fopen()`/`open()` en vez de por el mecanismo de `apkFilePath`.
+
+> [!NOTE]
+> También se creó un symlink `Data_960_576 → Data` dentro de `ux0_data/popclassic/` (y en el `fs/` de
+> Vita3K) como mitigación exploratoria antes de encontrar la causa real — quedó aplicado pero **no fue lo que
+> resolvió el error** (se confirmó re-probando: el error seguía igual con el symlink puesto, hasta corregir
+> `apkFilePath`). Es inofensivo dejarlo (no rompe nada, por si algún otro código sí llega a pedir
+> `Data_960_576/...` por `fopen()` directo), pero no es la pieza que hizo falta.
+
+### 9.11. Resuelto: el crash de puntero nulo era `JNI_OnLoad` nunca llamado en `libcocosdenshion.so`
+
+El crash de puntero nulo descrito arriba (`PC` salta a `0x0`, `LR=0x804a63a9` constante en cada corrida) se
+terminó de diagnosticar con desensamblado real, no solo con los registros del log. Pasos:
+
+1. Se agregó un `sceClibPrintf("...text_base=0x%08x\n", ...)` temporal en `source/utils/init.c` justo después
+   de cada `so_file_load()`, para conocer la dirección base **real** en tiempo de ejecución de cada uno de los
+   tres `.so` (bajo `EMULATOR_BUILD` no son la constante `LOAD_ADDRESS`, sino lo que devolvió
+   `sceKernelAllocMemBlock`, ver §9.2). Resultado de una corrida real:
+   ```
+   libcocosdenshion text_base=0x804a0000
+   libcocos2d       text_base=0x80d10000
+   libgame_logic    text_base=0x80620000
+   ```
+2. `0x804a6390` (la dirección donde el `PC` quedaba pegado en `0x0`) menos `0x804a0000` = offset `0x6390` —
+   **cae dentro de `libcocosdenshion.so`** (74 532 B, offset válido), no en un módulo del sistema como se
+   había supuesto inicialmente por descarte de rangos.
+3. `arm-vita-eabi-objdump -d bin/libcocosdenshion.so` en ese offset mostró exactamente
+   `_ZN7_JavaVM6GetEnvEPPvi` (`_JavaVM::GetEnv(void**, int)`, el wrapper C++ estándar de JNI):
+   ```
+   00006390 <_ZN7_JavaVM6GetEnvEPPvi>:
+       6390: push {lr}
+       ...
+       9b03      ldr r3, [sp, #12]
+       681b      ldr r3, [r3, #0]     ; r3 = jvm->functions
+       699b      ldr r3, [r3, #24]    ; r3 = jvm->functions->GetEnv   <- lee offset 0x18 de r3
+       ...
+       4798      blx r3               ; llama a través de ese puntero
+   ```
+   Coincide exactamente con la lectura inválida vista en el log (`Invalid read ... at address: 0x18`): si
+   `jvm->functions` es `NULL`, leer `[NULL + 24]` da justo `0x18`.
+
+**Causa real:** `source/main.c` solo llamaba `JNI_OnLoad(&jvm, NULL)` sobre `game_mod`, con *fallback* a
+`cocos2d_mod` si el primero no lo exportaba — nunca sobre `denshion_mod`. `libcocosdenshion.so` (que contiene
+la clase C++ `CocosDenshion::SimpleAudioEngine`, ver §1.2) **sí exporta su propio `JNI_OnLoad`**, que
+normalmente guarda el `JavaVM*` recibido en una variable global interna para poder hacer
+`(*jvm)->GetEnv(...)` más adelante desde threads de audio. Como nunca se llamó, esa variable global se quedó
+en `NULL`, y la primera vez que `SimpleAudioEngine` necesitó un `JNIEnv` (justo después de guardar el primer
+perfil, ver el flujo completo en el log: `pop_save_profile` se escribe bien y a continuación viene el crash)
+reventó.
+
+**Fix aplicado** (`source/main.c`): se reemplazó el `if/fallback` por un bucle que llama `JNI_OnLoad` en
+**cada uno** de los tres módulos que lo exporten, no solo en el primero que se encuentre:
+
+```c
+so_module *jni_onload_mods[] = { &denshion_mod, &cocos2d_mod, &game_mod };
+for (int i = 0; i < 3; i++) {
+    int (* JNI_OnLoad)(void *jvm, void *reserved) = (void *)so_symbol(jni_onload_mods[i], "JNI_OnLoad");
+    if (JNI_OnLoad) {
+        JNI_OnLoad(&jvm, NULL);
+    }
+}
+```
+
+Tras este fix, **el crash desapareció por completo** (`grep -c "PC is 0x0"` → `0` en la corrida siguiente) y
+el juego avanzó mucho más allá: `Cocos2dxMusic_stopBackgroundMusic()` se invoca de verdad (no solo se
+resuelve), y aparece la siguiente tanda esperable de métodos JNI sin implementar (`createTextBitmap`,
+usado por `Cocos2dxBitmap` para renderizar texto — candidato natural para la Fase 6, no investigado más en
+esta sesión).
+
+El `sceClibPrintf` de `text_base` agregado en el paso 1 se dejó en el código (es información de diagnóstico
+barata y reutilizable si aparece otro crash de dirección fija en el futuro).
+
+### 9.12. Primer frame real renderizado en Vita3K 🎉
+
+Con los fixes de §9.6 (splashscreen de `vitaGL`), §9.8 (JNI: `getDeviceName`/`showMessageBox`), §9.9
+(`apkFilePath`/`apkSourceDir` como ZIPs reales), §9.10 (rutas relativas en `io.c`) y §9.11 (`JNI_OnLoad` en
+los tres módulos) aplicados juntos, **el juego renderizó su primer frame real dentro de Vita3K**: la pantalla
+de logo/splash de "Prince of Persia Classic" (arte del castillo de fondo, silueta del príncipe, logo del
+juego), confirmada visualmente con una captura de pantalla real de la ventana de Vita3K — no un log, sino la
+imagen del juego corriendo. La barra de título de Vita3K en ese momento mostraba:
+
+```
+Prince of Persia Classic (POPC00001) | Vulkan | 61 FPS (17 ms) | 960x544 | Bilinear
+```
+
+960×544 es exactamente la resolución nativa de la Vita, a 61 FPS. Esto confirma de punta a punta que: la
+carga de los tres `.so`, la resolución de símbolos cruzada, la inicialización de `vitaGL`/`vitaShaRK`, la
+compilación de shaders (Vulkan/SPIR-V vía Vita3K), la carga de config + idioma + `.obb`, el guardado de
+perfil, y el arranque de audio — **todo funciona en conjunto** lo suficiente como para llegar a la primera
+imagen en pantalla.
+
+### 9.13. Siguiente ronda de Fase 6: `createTextBitmap` y 3 stubs más de integraciones online — sin crashes nuevos
+
+Siguiendo la metodología iterativa de la Fase 6 (§6), se agregaron a `source/java.c`:
+
+- **`Cocos2dxBitmap.createTextBitmap(String, String, int, int, int, int)`** (texto, fuente, tamaño,
+  alineación, ancho, alto → `void`): no hay rasterizador de fuentes disponible (no hay FreeType ni
+  stb_truetype conectado, no se shipea ningún `.ttf`), así que el stub construye un `jbyteArray` RGBA8888 de
+  `ancho*alto*4` bytes, todo en cero (transparente), y llama de vuelta al nativo real
+  `Java_org_cocos2dx_lib_Cocos2dxBitmap_nativeInitBitmapDC` (exportado por `libcocos2d.so`, confirmado con
+  `objdump -T`/`-d` — recibe `(JNIEnv*, jobject, jint width, jint height, jbyteArray pixels)` y copia esos
+  píxeles a un buffer interno de `cocos2d::CCImage`) con ese buffer vacío. Efecto esperado: el texto en
+  pantalla saldrá invisible/transparente por ahora, pero el motor recibe una textura del tamaño correcto y
+  no crashea — confirmado en la corrida siguiente (`Cocos2dxBitmap_createTextBitmap(318x58)` se ejecuta sin
+  error). Pendiente real para más adelante: conectar un rasterizador de texto de verdad.
+- **`setAnimationInterval(double)`**, **`startFlurry()`**, **`initializePapayaFramework()`**: no-ops. Estas
+  tres (más probablemente Facebook/AppRater/CrossPromotion/GetMoreGames/Mail que no llegaron a aparecer
+  todavía) están puestas en `NO` en `appConfig.txt` (ver §2.5) — pero **nada en este loader llama al
+  `GetConfig()` nativo que en Android real es invocado desde `Activity.onCreate()` en Java** para que el
+  motor honre esas flags, así que el motor las pide igual sin que se lo pidamos. No hace falta implementar
+  `GetConfig()` de verdad: como ninguna de estas integraciones tiene sentido en un port a Vita, un no-op es
+  el comportamiento correcto en cualquier caso, no un parche temporal.
+
+Con estos 4 métodos agregados, la corrida siguiente **no tuvo ningún crash** (`grep -c "PC is 0x0"` → `0`) y
+el juego se mantuvo corriendo de forma estable, repitiendo la misma pantalla de logo/splash a 60 FPS con uso
+de CPU bajo (~16-17%, no un loop de error a full CPU) — es decir, parece estar genuinamente esperando algún
+input o timeout para avanzar (splash con ícono "X"/redes sociales visible en la imagen, ver captura), no
+trabado. Se probó un clic real (vía el mismo helper de Quartz) sobre el ícono "X" en pantalla sin efecto
+visible en el log — no se investigó más a fondo el mapeo de coordenadas táctiles pantalla-Vita↔ventana-Mac
+en esta sesión, queda para la Fase 10 (mapeo de controles).
+
+Único mensaje restante (no fatal, no bloqueante): `[WARN] method ID 27 not found!` en un `methodVoidCall` —
+probablemente el motor invoca algún método a través de una variante de llamada `Void` genérica usando un
+`jmethodID` que en nuestra tabla está registrado como `METHOD_TYPE_INT` (`preloadEffect`, id 27), un choque
+de tipo de retorno en la forma en que FalsoJNI indexa por id numérico en vez de por firma completa. No impide
+que el juego siga corriendo; revisar si aparece de nuevo una vez que se llegue a interactividad real.
+
+### 9.14. Investigación de mapeo de input: por qué la automatización por GUI (`osascript`/Quartz) no puede probar touch/botones en Vita3K
+
+Se investigó, con el código fuente real de Vita3K clonado localmente, por qué ni los clics sintéticos
+(`CGEventPost`, ya usados con éxito toda la sesión para navegar la biblioteca de Vita3K) ni las teclas
+sintéticas llegaban al juego una vez lanzado — con un diagnóstico agregado directamente a nuestro propio
+`source/main.c` (`sceClibPrintf` del estado real de `sceTouchPeek`/`sceCtrlPeekBufferPositive` cada 120
+frames) que confirmó de forma concluyente, sin ambigüedad: `touch.reportNum` y `pad.buttons` se mantuvieron
+en `0` durante toda la sesión de pruebas, sin importar clic simple, clic sostenido, clic en la barra de
+título, activar la app, ni cambiar a pantalla completa.
+
+**Causa raíz (confirmada en el código fuente de Vita3K, `vita3k/gui-qt/src/game_window.cpp`):**
+
+- La ventana del juego (`GameWindow`) es una `QWindow` de Qt **separada** de la ventana principal de la
+  biblioteca (confirmado también por Accessibility: son dos ventanas macOS distintas, cada una con sus
+  propios botones de semáforo).
+- El clic-como-touch está condicionado a `ts.renderer_focused`
+  (`vita3k/touch/src/touch.cpp:117`: `allow_mouse_touch = ts.renderer_focused && !is_common_dialog_running(...)`),
+  y ese booleano **solo** se activa en `GameWindow::focusInEvent()` — el evento de foco que Qt entrega a esa
+  `QWindow` específica cuando el sistema operativo se lo notifica como ventana activa/"key window".
+- Los clics sintéticos posteados vía `CGEventPost` (que sí funcionan para la tabla/botones Qt de la ventana
+  de la biblioteca, confirmado repetidas veces esta sesión) **no lograron disparar ese `focusInEvent`** en
+  la `GameWindow`, en ningún método probado.
+- Peor aún para los botones: `GameWindow::keyPressEvent()`/`keyReleaseEvent()` hacen `e->ignore()`
+  explícitamente — Qt **no** maneja el teclado en esa ventana en absoluto; el mapeo teclado→botón (los
+  binds `keyboard-button-cross: KeyX`, etc. de `config.yml`) debe pasar por un mecanismo de más bajo nivel
+  (probablemente polling directo de SDL) que tampoco se vio afectado por nuestras teclas sintéticas.
+
+**Conclusión:** esto es una limitación de la automatización por `osascript`/Quartz contra la arquitectura
+específica de ventanas de Vita3K (Qt + SDL combinados), **no un bug de nuestro port** — el código de
+`source/main.c` que lee `sceTouchPeek`/`sceCtrlPeekBufferPositive` y lo traduce a `nativeTouchesBegin`/
+`nativeKeyDown` ya es correcto y coincide con el patrón usado por otros ports reales (§9.4). Verificar
+interactividad real (¿el juego avanza del splash al tocar la pantalla? ¿qué hace cada botón?) va a necesitar
+que **una persona** lo pruebe con mouse/teclado reales en la ventana de Vita3K, o que se investigue más a
+fondo el pipeline de entrada de Vita3K (fuera del alcance de esta sesión). El flujo de "instalar + doble
+clic para lanzar" sigue funcionando perfecto por automatización (es la ventana de la biblioteca, no la del
+juego) — solo la interacción *dentro* de la partida ya lanzada requiere un humano.
+
+Aparte de esto, se confirmó que el splash → pantalla de menú (con 4 barras vacías, sin texto por el stub de
+`createTextBitmap` de §9.13) avanza **solo, por tiempo**, sin necesitar ningún input — así fue como se
+descubrió el siguiente método faltante (ver §9.15), no por lograr interactuar con el menú.
+
+### 9.15. Un método JNI más: `getRewardsCoins`
+
+Mientras el splash avanzaba solo hacia el menú, apareció un método nuevo sin implicar ningún fix de
+input: `Cocos2dxHelper.getRewardsCoins()` (`()I`, `METHOD_TYPE_INT`) — ligado a las mismas integraciones de
+recompensas/cross-promotion que ya están en `NO` en `appConfig.txt`. Se agregó devolviendo `0` (sin
+monedas), mismo criterio que los stubs de Flurry/Papaya de §9.13. Tras agregarlo, ninguna corrida posterior
+mostró crashes ni métodos nuevos sin implementar — el único mensaje persistente sigue siendo el
+`method ID 27 not found` benigno de §9.13, ya documentado.
+
+También en esta ronda se corrigió un bug real (no cosmético) en `source/java.c`: `Cocos2dxSound_preloadEffect`
+(que devuelve `int`) estaba registrado por duplicado dentro de `methodsVoid[]` además de `methodsInt[]` —
+un choque de tipo que hacía que **cualquier llamada a `preloadEffect` a través de la ruta `CallVoidMethod`**
+fallara silenciosamente con el warning `method ID 27 not found`. Se quitó la entrada duplicada de
+`methodsVoid[]`. El warning sigue apareciendo en algunas corridas — indica que el motor también invoca ese
+método por la ruta *void* (descartando el resultado) en al menos un lugar, no solo por la ruta *int*; no se
+investigó más a fondo (no es fatal), pero si se quiere silenciarlo del todo habría que registrar el mismo
+método una vez en cada tabla (con un wrapper `void` que llame a la versión `int` y descarte el resultado).
+
+### 9.16. Texto real logrado: `ScePvf`/`ScePgf` están sin implementar en Vita3K — se resolvió con `stb_truetype` + fuente empaquetada 🎉
+
+Se confirmó (pedido explícito del usuario antes de invertir en esto: revisar primero si el texto del menú
+venía pre-renderizado como imagen) que el texto de los botones del menú **no** está horneado en ninguna
+textura — los frames `menu_button_normal`/`menu_button_press_01`/`menu_button_disable` de
+`Texture/Menu/buttons/buttons.plist` son solo el fondo decorativo (la barra con adorno dorado); el texto de
+cada opción se dibuja aparte, dinámicamente, vía `Cocos2dxBitmap.createTextBitmap()`. Sin renderizado de
+texto real, esas barras quedan vacías — confirmado, no es una alternativa más simple disponible.
+
+**Intento 1: `ScePvf`, fuente por defecto en memoria compartida** — `scePvfOpenDefaultLatinFontOnSharedMemory()`
+devuelve códigos de éxito, pero cada `scePvfGetCharInfo()` reporta `bitmapWidth=0`/`bitmapHeight=0` para
+absolutamente todos los caracteres, y `scePvfGetFontInfo()` reporta métricas degeneradas
+(`maxHeight64=1`, prácticamente cero) sin importar el tamaño de fuente pedido. Se probó agregar
+`scePvfSetEM()` (nunca llamado antes) — mismo resultado exacto, bit a bit, incluyendo el mismo puntero de
+fuente. Se probó abrir un `.pvf` real del propio firmware de Vita3K directamente
+(`scePvfOpenUserFile(..., "sa0:data/font/pvf/ltn0.pvf", ...)`, confirmado que el archivo existe y se lee
+bien vía `sceIoOpen`) — **mismo resultado exacto otra vez**.
+
+**Causa raíz confirmada leyendo el código fuente de Vita3K** (`vita3k/modules/ScePvf/ScePvf.cpp` y
+`vita3k/modules/ScePgf/ScePgf.cpp`, clonados localmente): **las dos APIs de fuentes de sistema de Sony están
+100% sin implementar** — cada una de sus funciones exportadas (`scePvfGetCharInfo`, `scePvfGetCharGlyphImage`,
+`scePvfSetCharSize`, las 23 de `ScePgf`, etc.) es literalmente `return UNIMPLEMENTED();`. No hay ninguna
+combinación de argumentos ni de función de apertura que pueda funcionar, sin importar qué haga nuestro
+código — es una limitación total del emulador, no un bug del port. El mismo código probablemente funcione
+en hardware real (donde el firmware sí las implementa), pero no se puede confirmar en esta sesión.
+
+**Fix real: rasterizador propio, sin depender de ninguna API de Sony.** Se vendorizó
+[`stb_truetype.h`](https://github.com/nothings/stb) (dominio público, un solo header, en `lib/stb/`) y se
+empaquetó `DejaVuSans.ttf` (licencia Bitstream Vera, muy permisiva — ver `extras/fonts/DejaVuSans-LICENSE.txt`,
+descargado del release oficial `dejavu-fonts/dejavu-fonts` v2.37) directamente **dentro del `.vpk`** vía el
+mismo mecanismo `FILE` de `vita_create_vpk` que ya usan `cpuinfo`/`meminfo`/los PNG de LiveArea — queda
+accesible en runtime como `app0:/DejaVuSans.ttf`, sin necesitar que el usuario copie ningún asset suelto a
+la tarjeta de memoria.
+
+`Cocos2dxBitmap_createTextBitmap` (`source/java.c`) ahora:
+1. Carga `app0:/DejaVuSans.ttf` una sola vez (`fopen`/`fread` normal, cacheado en un `stbtt_fontinfo`
+   estático) y lo deja abierto para toda la vida del proceso.
+2. Por cada carácter del string (un byte UTF-8 = un codepoint — solo ASCII por ahora, suficiente para el
+   inglés de la UI del juego): `stbtt_GetCodepointHMetrics` + `stbtt_GetCodepointBitmapBox` +
+   `stbtt_MakeCodepointBitmap`, compone el glyph (blanco, con el alpha del glyph) en el buffer RGBA8888, y
+   avanza la posición con el *advance* de la fuente más el *kerning* (`stbtt_GetCodepointKernAdvance`).
+3. Llama a `Java_org_cocos2dx_lib_Cocos2dxBitmap_nativeInitBitmapDC` con el buffer ya compuesto, igual que
+   antes.
+
+**Confirmado visualmente por el usuario en tiempo real, con su propio teclado**: el texto de los botones del
+menú ya se ve (reporta que aparece en celeste claro — el motor aplica su propio tinte de color sobre la
+textura blanca+alpha que generamos, comportamiento esperado de un `Label`/`Sprite` de Cocos2d-x, no un bug).
+Sin crashes nuevos en ninguna corrida posterior a este cambio.
+
+> [!NOTE]
+> Se revirtió por completo el intento de `ScePvf` de esta misma sesión (quitado `ScePvf_stub` de
+> `target_link_libraries` en `CMakeLists.txt`, quitado `#include <psp2/pvf.h>`) antes de escribir la versión
+> con `stb_truetype` — no queda código muerto de ese experimento en el árbol.
+
+### 9.17. Nuevo bloqueo, esta vez confirmado como bug real de Vita3K (no del port): crash al entrar a una partida real, texturas swizzled sin potencia de 2
+
+Con el menú ya legible, el usuario probó con teclado real entrar a una partida (elegir modo de juego → X en
+"Quick Game"/"New Game") y Vita3K crasheó. Se confirmó con los crash reports nativos de macOS
+(`~/Library/Logs/DiagnosticReports/Vita3K-*.ips`) que es **100% reproducible, idéntico en 3 intentos
+separados**, siempre en la misma función:
+
+```
+renderer::texture::swizzled_texture_to_linear_texture(unsigned char*, unsigned char const*, unsigned short, unsigned short, unsigned char)
+renderer::TextureCache::upload_texture(SceGxmTexture const&, MemState&)
+renderer::TextureCache::cache_and_bind_texture(SceGxmTexture const&, MemState&)
+renderer::vulkan::sync_texture(...)
+```
+
+**Causa raíz confirmada leyendo el código fuente de Vita3K** (`vita3k/renderer/src/texture/format.cpp`,
+clonado localmente — commit del `master` actual, no solo el binario instalado): la función
+`swizzled_texture_to_linear_texture` decodifica la textura con una curva de Morton/Z-order que **asume que
+tanto el ancho como el alto son potencias de 2**:
+
+```cpp
+uint32_t encode_morton(uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
+    assert((width & (width - 1)) == 0);
+    assert((height & (height - 1)) == 0);
+    ...
+```
+
+Si el ancho o el alto **no** son potencia de 2 — algo muy común en atlas de sprites bien empaquetados, como
+`{253,177}` o `{247,115}` (tamaños reales vistos en `Texture/Menu/buttons/buttons.plist`, §9.16) — el cálculo
+de `min`/`k`/`upper_bits` deja de ser válido, y `dest + (y * width + x) * bytes_per_pixel` termina apuntando
+muy fuera del buffer real, produciendo exactamente el `EXC_BAD_ACCESS` observado (direcciones enormes y sin
+sentido: `0x468000000`, `0xb12000000`, `0xa82000000` — todas por encima del espacio de direcciones de 32
+bits que emula la Vita, es decir, aritmética de punteros corrupta, no una dirección de memoria real).
+
+**Se descartó que una versión más nueva de Vita3K lo arregle**: se clonó el `master` actual de
+`Vita3K/Vita3K` (no solo el release `v0.2.1 4058-6063154f` instalado) y la función tiene exactamente el
+mismo `assert` sin ningún caso especial para dimensiones no potencia de 2 — un búsqueda previa mencionó
+"fixes for swizzled non-power-of-2 **BCn** textures" (formatos comprimidos en bloques), pero esa ruta de
+código es distinta de la genérica (`format.cpp`) que estamos golpeando; el fix de BCn no cubre este caso.
+
+**Conclusión: es un bug real y actualmente sin arreglar en Vita3K, no algo accionable desde el código de
+este port.** El motor/vitaGL decide internamente cuándo usar layout "swizzled" para una textura al subirla
+vía OpenGL ES — no hay una forma expuesta desde nuestro loader de forzar layout lineal para evitar la ruta
+con el bug. Es muy probable que esto **no ocurra en hardware real** (donde el swizzling lo hace el silicio
+de la GPU de la Vita directamente, no esta emulación en software con la limitación de potencia de 2).
+
+**Estado:** las pruebas de menú (splash, selección de modo, texto) funcionan bien de punta a punta; entrar a
+una partida real está bloqueado en Vita3K específicamente por este bug del emulador. Pendiente decidir con
+el usuario: reportar el bug upstream a `Vita3K/Vita3K` (issue nuevo, no encontrado uno igual en la búsqueda
+de esta sesión), probar en hardware real si hay acceso, o seguir iterando solo hasta donde el emulador lo
+permita (menús, no gameplay).
 
 ---
 

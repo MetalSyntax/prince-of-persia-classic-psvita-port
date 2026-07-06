@@ -30,6 +30,11 @@ if (USE_SCELIBC_IO)
   add_definitions(-DUSE_SCELIBC_IO)
 endif()
 
+option(EMULATOR_BUILD "Relax hardware-only safety checks (e.g. kubridge presence) for Vita3K testing" OFF)
+if (EMULATOR_BUILD)
+  add_definitions(-DEMULATOR_BUILD)
+endif()
+
 set(SHADER_FORMAT "GLSL" CACHE STRING "Preferred shader format (one of 'GLSL', 'CG', 'GXP')")
 if (${SHADER_FORMAT} STREQUAL "GLSL")
   add_definitions(-DUSE_GLSL_SHADERS)
@@ -61,7 +66,7 @@ endif()
 # makes sincos, sincosf, etc. visible
 add_definitions(-D_GNU_SOURCE -D__POSIX_VISIBLE=999999)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=gnu++20 -Wno-write-strings -Wno-psabi")
 
 add_executable(${CMAKE_PROJECT_NAME}
@@ -149,6 +154,7 @@ vita_create_vpk(${VITA_VPKNAME}.vpk ${VITA_TITLEID} eboot.bin
                 ${CMAKE_SOURCE_DIR}/extras/livearea/startup.png sce_sys/livearea/contents/startup.png
                 ${CMAKE_SOURCE_DIR}/extras/livearea/bg0.png sce_sys/livearea/contents/bg0.png
                 ${CMAKE_SOURCE_DIR}/extras/livearea/template.xml sce_sys/livearea/contents/template.xml
+                ${CMAKE_SOURCE_DIR}/extras/fonts/DejaVuSans.ttf DejaVuSans.ttf
                 )
 
 add_custom_target(send

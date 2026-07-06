@@ -15,6 +15,7 @@
 #include "utils/utils.h"
 #include "utils/settings.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include <psp2/appmgr.h>
@@ -53,15 +54,23 @@ void soloader_init_all() {
     scePowerSetGpuXbarClockFrequency(166);
 
 #ifdef USE_SCELIBC_IO
-    if (fios_init(DATA_PATH) == 0)
+    if (fios_init() == 0)
         l_success("FIOS initialized.");
 #endif
 
     if (!module_loaded("kubridge")) {
+#ifdef EMULATOR_BUILD
+        // Vita3K implements kuKernelCpuUnrestrictedMemcpy/kuKernelFlushCaches at the HLE
+        // level without registering a "kubridge" kernel module, so this check always
+        // fails there even though so_util's calls into those functions work fine.
+        l_warn("kubridge is not loaded (expected under Vita3K / EMULATOR_BUILD).");
+#else
         l_fatal("kubridge is not loaded.");
         fatal_error("Error: kubridge.skprx is not installed.");
+#endif
+    } else {
+        l_success("kubridge check passed.");
     }
-    l_success("kubridge check passed.");
 
     char fname[256];
 
@@ -71,6 +80,7 @@ void soloader_init_all() {
     if (so_file_load(&denshion_mod, fname, LOAD_ADDRESS) < 0) {
         fatal_error("Error: could not load %s.", fname);
     }
+    sceClibPrintf("libcocosdenshion text_base=0x%08x\n", (unsigned int) denshion_mod.text_base);
 
     // Load Cocos2d
     sceClibPrintf("Loading libcocos2d\n");
@@ -78,6 +88,7 @@ void soloader_init_all() {
     if (so_file_load(&cocos2d_mod, fname, LOAD_ADDRESS + 0x1000000) < 0) {
         fatal_error("Error: could not load %s.", fname);
     }
+    sceClibPrintf("libcocos2d text_base=0x%08x\n", (unsigned int) cocos2d_mod.text_base);
 
     // Load Game Logic
     sceClibPrintf("Loading libgame_logic\n");
@@ -85,6 +96,7 @@ void soloader_init_all() {
     if (so_file_load(&game_mod, fname, LOAD_ADDRESS + 0x2000000) < 0) {
         fatal_error("Error: could not load %s.", fname);
     }
+    sceClibPrintf("libgame_logic text_base=0x%08x\n", (unsigned int) game_mod.text_base);
 
     settings_load();
     l_success("Settings loaded.");
@@ -94,9 +106,9 @@ void soloader_init_all() {
     so_relocate(&game_mod);
     l_success("SOs relocated.");
 
-    so_resolve(&denshion_mod, default_dynlib, sizeof(default_dynlib), 0);
-    so_resolve(&cocos2d_mod, default_dynlib, sizeof(default_dynlib), 0);
-    so_resolve(&game_mod, default_dynlib, sizeof(default_dynlib), 0);
+    resolve_imports(&denshion_mod);
+    resolve_imports(&cocos2d_mod);
+    resolve_imports(&game_mod);
     l_success("SO imports resolved.");
 
     //so_patch();

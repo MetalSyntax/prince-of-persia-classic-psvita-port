@@ -1363,6 +1363,30 @@ que salto/agacharse ya funcionaban por estar mapeados a botones físicos reales 
 además revisar el mapeo de teclas de movimiento (`nativeKeyDown(21)`/`nativeKeyDown(22)`, D-Pad
 izquierda/derecha) contra lo que realmente espera `libgame_logic.so`.
 
+### 9.23. Confirmado: el touch sí resuelve caminar, pero quedó otro bug — el personaje corría sin control
+
+Con `sceTouchSetSamplingState` activado, el usuario confirmó que **caminar y el touch ya funcionan** — la
+hipótesis de §9.22 (movimiento controlado por un joystick táctil virtual) era correcta. Pero durante la
+prueba el personaje se quedó corriendo solo, sin responder a input (log `log_1783376202_.txt`: bucles de
+`state_jump_Start`/`playJumpAnim` y `playSnapping` con la coordenada X subiendo sin parar).
+
+Causa encontrada leyendo `source/main.c`: el loop de touch llama a `nativeTouchesBegin`/`nativeTouchesMove`
+con el ID real del dedo (`touch.report[i].id`, asignado por el hardware, no necesariamente igual al índice
+`i` del slot), pero `nativeTouchesEnd` usaba **`i` en vez del ID real** cuando el dedo se levantaba. Si el
+hardware no hace que el ID coincida con el slot, el motor nunca recibe el `End` para el ID que efectivamente
+estaba trackeando — desde su perspectiva ese touch (el joystick virtual de movimiento) queda "apretado" para
+siempre. **Fix**: se agregó `lastId[5]` para recordar el ID real por slot y usarlo en `nativeTouchesEnd` en
+vez de `i`.
+
+### 9.24. Tipografía: reemplazada `DejaVuSans.ttf` por `DejaVuSerif.ttf`
+
+A pedido del usuario, comparando contra una captura del juego original de Android (menú con texto serif,
+tipo "NEW GAME"/"NORMAL MODE"): se reemplazó el contenido de `extras/fonts/DejaVuSans.ttf` por
+`DejaVuSerif.ttf` (misma familia y licencia DejaVu/Bitstream Vera que ya se usaba, instalada localmente vía
+`brew install --cask font-dejavu`). Se mantuvo intencionalmente el mismo nombre de archivo para no tener que
+tocar `source/java.c` (que abre `"app0:/DejaVuSans.ttf"`) ni `CMakeLists.txt` (que empaqueta ese path exacto
+en el `.vpk`) — cero cambios de código, solo el archivo de fuente.
+
 ---
 
 ## 10. Pulido final

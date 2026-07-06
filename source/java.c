@@ -64,6 +64,11 @@ NameToMethodID nameToMethodId[] = {
     // Cocos2dxHelper: cross-promotion/rewards currency, tied to the same
     // disabled online integrations as above -- no rewards system on Vita.
     { 63, "getRewardsCoins", METHOD_TYPE_INT },
+
+    // IntroTextLayer plays an FMV cutscene via this static native call --
+    // no video codec/player on this port, so it's a no-op and the game
+    // continues straight past it (matches the void return the caller expects).
+    { 64, "playVideo", METHOD_TYPE_VOID },
 };
 
 jobject Cocos2dxActivity_getDeviceName(jmethodID id, va_list args) {
@@ -229,6 +234,10 @@ jint Cocos2dxHelper_getRewardsCoins(jmethodID id, va_list args) {
     return 0;
 }
 
+void Cocos2dxActivity_playVideo(jmethodID id, va_list args) {
+    // No-op: no video codec on this port, skip straight past the cutscene.
+}
+
 MethodsBoolean methodsBoolean[] = {
     { 15, Cocos2dxMusic_isBackgroundMusicPlaying },
 };
@@ -256,6 +265,7 @@ MethodsVoid methodsVoid[] = {
     { 60, Cocos2dxActivity_setAnimationInterval },
     { 61, Cocos2dxActivity_startFlurry },
     { 62, Cocos2dxActivity_initializePapayaFramework },
+    { 64, Cocos2dxActivity_playVideo },
     { 10, Cocos2dxMusic_playBackgroundMusic },
     { 11, Cocos2dxMusic_stopBackgroundMusic },
     { 12, Cocos2dxMusic_pauseBackgroundMusic },

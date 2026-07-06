@@ -1253,6 +1253,26 @@ prefijos de resolución, igual que `Localization`) — el `.obb` quedó en ~511 
 de antemano qué otros assets de arranque/splash usan esta ruta — seguir agregando uno por uno a medida que el
 log indique `fullPath = Data_960_576/<archivo>` seguido de un intento de abrir el `.obb`.**
 
+**Cambio de estrategia (a pedido del usuario):** dejar de tener `Data/` suelta *y* `.apk`/`.obb` al mismo
+tiempo (pesa el doble en la tarjeta) — una sola estrategia: **todo vía `.apk`/`.obb`, sin carpeta `Data/`
+suelta**. Se empaquetaron los 412 archivos de `Data/` (113 MB en disco, ~65 MB de contenido real, la
+diferencia es overhead de bloques del filesystem en muchos archivos chicos) dentro del `.obb`, bajo el prefijo
+`Data_960_576/` — el mismo que ya confirmamos que usa el fallback a ZIP para `Localization` y `Logo`.
+`main.1.org.ubisoft.premium.POPClassic.obb` quedó en 65 MB (antes 186 MB completo, o 511 KB en la versión
+mínima previa). `original.apk` no cambia (824 B, solo `assets/appConfig.txt`).
+
+**Esto es un experimento, no algo confirmado todavía:** solo probamos el fallback "si no está suelto, abrir
+el `.obb` como zip" para 2 archivos (`Localizable.loc`, `logo.png`). Los otros ~410 archivos (texturas,
+`.plist` de sprites, partículas, mapas, animaciones) hasta ahora **siempre se leyeron sueltos** de `Data/` sin
+pasar nunca por el `.obb` — no sabemos aún si `CCFileUtils::getFileData` hace el mismo fallback para estos
+también, o si es un mecanismo especial solo de `Localization`/`Logo`. Si al borrar `Data/` suelta de la
+consola y probar aparece algo roto (texturas en blanco, crash, etc.), el log va a mostrar exactamente qué
+archivo falló — puede que la solución sea que ciertos assets necesiten el prefijo `Data/` a secas (no
+`Data_960_576/`) dentro del zip en vez de (o además de) `Data_960_576/`. Nota sobre audio: no hace falta
+preocuparse por `Data/Audio/*.ogg` en este cambio — `source/audio.c` todavía no implementa la lectura real de
+audio (son todos stubs con `// TODO: Implement Tremor vorbis decoding`), así que no hay ningún código leyendo
+esos archivos todavía, sueltos o no.
+
 **Pendiente, no implementado todavía (decisión del usuario: primero probar los zips mínimos, esto queda para
 después de tener el juego jugable de punta a punta):** eliminar por completo la dependencia de `.apk`/`.obb`
 hookeando `cocos2d::CCFileUtils::getFileData(char const*, char const*, unsigned long*)` — exportada en

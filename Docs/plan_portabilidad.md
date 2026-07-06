@@ -1154,6 +1154,69 @@ el usuario: reportar el bug upstream a `Vita3K/Vita3K` (issue nuevo, no encontra
 de esta sesión), probar en hardware real si hay acceso, o seguir iterando solo hasta donde el emulador lo
 permita (menús, no gameplay).
 
+### 9.18. Investigación de alternativas al bug de NPOT — dos hipótesis descartadas con evidencia, sesión pausada aquí
+
+Se probaron dos alternativas para evitar el bug de §9.17 sin tocar el código de Vita3K, ambas con resultado
+negativo pero con evidencia concreta que deja el terreno más claro para la próxima sesión:
+
+**1. Ocultar las extensiones NPOT de OpenGL (`glGetString(GL_EXTENSIONS)`)** — parcheado en
+`source/dynlib.c` (función `custom_glGetString`, reemplaza el `glGetString` real en `default_dynlib[]`):
+quita `GL_OES_texture_npot`/`GL_APPLE_texture_2D_limited_npot`/`GL_ARB_texture_non_power_of_two` del string
+que devuelve, con la idea de que `cocos2d-x` (que sí chequea esto — confirmado con `strings` sobre
+`libcocos2d.so`: existen `ccNextPOT`, `"cocos2d: GL supports NPOT textures: %s"`, etc.) decida rellenar sus
+texturas a potencia de 2 antes de subirlas. **Resultado: mismo crash, misma dirección exacta
+(`0x468000000`) en corridas repetidas.** Se dejó el parche en el árbol (no hace daño, y podría ayudar en
+otras rutas), pero no resuelve el problema real.
+
+**2. Cambiar el backend de render de Vulkan a OpenGL (`-B OpenGL`)** — se descartó **antes de probarlo en
+consola**, con evidencia en el código fuente de Vita3K: `TextureCache::upload_texture` y
+`cache_and_bind_texture` (donde vive la llamada a `swizzled_texture_to_linear_texture`) están en el
+namespace genérico `renderer::` (`vita3k/renderer/src/texture/cache.cpp`), **no** en `renderer::vulkan::` —
+es código compartido entre ambos backends. `renderer::vulkan::sync_texture` (el frame que aparece en el
+crash) es solo el punto de entrada específico de Vulkan que llama a esa lógica común; el backend OpenGL
+tiene su propio punto de entrada equivalente que cae en el mismo código compartido. Cambiar de backend no
+debería evitar el crash (no se pudo confirmar en consola por falta de forma de reproducir "entrar a una
+partida" por automatización, ver §9.14).
+
+**Pista real, no seguida hasta el final:** `cache.cpp` decide `is_swizzled` leyendo el campo
+`texture.texture_type()` **real** del `SceGxmTexture` — no es una heurística de Vita3K, es el tipo que nuestro
+propio loader/`vitaGL` le puso a la textura. Y `vitaGL` (`source/utils/gpu_utils.c:428`, vía
+`gpu_alloc_texture`) usa `vglInitLinearTexture` para la ruta normal de `glTexImage2D` (`SCE_GXM_TEXTURE_LINEAR`,
+que **no** debería disparar el bug — el `switch` de `cache.cpp` solo marca `is_swizzled` para
+`SCE_GXM_TEXTURE_SWIZZLED`/`_ARBITRARY`/`_CUBE`/`_CUBE_ARBITRARY`). Pero `vitaGL` **también** tiene una ruta
+de compresión DXT en tiempo de ejecución (`source/textures.c` del propio `vitaGL`, activada cuando
+`tex->write_cb` queda `NULL`) con un comentario `FIXME: NPOT textures are not supported in dxt_compress for
+now so we make the texture POT prior runtime compressing it` — es decir, **`vitaGL` mismo ya sabe que este
+caso es delicado** y intenta mitigarlo, pero el propio comentario admite que es un parche parcial. No se
+confirmó en esta sesión si esa ruta DXT es la que se activa para los PNG sueltos NPOT identificados en
+§9.17 (`level_01.png`...`level_14.png`, `menu_bg.png`, etc. — confirmados NPOT y sin atlas/plist con un
+script de inspección de cabeceras PNG), ni si el "FIXME" de `vitaGL` deja pasar igual una textura
+`SWIZZLED_ARBITRARY` mal dimensionada hacia GXM.
+
+**Próximos pasos concretos para la próxima sesión** (en orden de esfuerzo creciente):
+1. Instrumentar (temporalmente) `custom_glGetString`-style un wrapper de `glTexImage2D` en `dynlib.c` que
+   loguee ancho/alto/formato de cada textura subida, para confirmar con certeza cuál dispara el crash real
+   (¿es una de las NPOT identificadas en §9.17? ¿toma la ruta DXT de `vitaGL`?).
+2. Si es la ruta DXT: probar forzando `write_cb` no-nulo para este caso (evitar la compresión en runtime
+   para texturas NPOT específicamente) o parchear el `FIXME` de `vitaGL` para que trunque/rellene
+   correctamente antes de llamar a `sceGxm*`.
+3. Si no es la ruta DXT (es decir, `vglInitLinearTexture` sí se usa pero GXM/Vita3K igual lo trata como
+   swizzled): revisar si hay algo en cómo se llama `vglInitLinearTexture` (stride, alineación) que Vita3K
+   esté interpretando mal — o aceptar que es un bug genuino de Vita3K y reportarlo upstream con un caso de
+   repro mínimo (una textura NPOT simple vía `glTexImage2D` debería alcanzar para reproducirlo fuera de
+   este juego).
+4. Alternativa de último recurso, con riesgo visual conocido: rellenar a mano los PNG sueltos NPOT
+   identificados a potencia de 2 antes de empaquetarlos en `Data/` — riesgo: si el motor no trackea el
+   tamaño "de contenido" original por separado del tamaño de textura (no confirmado para estos assets en
+   particular, sin `.plist` que lo garantice), el sprite se vería con margen transparente extra o
+   posicionado mal.
+
+**Se pausa la investigación de este bug acá** (a pedido del usuario, para retomar otro día) — el estado de
+la sesión queda: menú + texto funcionando en Vita3K, gameplay real bloqueado por este bug de Vita3K, con
+tres hipótesis descartadas (extensión NPOT, backend OpenGL) y una pista concreta sin terminar de seguir
+(ruta DXT de `vitaGL`). También queda listo `INSTALL_HARDWARE.md` (raíz del repo) para probar en consola
+real, donde este bug de swizzling en software no debería existir (lo hace el silicio de la GPU).
+
 ---
 
 ## 10. Pulido final

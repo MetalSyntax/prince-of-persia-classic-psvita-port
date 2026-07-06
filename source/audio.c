@@ -117,11 +117,10 @@ void Cocos2dxSound_resumeAllEffects(jmethodID id, va_list args) {
     sceClibPrintf("Cocos2dxSound_resumeAllEffects()\n");
 }
 
-jint Cocos2dxSound_preloadEffect(jmethodID id, va_list args) {
+void Cocos2dxSound_preloadEffect(jmethodID id, va_list args) {
 
     jstring j_path = va_arg(args, jstring);
     sceClibPrintf("Cocos2dxSound_preloadEffect(%p)\n", j_path);
-    return 1;
 }
 
 void Cocos2dxSound_unloadEffect(jmethodID id, va_list args) {

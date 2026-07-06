@@ -26,7 +26,7 @@ void Cocos2dxSound_pauseEffect(jmethodID id, va_list args);
 void Cocos2dxSound_resumeEffect(jmethodID id, va_list args);
 void Cocos2dxSound_pauseAllEffects(jmethodID id, va_list args);
 void Cocos2dxSound_resumeAllEffects(jmethodID id, va_list args);
-jint Cocos2dxSound_preloadEffect(jmethodID id, va_list args);
+void Cocos2dxSound_preloadEffect(jmethodID id, va_list args);
 void Cocos2dxSound_unloadEffect(jmethodID id, va_list args);
 jfloat Cocos2dxSound_getEffectsVolume(jmethodID id, va_list args);
 void Cocos2dxSound_setEffectsVolume(jmethodID id, va_list args);

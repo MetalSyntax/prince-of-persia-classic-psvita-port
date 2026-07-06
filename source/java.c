@@ -262,6 +262,7 @@ MethodsVoid methodsVoid[] = {
     { 24, Cocos2dxSound_resumeEffect },
     { 25, Cocos2dxSound_pauseAllEffects },
     { 26, Cocos2dxSound_resumeAllEffects },
+    { 27, Cocos2dxSound_preloadEffect },
     { 28, Cocos2dxSound_unloadEffect },
     { 30, Cocos2dxSound_setEffectsVolume },
 };

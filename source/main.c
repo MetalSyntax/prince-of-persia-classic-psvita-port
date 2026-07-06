@@ -111,7 +111,7 @@ int main() {
                            touch.reportNum, (unsigned int) debug_pad.buttons);
         }
 
-        for (int i = 0; i < SCE_TOUCH_MAX_REPORT; i++) {
+        for (int i = 0; i < 5; i++) {
             if (i < touch.reportNum) {
                 int x = (int)((float)touch.report[i].x * 960.0f / 1920.0f);
                 int y = (int)((float)touch.report[i].y * 544.0f / 1088.0f);

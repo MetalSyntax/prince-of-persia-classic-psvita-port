@@ -132,6 +132,28 @@ void *dlsym_soloader(void * handle, const char * symbol) {
     return NULL;
 }
 
+const GLubyte* custom_glGetString(GLenum name) {
+    const GLubyte *res = glGetString(name);
+    if (name == 0x1F03 /* GL_EXTENSIONS */ && res != NULL) {
+        static char modified_exts[4096];
+        strncpy(modified_exts, (const char*)res, sizeof(modified_exts) - 1);
+        modified_exts[sizeof(modified_exts) - 1] = '\0';
+        
+        char *p;
+        if ((p = strstr(modified_exts, "GL_OES_texture_npot")) != NULL) {
+            memset(p, ' ', 19);
+        }
+        if ((p = strstr(modified_exts, "GL_APPLE_texture_2D_limited_npot")) != NULL) {
+            memset(p, ' ', 32);
+        }
+        if ((p = strstr(modified_exts, "GL_ARB_texture_non_power_of_two")) != NULL) {
+            memset(p, ' ', 31);
+        }
+        return (const GLubyte*)modified_exts;
+    }
+    return res;
+}
+
 so_default_dynlib default_dynlib[] = {
         // Common C/C++ internals
         { "_ZNSt8bad_castD1Ev", (uintptr_t)&_ZNSt8bad_castD1Ev },
@@ -616,7 +638,7 @@ so_default_dynlib default_dynlib[] = {
         { "glGetShaderInfoLog", (uintptr_t)&glGetShaderInfoLog },
         { "glGetShaderSource", (uintptr_t)&glGetShaderSource },
         { "glGetShaderiv", (uintptr_t)&glGetShaderiv },
-        { "glGetString", (uintptr_t)&glGetString },
+        { "glGetString", (uintptr_t)&custom_glGetString },
         { "glGetTexEnvfv", (uintptr_t)&ret0 },
         { "glGetTexEnviv", (uintptr_t)&glGetTexEnviv },
         { "glGetTexEnvxv", (uintptr_t)&ret0 },

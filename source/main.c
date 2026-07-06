@@ -112,6 +112,7 @@ int main() {
 
     int lastX[5] = {-1, -1, -1, -1, -1};
     int lastY[5] = {-1, -1, -1, -1, -1};
+    int lastId[5] = {-1, -1, -1, -1, -1};
     uint32_t oldpad = 0;
     int frame = 0;
 
@@ -139,11 +140,18 @@ int main() {
                 }
                 lastX[i] = x;
                 lastY[i] = y;
+                lastId[i] = touch.report[i].id;
             } else {
                 if (lastX[i] != -1 || lastY[i] != -1) {
-                    if (nativeTouchesEnd) nativeTouchesEnd(jniEnv, NULL, i, (jfloat)lastX[i], (jfloat)lastY[i]);
+                    // Use the touch ID that was actually passed to Begin/Move,
+                    // not the loop slot index -- the touch panel's per-finger
+                    // id doesn't necessarily match its slot, so using "i" here
+                    // sends an End for the wrong id and the engine never learns
+                    // the real touch ended (it stays stuck "held" forever).
+                    if (nativeTouchesEnd) nativeTouchesEnd(jniEnv, NULL, lastId[i], (jfloat)lastX[i], (jfloat)lastY[i]);
                     lastX[i] = -1;
                     lastY[i] = -1;
+                    lastId[i] = -1;
                 }
             }
         }

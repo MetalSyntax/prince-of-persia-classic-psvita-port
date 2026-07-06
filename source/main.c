@@ -180,6 +180,34 @@ int main() {
         sceCtrlPeekBufferPositive(0, &pad, 1);
         uint32_t current_pad = pad.buttons;
 
+        // The original game only ever drives movement through a touch-drag
+        // virtual joystick (confirmed: libgame_logic.so has no DPAD/keycode
+        // strings at all, only "joystick"/"joystick_base") -- KEYCODE_DPAD_*
+        // below does nothing for walking. Synthesize a drag on the on-screen
+        // joystick (bottom-left) instead, using a touch slot (5) that never
+        // collides with the 0-4 slots real fingers use.
+        {
+            static int dpad_touch_active = 0;
+            const int JOY_BASE_X = 120, JOY_BASE_Y = 450;
+            const int JOY_LEFT_X = 60, JOY_RIGHT_X = 180;
+            const int DPAD_TOUCH_SLOT = 5;
+
+            int wantLeft = (current_pad & SCE_CTRL_LEFT) != 0;
+            int wantRight = (current_pad & SCE_CTRL_RIGHT) != 0;
+
+            if (wantLeft || wantRight) {
+                int x = wantLeft ? JOY_LEFT_X : JOY_RIGHT_X;
+                if (!dpad_touch_active) {
+                    if (nativeTouchesBegin) nativeTouchesBegin(jniEnv, NULL, DPAD_TOUCH_SLOT, (jfloat)JOY_BASE_X, (jfloat)JOY_BASE_Y);
+                    dpad_touch_active = 1;
+                }
+                if (nativeTouchesMove) nativeTouchesMove(jniEnv, NULL, DPAD_TOUCH_SLOT, (jfloat)x, (jfloat)JOY_BASE_Y);
+            } else if (dpad_touch_active) {
+                if (nativeTouchesEnd) nativeTouchesEnd(jniEnv, NULL, DPAD_TOUCH_SLOT, (jfloat)JOY_BASE_X, (jfloat)JOY_BASE_Y);
+                dpad_touch_active = 0;
+            }
+        }
+
         if (nativeKeyDown && nativeKeyUp) {
             // MAP KEYS (Based on analysis)
             // START/SELECT -> KEYCODE_BACK (4) / KEYCODE_MENU (82)

@@ -1261,17 +1261,66 @@ diferencia es overhead de bloques del filesystem en muchos archivos chicos) dent
 `main.1.org.ubisoft.premium.POPClassic.obb` quedó en 65 MB (antes 186 MB completo, o 511 KB en la versión
 mínima previa). `original.apk` no cambia (824 B, solo `assets/appConfig.txt`).
 
-**Esto es un experimento, no algo confirmado todavía:** solo probamos el fallback "si no está suelto, abrir
-el `.obb` como zip" para 2 archivos (`Localizable.loc`, `logo.png`). Los otros ~410 archivos (texturas,
-`.plist` de sprites, partículas, mapas, animaciones) hasta ahora **siempre se leyeron sueltos** de `Data/` sin
-pasar nunca por el `.obb` — no sabemos aún si `CCFileUtils::getFileData` hace el mismo fallback para estos
-también, o si es un mecanismo especial solo de `Localization`/`Logo`. Si al borrar `Data/` suelta de la
-consola y probar aparece algo roto (texturas en blanco, crash, etc.), el log va a mostrar exactamente qué
-archivo falló — puede que la solución sea que ciertos assets necesiten el prefijo `Data/` a secas (no
-`Data_960_576/`) dentro del zip en vez de (o además de) `Data_960_576/`. Nota sobre audio: no hace falta
+**Esto era un experimento sin confirmar — quedó confirmado en esta misma sesión, con éxito.** Se probó en
+hardware real sin `Data/` suelta (solo `.so` × 3 + `original.apk` de 824 B + el `.obb` de 65 MB): el juego
+llegó al menú, se pudo elegir **Single Player → nivel 1 → New Game**, y **todas** las texturas/`.plist`
+pedidas (`buttons.plist`, `buttons.png`, `menu_bg.png`, `pop_title.png`, `igm_screen_frame.png`,
+`tap_to_continue.png`, etc.) cargaron bien vía el mismo fallback a ZIP (`fullPath = Data_960_576/... →
+Resource Path 2 .../main.1.org.ubisoft.premium.POPClassic.obb`). Confirmado: `CCFileUtils::getFileData`
+hace el fallback a ZIP para **cualquier** archivo bajo `Data_960_576/`, no solo `Localization`/`Logo` —
+**no hace falta el prefijo `Data/` a secas para nada visto hasta ahora.** Nota sobre audio: no hace falta
 preocuparse por `Data/Audio/*.ogg` en este cambio — `source/audio.c` todavía no implementa la lectura real de
 audio (son todos stubs con `// TODO: Implement Tremor vorbis decoding`), así que no hay ningún código leyendo
 esos archivos todavía, sueltos o no.
+
+**Conclusión: la estrategia final y adoptada es `.so` × 3 + `original.apk` (824 B) + `.obb` (65 MB, contiene
+todo `Data/` bajo `Data_960_576/` más `Localization` y `appConfig.txt`), sin carpeta `Data/` suelta en la
+tarjeta.** Los archivos completos originales (48 MB / 186 MB) y la carpeta `Data/` suelta (113 MB) ya no se
+suben a la consola — solo quedan de respaldo local en `ux0_data/popclassic/` (`.full`, no en git, `.gitignore`
+los excluye igual que antes).
+
+### 9.20. `playVideo` sin implementar colgaba el juego para siempre (no un crash, un hang real)
+
+Con la estrategia de §9.19 funcionando, el siguiente punto de falla fue al terminar "New Game": la intro de
+texto del nivel (`IntroTextLayer`) llama a un método nativo estático `playVideo` para reproducir un FMV de
+introducción. `FalsoJNI` no lo tenía registrado (`[JniHelper] Failed to find static method id of playVideo`)
+— un primer stub no-op evitó el lookup fallido pero **no resolvió el colgado**: el usuario confirmó que el
+juego quedaba completamente trabado (sin responder a táctil ni botones) sobre el fondo del menú, más allá de
+cerrarlo a la fuerza.
+
+Causa real (confirmada con `nm -D` sobre `libcocos2d.so`/`libgame_logic.so`, no adivinada): existe
+`Java_org_cocos2dx_lib_Cocos2dxVideo_onVideoCompleted` — el callback que, en Android real, el lado Java le
+dispara de vuelta al código nativo cuando el `MediaPlayer` termina de reproducir el video. `VideoLayer`
+(`libgame_logic.so`, con métodos como `OnVideoCompleted`/`OnVideoCompletion`) bloquea la transición de escena
+esperando ese callback — como nuestro `playVideo` nunca lo disparaba, el juego esperaba para siempre.
+
+**Fix aplicado** (`source/java.c`, `Cocos2dxActivity_playVideo`): sin códec de video en este port, el stub
+ahora resuelve `Java_org_cocos2dx_lib_Cocos2dxVideo_onVideoCompleted` vía `so_symbol(&cocos2d_mod, ...)` y lo
+llama inmediatamente, simulando que el video "terminó" al instante — el juego salta derecho a la siguiente
+escena en vez de trabarse. Este patrón (buscar el callback de "completado" real del motor y disparlarlo desde
+un stub no-op) es el que hay que replicar si aparece otro caso similar (audio/animaciones que bloqueen
+esperando un callback nativo que nuestro stub no dispara).
+
+### 9.21. Error `0x8010113D` al instalar el `.vpk` en consola real (no relacionado al gameplay)
+
+Al instalar `build/popclassic.vpk` (generado por `build_and_install.sh`, que compila en `/tmp` para evitar el
+problema del espacio en el path — no es el bug de §"Build path workaround" de la memoria del toolchain) la
+consola tiraba `0x8010113D` cerca del final de la instalación. Investigado por búsqueda web (no hay
+documentación oficial de Sony): la causa más citada para este código específico es que las imágenes de
+LiveArea (`icon0.png`, `pic0.png`, `startup.png`, `bg0.png`) no pasaron por `pngquant`.
+
+Se verificó a mano (parseando los chunks `IHDR` de cada PNG con un script Python, no solo asumiendo) que las
+4 imágenes de `extras/livearea/` ya eran PNG indexado de 8 bits, tamaños correctos (128×128, 960×544, 280×158,
+840×500), sin chunks raros — es decir, **el formato de PNG no era realmente el problema** en este caso
+puntual, aunque se reprocesaron con `pngquant` igual (no cambia tamaño ni contenido visual, instalado vía
+`brew install pngquant`) por si acaso.
+
+**Causa real encontrada**: `extras/livearea/template.xml` tenía `style="psmobile"` en vez de `style="a1"` —
+un cambio sin commitear en el árbol de trabajo (no se sabe si fue intencional). `"a1"` es el estilo estándar
+de LiveArea para homebrew (fondo + gate de arranque, que es exactamente lo que este proyecto usa);
+`"psmobile"` es el estilo legado de PlayStation Mobile, con otros requisitos de validación de la plantilla —
+coincide con que el error pasa justo al final de la instalación, cuando el sistema registra el LiveArea/bubble
+en el menú principal. Se revirtió a `style="a1"`.
 
 **Pendiente, no implementado todavía (decisión del usuario: primero probar los zips mínimos, esto queda para
 después de tener el juego jugable de punta a punta):** eliminar por completo la dependencia de `.apk`/`.obb`

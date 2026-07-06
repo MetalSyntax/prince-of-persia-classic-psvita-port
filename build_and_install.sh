@@ -56,14 +56,20 @@ cp "$VPK_NAME" "$PROJECT_DIR/build/$VPK_NAME"
 
 echo "✅ Build exitoso: $PROJECT_DIR/build/$VPK_NAME"
 
-echo "[4/4] Comprobando instalación de Vita3K..."
+echo "[4/4] Instalación..."
 VITA3K_APP="/Applications/Vita3K.app/Contents/MacOS/Vita3K"
 if [ -x "$VITA3K_APP" ]; then
-    echo "🎮 Vita3K detectado. Instalando VPK y lanzando el emulador..."
-    # Vita3K instala y ejecuta automáticamente el VPK cuando se le pasa por argumento
-    # Forzamos el backend a OpenGL usando -B OpenGL para evitar el bug del swizzler en Vulkan
-    "$VITA3K_APP" -B OpenGL "$PROJECT_DIR/build/$VPK_NAME" > /dev/null 2>&1 &
-    echo "¡Listo! El juego se está abriendo con el backend OpenGL."
+    read -p "¿Deseas instalar y ejecutar el VPK en Vita3K ahora? [s/N] " INSTALL_VITA3K
+    if [[ "$INSTALL_VITA3K" =~ ^[sS]$ ]]; then
+        echo "🎮 Instalando VPK y lanzando el emulador..."
+        # Vita3K instala y ejecuta automáticamente el VPK cuando se le pasa por argumento
+        # Forzamos el backend a OpenGL usando -B OpenGL para evitar el bug del swizzler en Vulkan
+        "$VITA3K_APP" -B OpenGL "$PROJECT_DIR/build/$VPK_NAME" > /dev/null 2>&1 &
+        echo "¡Listo! El juego se está abriendo con el backend OpenGL."
+    else
+        echo "Omitiendo instalación automática en Vita3K."
+        echo "Puedes instalar el archivo $PROJECT_DIR/build/$VPK_NAME manualmente."
+    fi
 else
     echo "⚠️ Vita3K no encontrado en la ruta por defecto (/Applications/Vita3K.app)."
     echo "Puedes instalar el archivo $PROJECT_DIR/build/$VPK_NAME manualmente en tu emulador o consola."

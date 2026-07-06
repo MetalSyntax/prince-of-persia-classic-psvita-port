@@ -1340,6 +1340,29 @@ ver `source/dynlib.c:63,77` — lo cual sugiere que sus `new[]` ya pasan por el 
 confirma qué pasa con symbols de `delete` definidos localmente en el propio `.so`, `_ZdaPv`/`_ZdlPv`, vistos
 como `T` — definidos, no importados — en `nm -D` de `libcocos2d.so`).
 
+### 9.22. Con el fix de §9.20, el juego llega a jugarse de verdad — pero la pantalla táctil nunca respondía
+
+Con `playVideo` arreglado, el log muestra el resto de la carga del nivel sin problemas: `Loading...`,
+`buttons`/`controls_btn`, y todas las animaciones/efectos del Prince (`prince_final_rendering_0X`,
+`prince_combat_final_0X`, `sword_sparks`, etc.) cargando vía el mismo fallback a ZIP del `.obb`. El usuario
+confirmó que el juego corre — puede saltar y agacharse (mapeado a botones físicos reales vía
+`nativeKeyDown`/`nativeKeyUp` en `source/main.c`) — pero **la pantalla táctil no respondía en absoluto, ni en
+el menú ni in-game**, y tampoco se podía caminar.
+
+Causa encontrada leyendo `source/main.c`: nunca se llama a `sceTouchSetSamplingState()`. En la Vita, el
+sampling del panel táctil está **apagado por default** — sin activarlo, `sceTouchPeek()` (ya usado en el loop
+principal para leer `touch.report[]`) siempre devuelve `reportNum=0`, sin importar qué tan bien esté el resto
+del código de touch (que ya estaba bien: escala correctamente de la resolución del panel, 1920×1088, a la
+resolución del juego, 960×544). **Fix**: `sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT,
+SCE_TOUCH_SAMPLING_STATE_START)` al principio de `main()`, antes del loop.
+
+Es muy probable que esto también explique por qué no se podía caminar: el juego original de Android controla
+el movimiento (caminar) con un joystick/botones virtuales dibujados en pantalla y leídos por touch, mientras
+que salto/agacharse ya funcionaban por estar mapeados a botones físicos reales del D-Pad/botones de acción.
+**Pendiente de confirmar en la próxima prueba** si activar el touch resuelve caminar también, o si hace falta
+además revisar el mapeo de teclas de movimiento (`nativeKeyDown(21)`/`nativeKeyDown(22)`, D-Pad
+izquierda/derecha) contra lo que realmente espera `libgame_logic.so`.
+
 ---
 
 ## 10. Pulido final

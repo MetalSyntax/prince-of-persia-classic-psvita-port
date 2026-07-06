@@ -1442,6 +1442,22 @@ confirmó que está abajo a la izquierda; coordenadas exactas puestas a ojo, `(1
 si no calzan bien en la próxima prueba) usando un slot de touch dedicado (`5`) que nunca choca con los slots
 0-4 que ya usan los dedos reales.
 
+### 9.27. El slot "extra" del D-Pad (§9.26) era el propio bug que ya habíamos arreglado
+
+El usuario logró reproducir `0x99165940` de nuevo, esta vez con contexto claro: pasó usando la cruceta
+mientras rompía una losa/loseta para pasar a otra parte del nivel. Revisando el fix de §9.26: el slot `5`
+dedicado al joystick del D-Pad **era exactamente el mismo bug de §9.25** — cocos2d-x en Android soporta
+`CC_MAX_TOUCHES == 5` (slots `0`-`4`), así que `5` ya es uno de más, fuera del array interno de touches del
+motor. La dirección del crash (que no resuelve a código real, típico de un `PC` corrupto) es consistente con
+esto. **Fix real**: el D-Pad ya no tiene un slot dedicado — compite por los mismos 5 slots que los dedos
+reales, a través del mismo mecanismo de asignación de §9.25 (con un id virtual `-2` para identificar su
+"dedo" sintético, que nunca choca ni con los ids reales de `SceTouchReport` ni con el `-1` de "libre").
+
+También reportó que la cruceta ya **gira** al personaje pero no lo hace **caminar** — señal de que el
+desplazamiento usado (±60px desde el centro) cruzaba la zona muerta de "girar" del joystick pero no la de
+"caminar". Se amplió a ±120px aprox. (`JOY_LEFT_X=30, JOY_RIGHT_X=270` sobre una base en `150`) — a confirmar
+en la próxima prueba.
+
 ---
 
 ## 10. Pulido final

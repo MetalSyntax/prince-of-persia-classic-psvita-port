@@ -1387,6 +1387,42 @@ tipo "NEW GAME"/"NORMAL MODE"): se reemplazó el contenido de `extras/fonts/Deja
 tocar `source/java.c` (que abre `"app0:/DejaVuSans.ttf"`) ni `CMakeLists.txt` (que empaqueta ese path exacto
 en el `.vpk`) — cero cambios de código, solo el archivo de fuente.
 
+### 9.25. Dos crashes de touch (menú y escalando una pared) — causa real confirmada con `vita-parse-core`, no con el log
+
+Con caminar y touch ya funcionando, el usuario reportó dos crashes reales (no colgadas): uno tocando la
+pantalla en el menú, otro saltando/escalando una pared en una sección cerrada del nivel. El log de texto no
+alcanzaba para diagnosticarlos — ninguno mostraba registros ni instrucción de falla. Se armó el flujo
+completo para leer los `.psp2dmp` (volcados de la consola en `ux0:data/`) con la herramienta de la comunidad
+`xyzz/vita-parse-core` (clonada a `~/vita-tools/`, con un venv propio — necesitó `pyelftools==0.24` exacto,
+no una versión moderna, y un parche de una línea en `elftools/construct/lib/container.py`
+(`from collections import MutableMapping` → `from collections.abc import MutableMapping`, la versión vieja
+de la librería no es compatible con Python 3.10+), y el `.elf` sin firmar del build (`so_loader`, generado
+por CMake *antes* de la conversión a `.velf`, con `-g` ya activado en `CMAKE_C_FLAGS`) — **no** el `.velf` ni
+el `eboot.bin` final.
+
+Los dos volcados apuntaron a la misma causa real:
+
+- Volcado 1: `PC` cae directo dentro de `Java_org_cocos2dx_lib_Cocos2dxRenderer_nativeTouchesEnd` en
+  `libcocos2d.so` (`R0=0, R3=0`, Data abort).
+- Volcado 2: `PC` cae dentro de `_free_r` (newlib) con `LR` corrupto (dirección sin sentido) — corrupción de
+  heap descubierta más tarde, no en el momento real del bug. La pila de la SP en ese momento sí mostraba el
+  camino real: `nativeTouchesEnd` → `cocos2d::CCObject::release()` → `~CCSet()` (resuelto restando
+  `cocos2d_mod.text_base` a cada dirección y buscando el símbolo más cercano con `nm -D` — mismo método que
+  en §"¿Qué significa esto?" de `Bug_psvita_real.md`, pero ahora con la lectura real del volcado en vez de
+  solo direcciones sueltas de un reporte de usuario).
+
+**Causa real**: `SceTouchReport::id` (`psp2/touch.h`) es un contador de 8 bits que sigue creciendo durante
+toda la sesión — no es un rango chico (0-4) como los `pointer id` de `MotionEvent` en Android real. El loop
+de `source/main.c` le pasaba ese id crudo directo a `nativeTouchesBegin`/`Move`/`End`, que internamente lo
+usa para indexar un array de tamaño fijo pensado para IDs chicos de Android — con un id grande, escribe
+fuera de los límites y corrompe el heap (a veces se nota al toque, a veces recién en el próximo `free()`).
+
+**Fix real** (reemplaza el de §9.23, que solo evitaba el "id equivocado en el End" pero seguía mandando el id
+crudo): mantener un slot chico y estable (0-4) por dedo. El id crudo del hardware (`touch.report[r].id`) solo
+se usa para reconocer qué dedo es cuál entre frames (buscar en qué slot ya está, o asignarle uno libre si es
+nuevo) — el valor que efectivamente se manda a `nativeTouchesBegin/Move/End` es siempre el índice del slot,
+nunca el id crudo.
+
 ---
 
 ## 10. Pulido final

@@ -1243,6 +1243,16 @@ exactamente ese contenido en `ux0_data/popclassic/` (los originales quedaron com
 borraron). Si al probar aparece un `fopen(...): 0x0` para algún otro archivo dentro de esas rutas, agregar
 solo ese archivo puntual al zip mínimo correspondiente — no hace falta volver a los archivos completos.
 
+**Confirmado en hardware real con esta build:** el `.apk`/`.obb` mínimos funcionan — `original.apk` abre bien
+y `Localizable.loc` se cargó correctamente vía el `.obb` ("Load Loc Table" exitoso). Pero **no es solo
+`Localization/*.loc` lo que se resuelve por la ruta ZIP del `.obb`** — el siguiente archivo pedido,
+`Data_960_576/Logo/logo.png` (el logo de splash), también pasa por el mismo mecanismo (mismo patrón de log:
+`fullPath = Data_960_576/...` → abre el `.obb` como zip → busca el archivo adentro), a pesar de que
+`Data/Logo/logo.png` sí existe como archivo suelto. Se agregó `Logo/logo.png` al `.obb` mínimo (bajo los 3
+prefijos de resolución, igual que `Localization`) — el `.obb` quedó en ~511 KB. **Conclusión: no hay que asumir
+de antemano qué otros assets de arranque/splash usan esta ruta — seguir agregando uno por uno a medida que el
+log indique `fullPath = Data_960_576/<archivo>` seguido de un intento de abrir el `.obb`.**
+
 **Pendiente, no implementado todavía (decisión del usuario: primero probar los zips mínimos, esto queda para
 después de tener el juego jugable de punta a punta):** eliminar por completo la dependencia de `.apk`/`.obb`
 hookeando `cocos2d::CCFileUtils::getFileData(char const*, char const*, unsigned long*)` — exportada en

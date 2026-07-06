@@ -27,6 +27,10 @@ int main() {
     soloader_init_all();
     audio_init();
 
+    // Touch sampling is off by default -- sceTouchPeek() below always
+    // reports reportNum=0 (no touches, ever) until this is called.
+    sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
+
     JNIEnv *jniEnv = &jni;
 
     // Each loaded .so that exports JNI_OnLoad caches the JavaVM* it's given in

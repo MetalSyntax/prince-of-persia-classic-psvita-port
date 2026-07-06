@@ -235,7 +235,16 @@ jint Cocos2dxHelper_getRewardsCoins(jmethodID id, va_list args) {
 }
 
 void Cocos2dxActivity_playVideo(jmethodID id, va_list args) {
-    // No-op: no video codec on this port, skip straight past the cutscene.
+    // No video codec on this port -- immediately fire the completion callback
+    // that Android's Java side would normally call back into native once the
+    // video finishes, since VideoLayer (libgame_logic.so) blocks waiting for
+    // it and would otherwise hang forever instead of just skipping the video.
+    JNIEnv *jniEnv = &jni;
+    void (* onVideoCompleted)(JNIEnv *env, jobject thiz) =
+        (void *) so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxVideo_onVideoCompleted");
+    if (onVideoCompleted) {
+        onVideoCompleted(jniEnv, NULL);
+    }
 }
 
 MethodsBoolean methodsBoolean[] = {

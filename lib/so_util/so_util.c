@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "so_util.h"
+#include "../source/utils/logger.h"
 
 extern void fatal_error(const char * fmt, ...);
 
@@ -71,7 +72,7 @@ static so_module *head = NULL, *tail = NULL;
 
 so_hook hook_thumb(uintptr_t addr, uintptr_t dst) {
     so_hook h;
-    //sceClibPrintf("THUMB HOOK\n");
+    //l_debug("THUMB HOOK\n");
     if (addr == 0)
         return h;
     h.thumb_addr = addr;
@@ -80,7 +81,7 @@ so_hook hook_thumb(uintptr_t addr, uintptr_t dst) {
         uint16_t nop = 0xbf00;
         ku_memcpy((void *)addr, &nop, sizeof(nop));
         addr += 2;
-        //sceClibPrintf("THUMB UNALIGNED\n");
+        //l_debug("THUMB UNALIGNED\n");
     }
 
     h.addr = addr;
@@ -226,7 +227,7 @@ int _so_load(so_module *mod, SceUID so_blockid, void *so_data, uintptr_t load_ad
                 mod->cave_base = mod->cave_head = prog_data + mod->phdr[i].p_memsz;
                 mod->cave_base = ALIGN_MEM(mod->cave_base, 0x4);
                 mod->cave_head = mod->cave_base;
-                //sceClibPrintf("code cave: %d bytes (@0x%08X).\n", mod->cave_size, mod->cave_base);
+                //l_debug("code cave: %d bytes (@0x%08X).\n", mod->cave_size, mod->cave_base);
 
                 data_addr = (uintptr_t)prog_data + prog_size;
             } else {
@@ -455,36 +456,19 @@ uintptr_t so_resolve_link(so_module *mod, const char *symbol) {
 
 void reloc_err(uintptr_t got0)
 {
-    // Find to which module this missing symbol belongs
-    int found = 0;
     so_module *curr = head;
-    while (curr && !found) {
-        for (int i = 0; i < curr->n_data; i++)
-            if ((got0 >= curr->data_base[i]) && (got0 <= (uintptr_t)(curr->data_base[i] + curr->data_size)))
-                found = 1;
-
-        if (!found)
-            curr = curr->next;
-    }
-
-    if (curr) {
-        // Attempt to find symbol name and then display error
+    while (curr) {
         for (int i = 0; i < curr->num_reldyn + curr->num_relplt; i++) {
             Elf32_Rel *rel = i < curr->num_reldyn ? &curr->reldyn[i] : &curr->relplt[i - curr->num_reldyn];
             Elf32_Sym *sym = &curr->dynsym[ELF32_R_SYM(rel->r_info)];
             uintptr_t *ptr = (uintptr_t *)(curr->text_base + rel->r_offset);
 
-            int type = ELF32_R_TYPE(rel->r_info);
-            switch (type) {
-                case R_ARM_JUMP_SLOT:
-                {
-                    if (got0 == (uintptr_t)ptr) {
-                        fatal_error("Unknown symbol \"%s\" (%p).\n", curr->dynstr + sym->st_name, (void*)got0);
-                    }
-                    break;
-                }
+            if (got0 == (uintptr_t)ptr) {
+                fatal_error("Unknown symbol \"%s\" (%p).\n", curr->dynstr + sym->st_name, (void*)got0);
+                return;
             }
         }
+        curr = curr->next;
     }
 
     // Ooops, this shouldn't have happened.
@@ -538,11 +522,11 @@ int so_resolve(so_module *mod, so_default_dynlib *default_dynlib, int size_defau
 
                     if (!resolved) {
                         if (type == R_ARM_JUMP_SLOT) {
-                            printf("Unresolved import: %s\n", mod->dynstr + sym->st_name);
+                            l_error("Unresolved import: %s", mod->dynstr + sym->st_name);
                             *ptr = (uintptr_t)&plt0_stub;
                         }
                         else {
-                            printf("Unresolved import: %s\n", mod->dynstr + sym->st_name);
+                            l_error("Unresolved import: %s", mod->dynstr + sym->st_name);
                         }
                     }
                 }
@@ -731,7 +715,7 @@ void so_symbol_fix_ldmia(so_module *mod, const char *symbol) {
 
         //Is this an LDMIA instruction with a R0-R12 base register?
         if (((inst & 0xFFF00000) == 0xE8900000) && (((inst >> 16) & 0xF) < 13) ) {
-            sceClibPrintf("Found possibly misaligned LDMIA on 0x%08X, trying to fix it... (instr: 0x%08X, to 0x%08X)", addr, *(uint32_t*)addr, mod->patch_head);
+            l_debug("Found possibly misaligned LDMIA on 0x%08X, trying to fix it... (instr: 0x%08X, to 0x%08X)", addr, *(uint32_t*)addr, mod->patch_head);
             trampoline_ldm(mod, addr);
         }
     }

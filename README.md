@@ -2,70 +2,71 @@
 Prince of Persia Classic · PSVita Port
 </h1>
 <p align="center">
-  <a href="#setup-instructions-for-players">How to install</a> •
+  <a href="#installation-instructions">How to install</a> •
   <a href="#controls">Controls</a> •
   <a href="#build-instructions-for-developers">How to compile</a> •
-  <a href="#license">License</a>
+  <a href="README.md">Versión en Español</a>
 </p>
 
-Prince of Persia Classic es una versión de 2012 para dispositivos Android e iOS que recrea los niveles del legendario juego clásico de 1989 con gráficos tridimensionales modernizados.
+Prince of Persia Classic is a 2012 release for Android and iOS devices that recreates the levels of the legendary 1989 classic game with modernized 3D graphics.
 
-Este repositorio contiene un cargador para **la versión de Android de Prince of Persia Classic (basada en Cocos2d-x)**, adaptando el entorno para que se ejecuten las librerías dinámicas ARM nativas en la PS Vita usando la base de [Android SO Loader por TheFloW].
+This repository contains a **wrapper/loader** for the Android version of Prince of Persia Classic (based on Cocos2d-x), adapting the environment to run the native ARM dynamic libraries (`.so`) on the PS Vita using TheFloW's Android SO Loader base.
 
-Disclaimer
-----------------
+## ⚠️ Legal & DMCA Disclaimer
+**Prince of Persia Classic** is the intellectual property of Ubisoft Entertainment.  
+This repository does **NOT** contain any original code, executables, protected binaries, or game assets. It strictly provides the open-source "wrapper" code. The included LiveArea assets are AI-generated or open-source images, free from copyright restrictions.
 
-**Prince of Persia Classic** es propiedad intelectual de Ubisoft Entertainment. Este software no contiene código original, ejecutables, ni recursos del juego. Para jugar, es indispensable contar con una copia legítima en formato `.apk` y su correspondiente archivo de datos `.obb`.
+To play the game, you MUST possess a legitimate, legally obtained copy of the Android game. Users must manually extract and provide their own files (`.apk`, `.obb`, and `.so` libraries).
 
-Setup Instructions (For Players)
-----------------
+---
 
-Para realizar la instalación en una PS Vita real:
+## Installation Instructions
 
-- Asegúrate de estar en una versión de firmware Enso (3.60 o 3.65).
-- Instala o actualiza los plugins de kernel [kubridge] y [FdFix] agregándolos a tu `config.txt` bajo la sección `*KERNEL`:
-  ```
-  *KERNEL
-  ur0:tai/kubridge.skprx
-  ur0:tai/fd_fix.skprx
-  ```
-- Copia el archivo `libshacccg.suprx` en `ur0:/data/` (se puede descargar usando la herramienta ShaRKBR33D).
-- Extrae las siguientes librerías de la carpeta `lib/armeabi/` o `lib/armeabi-v7a/` de tu archivo `.apk` y colócalas en `ux0:data/popclassic/`:
-  * `libcocos2d.so`
-  * `libcocosdenshion.so`
-  * `libgame_logic.so`
-- Extrae la carpeta de recursos de tu archivo de datos `.obb` (usualmente contiene carpetas como `Animations`, `Texture`, etc.) y colócala en `ux0:data/popclassic/Assets/`.
-- Instala el archivo `popclassic.vpk` generado.
+To install the port on a real PS Vita:
 
-Controls
------------------
+1. Ensure your console is running **Enso** (firmware 3.60 or 3.65).
+2. Install the [kubridge] and [FdFix] plugins by adding them to your `config.txt` under `*KERNEL`:
+   ```
+   *KERNEL
+   ur0:tai/kubridge.skprx
+   ur0:tai/fd_fix.skprx
+   ```
+3. Install `libshacccg.suprx` (you can download it using the ShaRKBR33D homebrew).
+4. Install the generated `popclassic.vpk` file.
+5. Obtain your legal Android copy. You will need a **minimal modified APK** and a **modified OBB** (extracted/optimized) compatible with this port. Place the extracted data into the appropriate folder either at `ux0:app/POPCLASC1/` or `ux0:data/popclassic/`.
+6. Extract the native libraries from the `lib/armeabi/` or `lib/armeabi-v7a/` folder of your `.apk` and place them alongside the game data:
+   * `libcocos2d.so`
+   * `libcocosdenshion.so`
+   * `libgame_logic.so`
 
-| Botón | Acción |
+*(Note: Check community forums for patching scripts and tools to prepare your legal APK and OBB files).*
+
+## Controls
+
+| Button | Action |
 |:---:|:---|
-| Left Analog / D-Pad | Mover al Príncipe (Izquierda/Derecha), Agacharse (Abajo), Saltar/Trepar (Arriba) |
-| Cross | Saltar |
-| Circle | Rodar |
-| Square | Acción / Usar espada |
-| Start | Menú de Pausa (Android KEYCODE_BACK / Botón Atrás) |
-| Touchscreen | Navegación por los menús táctiles |
+| Left Analog / D-Pad | Move Prince (Left/Right), Crouch (Down), Jump/Climb (Up) |
+| Cross | Jump |
+| Circle | Roll |
+| Square | Action / Use Sword |
+| Start | Pause Menu (Android KEYCODE_BACK) |
+| Touchscreen | Touch Menu Navigation |
 
-Build Instructions (For Developers)
-----------------
+## Build Instructions (For Developers)
 
-Para compilar el proyecto se requiere el SDK de PS Vita compilado con soporte para `softfp`:
+You need the PS Vita SDK compiled with `softfp` support:
 
 ```bash
 git clone https://github.com/vitasdk-softfp/vdpm
 ```
 
-Para generar la compilación usando CMake:
+To build the project using CMake:
 
 ```bash
 cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-License
-----------------
+## License
 
-Este cargador se distribuye bajo los términos de la licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+This loader is distributed under the MIT License. See the `LICENSE` file for more details.

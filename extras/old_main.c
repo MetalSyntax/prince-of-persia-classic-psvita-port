@@ -107,7 +107,7 @@ int __android_log_print(int prio, const char *tag, const char *fmt, ...) {
 	vsprintf(string, fmt, list);
 	va_end(list);
 
-	sceClibPrintf("[LOG] %s: %s\n", tag, string);
+	l_debug("[LOG] %s: %s\n", tag, string);
 #endif
 	return 0;
 }
@@ -121,7 +121,7 @@ int __android_log_write(int prio, const char *tag, const char *fmt, ...) {
 	vsprintf(string, fmt, list);
 	va_end(list);
 
-	sceClibPrintf("[LOGW] %s: %s\n", tag, string);
+	l_debug("[LOGW] %s: %s\n", tag, string);
 #endif
 	return 0;
 }
@@ -133,7 +133,7 @@ int __android_log_vprint(int prio, const char *tag, const char *fmt, va_list lis
 	vsprintf(string, fmt, list);
 	va_end(list);
 
-	sceClibPrintf("[LOGV] %s: %s\n", tag, string);
+	l_debug("[LOGV] %s: %s\n", tag, string);
 #endif
 	return 0;
 }
@@ -1717,14 +1717,14 @@ void *pthread_main(void *arg) {
         JNI_OnLoad = (void *)so_symbol(&cocos2d_mod, "JNI_OnLoad");
     }
 
-	sceClibPrintf("JNI_OnLoad\n");
+	l_debug("JNI_OnLoad\n");
     if (JNI_OnLoad)
 	    JNI_OnLoad(fake_vm, NULL);
 
-	sceClibPrintf("Engine_Initialize\n");
+	l_debug("Engine_Initialize\n");
 	Engine_Init(fake_env, NULL, SCREEN_W, SCREEN_H);
 
-	sceClibPrintf("Entering main loop\n");
+	l_debug("Entering main loop\n");
 
 	int lastX[5] = {-1, -1, -1, -1, -1};
     int lastY[5] = {-1, -1, -1, -1, -1};
@@ -1809,7 +1809,7 @@ int main(int argc, char *argv[]) {
     char fname[256];
 
     // Load CocosDenshion (Audio)
-	sceClibPrintf("Loading libcocosdenshion\n");
+	l_debug("Loading libcocosdenshion\n");
 	sprintf(fname, "%s/libcocosdenshion.so", data_path);
 	if (so_file_load(&denshion_mod, fname, LOAD_ADDRESS) < 0) {
 		fatal_error("Error could not load %s.", fname);
@@ -1820,7 +1820,7 @@ int main(int argc, char *argv[]) {
     // Load Cocos2d (Engine)
     // Note: Ideally we should export symbols from denshion to resolve here, 
     // but for simplicity we rely on the loader's global resolution or stubbing if needed.
-	sceClibPrintf("Loading libcocos2d\n");
+	l_debug("Loading libcocos2d\n");
 	sprintf(fname, "%s/libcocos2d.so", data_path);
 	if (so_file_load(&cocos2d_mod, fname, LOAD_ADDRESS + 0x100000) < 0) { // Offset to avoid overlap if not handled by loader
 		fatal_error("Error could not load %s.", fname);
@@ -1829,7 +1829,7 @@ int main(int argc, char *argv[]) {
 	so_resolve(&cocos2d_mod, default_dynlib, sizeof(default_dynlib), 0);
 
     // Load Game Logic
-	sceClibPrintf("Loading libgame_logic\n");
+	l_debug("Loading libgame_logic\n");
 	sprintf(fname, "%s/libgame_logic.so", data_path);
 	if (so_file_load(&game_mod, fname, LOAD_ADDRESS + 0x800000) < 0) {
 		fatal_error("Error could not load %s.", fname);

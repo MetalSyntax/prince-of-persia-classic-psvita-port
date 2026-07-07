@@ -840,6 +840,7 @@ so_default_dynlib default_dynlib[] = {
 
 
         // wchar, wctype
+        { "bsearch", (uintptr_t)&bsearch },
         { "btowc", (uintptr_t)&btowc },
         { "iswalpha", (uintptr_t)&iswalpha },
         { "iswcntrl", (uintptr_t)&iswcntrl },
@@ -1023,6 +1024,8 @@ so_default_dynlib default_dynlib[] = {
         { "gzclose", (uintptr_t)&gzclose },
         { "gzgets", (uintptr_t)&gzgets },
         { "gzopen", (uintptr_t)&gzopen },
+        { "gzread", (uintptr_t)&gzread },
+        { "cosh", (uintptr_t)&cosh },
         { "inflate", (uintptr_t)&inflate },
         { "inflateEnd", (uintptr_t)&inflateEnd },
         { "inflateInit2_", (uintptr_t)&inflateInit2_ },

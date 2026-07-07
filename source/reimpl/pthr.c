@@ -47,7 +47,7 @@ static volatile short int pthr_mutex_inited = 0;
     if (!pthr_mutex_inited) { \
         int ret = sceKernelCreateLwMutex(&pthr_mutex, "log_lock", 0, 0, NULL); \
         if (ret < 0) { \
-            sceClibPrintf("Error: failed to create pthr mutex: 0x%x\n", ret); \
+            l_debug("Error: failed to create pthr mutex: 0x%x\n", ret); \
             return 0; \
         } \
         pthr_mutex_inited = 1; \
@@ -400,7 +400,7 @@ int pthread_setname_np_soloader(pthread_t thread, const char* thread_name) {
         return ERANGE;
     }
 
-    sceClibPrintf("PTHREAD: pthread_setname_np with name %s for thread:0x%x\n", thread_name, pthread_self());
+    l_debug("PTHREAD: pthread_setname_np with name %s for thread:0x%x\n", thread_name, pthread_self());
 
     return 0;
 }

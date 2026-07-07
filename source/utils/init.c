@@ -75,28 +75,28 @@ void soloader_init_all() {
     char fname[256];
 
     // Load CocosDenshion
-    sceClibPrintf("Loading libcocosdenshion\n");
+    l_debug("Loading libcocosdenshion\n");
     sprintf(fname, "%slibcocosdenshion.so", DATA_PATH);
     if (so_file_load(&denshion_mod, fname, LOAD_ADDRESS) < 0) {
         fatal_error("Error: could not load %s.", fname);
     }
-    sceClibPrintf("libcocosdenshion text_base=0x%08x\n", (unsigned int) denshion_mod.text_base);
+    l_debug("libcocosdenshion text_base=0x%08x\n", (unsigned int) denshion_mod.text_base);
 
     // Load Cocos2d
-    sceClibPrintf("Loading libcocos2d\n");
+    l_debug("Loading libcocos2d\n");
     sprintf(fname, "%slibcocos2d.so", DATA_PATH);
     if (so_file_load(&cocos2d_mod, fname, LOAD_ADDRESS + 0x1000000) < 0) {
         fatal_error("Error: could not load %s.", fname);
     }
-    sceClibPrintf("libcocos2d text_base=0x%08x\n", (unsigned int) cocos2d_mod.text_base);
+    l_debug("libcocos2d text_base=0x%08x\n", (unsigned int) cocos2d_mod.text_base);
 
     // Load Game Logic
-    sceClibPrintf("Loading libgame_logic\n");
+    l_debug("Loading libgame_logic\n");
     sprintf(fname, "%slibgame_logic.so", DATA_PATH);
     if (so_file_load(&game_mod, fname, LOAD_ADDRESS + 0x2000000) < 0) {
         fatal_error("Error: could not load %s.", fname);
     }
-    sceClibPrintf("libgame_logic text_base=0x%08x\n", (unsigned int) game_mod.text_base);
+    l_debug("libgame_logic text_base=0x%08x\n", (unsigned int) game_mod.text_base);
 
     settings_load();
     l_success("Settings loaded.");

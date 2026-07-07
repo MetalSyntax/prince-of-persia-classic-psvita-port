@@ -37,3 +37,16 @@ Para botones físicos mapeados a KeyEvents de Android:
 // Enviar KeyEvent (por ejemplo: 4 = KEYCODE_BACK) al motor
 Engine_KeyDown(fake_env, NULL, 4);
 ```
+
+### Precaución con el Casting en Llamadas a Punteros a Funciones
+
+Cuando se llama a funciones de Android (JNI) a través de punteros a función en C, **es estrictamente necesario castear los parámetros a los tipos nativos esperados por Android (`jfloat`, `jint`, etc.)**. 
+Si se envía una variable entera (`int`) a una función nativa JNI que espera coordenadas en coma flotante (`float`), la ABI de ARM interpretará el registro binario del entero como un número flotante desnormalizado o nulo. Esto típicamente provoca **un fallo silencioso en el procesamiento de entradas táctiles**, aparentando que la pantalla de la PS Vita no funciona en absoluto:
+
+```c
+// INCORRECTO: 'x' e 'y' se pasan como 'int', rompiendo la llamada en ARM EABI
+Engine_TouchesBegin(fake_env, NULL, touch_id, x, y); 
+
+// CORRECTO: Forzar el cast explícito a jfloat
+Engine_TouchesBegin(fake_env, NULL, touch_id, (jfloat)x, (jfloat)y);
+```

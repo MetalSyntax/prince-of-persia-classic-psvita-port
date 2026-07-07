@@ -1,3 +1,4 @@
+#include "utils/logger.h"
 #include <falso_jni/FalsoJNI_Impl.h>
 #include <falso_jni/FalsoJNI.h>
 #include <psp2/kernel/clib.h>
@@ -87,7 +88,7 @@ void Cocos2dxHelper_showMessageBox(jmethodID id, va_list args) {
     jstring j_message = va_arg(args, jstring);
     const char *title = j_title ? (*jniEnv)->GetStringUTFChars(jniEnv, j_title, NULL) : "";
     const char *message = j_message ? (*jniEnv)->GetStringUTFChars(jniEnv, j_message, NULL) : "";
-    sceClibPrintf("Cocos2dxHelper_showMessageBox(%s, %s)\n", title, message);
+    l_debug("Cocos2dxHelper_showMessageBox(%s, %s)\n", title, message);
 }
 
 // Real Android calls back into native (Cocos2dxBitmap_nativeInitBitmapDC,
@@ -136,94 +137,128 @@ static int stb_font_ready(void) {
     return 1;
 }
 
+static int utf8_decode(const char **p) {
+    const unsigned char *s = (const unsigned char *)*p;
+    int c = *s++;
+    if (c < 0x80) { *p = (const char *)s; return c; }
+    if ((c & 0xE0) == 0xC0) {
+        c = ((c & 0x1F) << 6) | (*s++ & 0x3F);
+    } else if ((c & 0xF0) == 0xE0) {
+        c = ((c & 0x0F) << 12) | ((*s & 0x3F) << 6); s++;
+        c |= *s++ & 0x3F;
+    } else if ((c & 0xF8) == 0xF0) {
+        c = ((c & 0x07) << 18) | ((*s & 0x3F) << 12); s++;
+        c |= ((*s & 0x3F) << 6); s++;
+        c |= *s++ & 0x3F;
+    }
+    *p = (const char *)s;
+    return c;
+}
+
 void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
     jstring j_text = va_arg(args, jstring);
-    va_arg(args, jstring); // fontName, unused: always draws with the bundled DejaVuSans.ttf
+    va_arg(args, jstring); // fontName, unused
     jint fontSize = va_arg(args, jint);
     jint alignment = va_arg(args, jint);
     jint width = va_arg(args, jint);
     jint height = va_arg(args, jint);
 
     JNIEnv *jniEnv = &jni;
+    
+    if (!j_text || !stb_font_ready()) {
+        void (* nativeInitBitmapDC)(JNIEnv *, jobject, jint, jint, jbyteArray) =
+            (void *) so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxBitmap_nativeInitBitmapDC");
+        if (nativeInitBitmapDC) nativeInitBitmapDC(jniEnv, NULL, 0, 0, NULL);
+        return;
+    }
+
+    const char *text = (*jniEnv)->GetStringUTFChars(jniEnv, j_text, NULL);
+    float scale = stbtt_ScaleForPixelHeight(&g_stb_font, (float) fontSize);
+    int ascent, descent, lineGap;
+    stbtt_GetFontVMetrics(&g_stb_font, &ascent, &descent, &lineGap);
+    int line_height = (int)((ascent - descent + lineGap) * scale);
+    if (line_height <= 0) line_height = 1;
+
+    int max_lines = 128;
+    const char **line_starts = calloc(max_lines, sizeof(char*));
+    int *line_widths = calloc(max_lines, sizeof(int));
+    int num_lines = 0;
+    
+    int max_w = 0;
+    const char *p = text;
+    while (*p && num_lines < max_lines) {
+        line_starts[num_lines] = p;
+        int cur_w = 0;
+        const char *last_space = NULL;
+        int w_at_last_space = 0;
+        
+        while (*p && *p != '\n') {
+            const char *prev_p = p;
+            int cp = utf8_decode(&p);
+            
+            int advance, lsb;
+            stbtt_GetCodepointHMetrics(&g_stb_font, cp, &advance, &lsb);
+            int char_w = (int)(advance * scale);
+            
+            if (width > 0 && cur_w + char_w > width) {
+                if (last_space) {
+                    p = last_space + 1;
+                    cur_w = w_at_last_space;
+                } else {
+                    p = prev_p;
+                }
+                break;
+            }
+            if (cp == ' ') {
+                last_space = prev_p;
+                w_at_last_space = cur_w;
+            }
+            cur_w += char_w;
+        }
+        line_widths[num_lines] = cur_w;
+        if (cur_w > max_w) max_w = cur_w;
+        num_lines++;
+        if (*p == '\n') p++; 
+    }
+
+    if (width <= 0) width = max_w;
+    if (height <= 0) height = num_lines * line_height;
+
     size_t size = (size_t) width * (size_t) height * 4;
     jbyte *buf = calloc(1, size);
 
-    if (buf && j_text && width > 0 && height > 0 && stb_font_ready()) {
-        // Increase font size slightly to match Android's rendering scale better
-        float scale = stbtt_ScaleForPixelHeight(&g_stb_font, (float) fontSize * 1.25f);
-        int ascent, descent, lineGap;
-        stbtt_GetFontVMetrics(&g_stb_font, &ascent, &descent, &lineGap);
-        int line_height = (int)((ascent - descent + lineGap) * scale);
-        if (line_height <= 0) line_height = 1;
-        
-        const char *text = (*jniEnv)->GetStringUTFChars(jniEnv, j_text, NULL);
-        
-        // Simple word wrap & lines layout
-        int max_lines = height / line_height + 2;
-        const char **line_starts = calloc(max_lines, sizeof(char*));
-        int *line_widths = calloc(max_lines, sizeof(int));
-        int num_lines = 0;
-        
-        const char *p = text;
-        while (*p && num_lines < max_lines) {
-            line_starts[num_lines] = p;
-            int cur_w = 0;
-            const char *last_space = NULL;
-            int w_at_last_space = 0;
-            
-            while (*p && *p != '\n') {
-                int advance, lsb;
-                stbtt_GetCodepointHMetrics(&g_stb_font, *p, &advance, &lsb);
-                int char_w = (int)(advance * scale);
-                if (*(p+1)) char_w += (int)(stbtt_GetCodepointKernAdvance(&g_stb_font, *p, *(p+1)) * scale);
-                
-                if (cur_w + char_w > width) {
-                    if (last_space) {
-                        p = last_space + 1;
-                        cur_w = w_at_last_space;
-                    }
-                    break;
-                }
-                if (*p == ' ') {
-                    last_space = p;
-                    w_at_last_space = cur_w;
-                }
-                cur_w += char_w;
-                p++;
-            }
-            line_widths[num_lines] = cur_w;
-            num_lines++;
-            if (*p == '\n') p++; // skip newline for next line
-        }
-        
-        // Alignment
+    if (buf) {
         int h_align = alignment & 0x0F;
         int v_align = (alignment >> 4) & 0x0F;
         int total_text_h = num_lines * line_height;
         int start_y = 0;
-        if (v_align == 3) start_y = (height - total_text_h) / 2; // Center
-        else if (v_align == 2) start_y = height - total_text_h;  // Bottom
+        if (v_align == 3) start_y = (height - total_text_h) / 2;
+        else if (v_align == 2) start_y = height - total_text_h;
         
-        // Render
         for (int i = 0; i < num_lines; i++) {
             int pen_x = 0;
-            if (h_align == 3) pen_x = (width - line_widths[i]) / 2;      // Center
-            else if (h_align == 2) pen_x = width - line_widths[i];       // Right
+            if (h_align == 3) pen_x = (width - line_widths[i]) / 2;
+            else if (h_align == 2) pen_x = width - line_widths[i];
             
             int baseline = start_y + i * line_height + (int)(ascent * scale);
             
-            for (const char *cp = line_starts[i]; cp < (i+1 < num_lines ? line_starts[i+1] : text + strlen(text)) && *cp && *cp != '\n'; cp++) {
+            const char *cp_ptr = line_starts[i];
+            const char *line_end = (i+1 < num_lines) ? line_starts[i+1] : text + strlen(text);
+            
+            while (cp_ptr < line_end && *cp_ptr && *cp_ptr != '\n') {
+                int cp = utf8_decode(&cp_ptr);
+                
                 int advance, lsb;
-                stbtt_GetCodepointHMetrics(&g_stb_font, *cp, &advance, &lsb);
+                stbtt_GetCodepointHMetrics(&g_stb_font, cp, &advance, &lsb);
                 
                 int x0, y0, x1, y1;
-                stbtt_GetCodepointBitmapBox(&g_stb_font, *cp, scale, scale, &x0, &y0, &x1, &y1);
+                stbtt_GetCodepointBitmapBox(&g_stb_font, cp, scale, scale, &x0, &y0, &x1, &y1);
                 int glyph_w = x1 - x0, glyph_h = y1 - y0;
                 
                 if (glyph_w > 0 && glyph_h > 0) {
                     unsigned char *glyph = calloc(1, (size_t) glyph_w * glyph_h);
                     if (glyph) {
-                        stbtt_MakeCodepointBitmap(&g_stb_font, glyph, glyph_w, glyph_h, glyph_w, scale, scale, *cp);
+                        stbtt_MakeCodepointBitmap(&g_stb_font, glyph, glyph_w, glyph_h, glyph_w, scale, scale, cp);
                         
                         int origin_x = pen_x + x0;
                         int origin_y = baseline + y0;
@@ -236,7 +271,6 @@ void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
                                 unsigned char a = glyph[gy * glyph_w + gx];
                                 if (!a) continue;
                                 jbyte *px = buf + ((size_t) dy * width + dx) * 4;
-                                // Premultiplied Alpha for Cocos2d-x rendering!
                                 px[0] = (jbyte) a; 
                                 px[1] = (jbyte) a;
                                 px[2] = (jbyte) a;
@@ -247,18 +281,20 @@ void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
                     }
                 }
                 pen_x += (int)(advance * scale);
-                if (*(cp + 1)) pen_x += (int)(stbtt_GetCodepointKernAdvance(&g_stb_font, *cp, *(cp + 1)) * scale);
             }
         }
-        
-        free(line_starts);
-        free(line_widths);
-        if (text) (*jniEnv)->ReleaseStringUTFChars(jniEnv, j_text, (char *) text);
     }
+    
+    free(line_starts);
+    free(line_widths);
+    if (text) (*jniEnv)->ReleaseStringUTFChars(jniEnv, j_text, (char *) text);
 
-    jbyteArray pixels = (*jniEnv)->NewByteArray(jniEnv, (jsize) size);
-    if (pixels && buf) {
-        (*jniEnv)->SetByteArrayRegion(jniEnv, pixels, 0, (jsize) size, buf);
+    jbyteArray pixels = NULL;
+    if (size > 0) {
+        pixels = (*jniEnv)->NewByteArray(jniEnv, (jsize) size);
+        if (pixels && buf) {
+            (*jniEnv)->SetByteArrayRegion(jniEnv, pixels, 0, (jsize) size, buf);
+        }
     }
     free(buf);
 
@@ -267,9 +303,8 @@ void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
     if (nativeInitBitmapDC) {
         nativeInitBitmapDC(jniEnv, NULL, width, height, pixels);
     }
-
-    sceClibPrintf("Cocos2dxBitmap_createTextBitmap(%ix%i) fontSize=%i align=0x%X\n", (int) width, (int) height, (int)fontSize, (int)alignment);
 }
+
 
 void Cocos2dxActivity_setAnimationInterval(jmethodID id, va_list args) {
     va_arg(args, jdouble); // interval, unused: our loop drives its own timing

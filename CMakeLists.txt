@@ -27,7 +27,7 @@ add_definitions(-DDATA_PATH="${DATA_PATH}")
 
 option(USE_SCELIBC_IO "Use SceLibcBridge for IO and some other std functions" ON)
 if (USE_SCELIBC_IO)
-  add_definitions(-DUSE_SCELIBC_IO)
+  add_definitions(-DUSE_SCELIBC_IO -DWITH_STB_VORBIS -DWITH_VITA_HOMEBREW)
 endif()
 
 option(EMULATOR_BUILD "Relax hardware-only safety checks (e.g. kubridge presence) for Vita3K testing" OFF)
@@ -69,9 +69,16 @@ add_definitions(-D_GNU_SOURCE -D__POSIX_VISIBLE=999999)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=gnu++20 -Wno-write-strings -Wno-psabi")
 
+file(GLOB SOLOUD_SOURCES 
+     "lib/soloud/src/core/*.cpp"
+     "lib/soloud/src/audiosource/wav/*.cpp"
+     "lib/soloud/src/filter/*.cpp"
+     "lib/soloud/src/backend/vita_homebrew/*.cpp"
+     "lib/stb/stb_vorbis.c")
+
 add_executable(${CMAKE_PROJECT_NAME}
                source/main.c
-               source/audio.c
+               source/audio.cpp
                source/dynlib.c
                source/java.c
                source/patch.c
@@ -96,13 +103,15 @@ add_executable(${CMAKE_PROJECT_NAME}
                lib/falso_jni/FalsoJNI_Logger.c
                lib/sha1/sha1.c
                lib/fios/fios.c
-               lib/so_util/so_util.c)
+               lib/so_util/so_util.c
+               ${SOLOUD_SOURCES})
 
 add_subdirectory(lib/libc_bridge)
 add_dependencies(${CMAKE_PROJECT_NAME} SceLibcBridge)
 
 target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM
                            PUBLIC ${CMAKE_SOURCE_DIR}/lib
+                           PUBLIC ${CMAKE_SOURCE_DIR}/lib/soloud/include
                            )
 
 target_include_directories(${CMAKE_PROJECT_NAME}

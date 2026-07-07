@@ -147,11 +147,9 @@ int main() {
         // dispatch is sized for CC_MAX_TOUCHES == 5, so id 5 is already one
         // past the end of its internal array -- confirmed the hard way, that
         // exact off-by-one corrupted the heap on real hardware.
-        const int JOY_BASE_X = 150, JOY_BASE_Y = 450;
-        // Wider offset than before -- turning (but not walking) with the
-        // D-Pad suggests the drag was crossing the joystick's small
-        // "turn/face direction" deadzone but not its "walk" threshold.
-        const int JOY_LEFT_X = 30, JOY_RIGHT_X = 270;
+        // Moving the base further right (240) so we have more room to drag left.
+        // We increase the displacement to 200 pixels to ensure we cross the walk/run threshold.
+        const int JOY_BASE_X = 240, JOY_BASE_Y = 450;
         const int DPAD_VIRTUAL_HWID = -2; // never a real SceTouchReport::id (0-255) or the -1 "free" sentinel
 
         int reportHwId[5], reportX[5], reportY[5], reportCount = 0;
@@ -162,17 +160,37 @@ int main() {
             reportCount++;
         }
 
-        // The original game only ever drives movement through a touch-drag
-        // virtual joystick (confirmed: libgame_logic.so has no DPAD/keycode
-        // strings at all, only "joystick"/"joystick_base") -- KEYCODE_DPAD_*
-        // below does nothing for walking. Synthesize a drag on the on-screen
-        // joystick (bottom-left) instead.
+        // Map Left Analog Stick to D-Pad buttons so they share the same logic
+        if (pad.lx < 80) current_pad |= SCE_CTRL_LEFT;
+        if (pad.lx > 175) current_pad |= SCE_CTRL_RIGHT;
+        if (pad.ly < 80) current_pad |= SCE_CTRL_UP;
+        if (pad.ly > 175) current_pad |= SCE_CTRL_DOWN;
+
         int dpadWantLeft = (current_pad & SCE_CTRL_LEFT) != 0;
         int dpadWantRight = (current_pad & SCE_CTRL_RIGHT) != 0;
-        if ((dpadWantLeft || dpadWantRight) && reportCount < 5) {
-            reportHwId[reportCount] = DPAD_VIRTUAL_HWID;
-            reportX[reportCount] = dpadWantLeft ? JOY_LEFT_X : JOY_RIGHT_X;
-            reportY[reportCount] = JOY_BASE_Y;
+        int wantWalk = (current_pad & SCE_CTRL_RTRIGGER) != 0; // The button on the right is actually Walk/Sneak
+
+        // Simulate touching the extreme left of the slider (<) to RUN left
+        if (dpadWantLeft && reportCount < 5) {
+            reportHwId[reportCount] = -2; // Virtual ID for Left Arrow
+            reportX[reportCount] = 30;    // Shifted far left to 30 (extreme edge to run)
+            reportY[reportCount] = 400;   // Y coordinate in 960x544 space
+            reportCount++;
+        }
+
+        // Simulate touching the extreme right of the slider (>) to RUN right
+        if (dpadWantRight && reportCount < 5) {
+            reportHwId[reportCount] = -3; // Virtual ID for Right Arrow
+            reportX[reportCount] = 220;   // Shifted far right to 220 (extreme edge to run)
+            reportY[reportCount] = 400;   // Y coordinate in 960x544 space
+            reportCount++;
+        }
+
+        // Simulate touching the Walk/Sneak button on the right side of the screen
+        if (wantWalk && reportCount < 5) {
+            reportHwId[reportCount] = -4; // Virtual ID for Walk button
+            reportX[reportCount] = 780;
+            reportY[reportCount] = 450;
             reportCount++;
         }
 

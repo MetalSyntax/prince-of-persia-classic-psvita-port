@@ -146,7 +146,9 @@ This is my first time porting anything to a console, and my first Vita homebrew 
 
 Port / wrapper development: **MetalSyntax**
 
-Built on top of TheFloW's Android SO Loader approach for the PS Vita. Please keep this credit if you fork or redistribute this wrapper.
+This project is built on top of [**soloader-boilerplate**](https://github.com/v-atamanenko/soloader-boilerplate) by v-atamanenko, itself based on TheFloW's Android SO Loader approach for the PS Vita. Please keep this credit if you fork or redistribute this wrapper.
+
+This port was made with AI support, using the following models: **Claude Sonnet 5**, **Fable 5**, and **Gemini Pro 3.1**.
 
 ## License
 

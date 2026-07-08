@@ -10,6 +10,10 @@ Prince of Persia Classic · PSVita Port
   <a href="Docs/README_ES.md">Versión en Español</a>
 </p>
 
+<p align="center">
+  <img src="extras/livearea/pic0.png" width="600" alt="Prince of Persia Classic — PS Vita LiveArea background">
+</p>
+
 Prince of Persia Classic is a 2012 release for Android and iOS devices that recreates the levels of the legendary 1989 classic game with modernized 3D graphics.
 
 This repository contains a **wrapper/loader** for the Android version of Prince of Persia Classic (based on Cocos2d-x), adapting the environment to run the native ARM dynamic libraries (`.so`) on the PS Vita using TheFloW's Android SO Loader base.

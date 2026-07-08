@@ -472,8 +472,8 @@ have the SDK.
    cmake .. -DCMAKE_BUILD_TYPE=Release
    make -j$(sysctl -n hw.ncpu)
    ```
-   This generates `popclassic.vpk`.
-4. Install `popclassic.vpk` in the console (VitaShell) and install the tree separately on the card.
+   This generates `popclassic_audio.vpk` (formerly `popclassic.vpk`/`popclassic_soloud.vpk`; renamed to identify the audio build).
+4. Install `popclassic_audio.vpk` in the console (VitaShell) and install the tree separately on the card.
    `ux0:data/popclassic/` built in Phase 2 (the `.so` + `Assets/` with `Audio/` included).
 5. Requirements already covered by `main.c` itself (validate them in `source/main.c` when migrating):
    `kubridge.skprx` installed and `ur0:/data/libshaccg.suprx` (or its alternate path) present, or fails with a

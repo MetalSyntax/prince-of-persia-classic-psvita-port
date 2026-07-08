@@ -12,6 +12,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
 #include <stdarg.h>
@@ -56,6 +58,53 @@ static const char * resolve_data_path(const char * path, char * buf, size_t buf_
         return buf;
     }
     return path;
+}
+
+// fd -> resolved-path registry, filled by open_soloader(). Exists so that
+// fdopen_soloader() can hand the game a FILE from the SAME C runtime
+// (SceLibc) it uses for every other stdio call. Before this, fdopen was
+// newlib while fseek/fread/fclose were SceLibc: each runtime wrote into the
+// other's FILE layout, silently trampling newlib's static FILE pool -- that
+// was the real cause of the "PC=0x20"/fseek crash family (Fixes_Log #8/#9,
+// plan §9.28/§9.29). Small linear table: the game holds only a handful of
+// fds at a time.
+#define FD_PATH_SLOTS 32
+static struct {
+    int fd; // 0 = free slot (open() can't return 0 here: stdin exists)
+    char path[512];
+} fd_path_registry[FD_PATH_SLOTS];
+
+static void fd_path_remember(int fd, const char *path) {
+    if (fd <= 0)
+        return;
+    for (int i = 0; i < FD_PATH_SLOTS; i++) {
+        if (fd_path_registry[i].fd == 0 || fd_path_registry[i].fd == fd) {
+            fd_path_registry[i].fd = fd;
+            snprintf(fd_path_registry[i].path, sizeof(fd_path_registry[i].path), "%s", path);
+            return;
+        }
+    }
+}
+
+static const char * fd_path_lookup(int fd) {
+    if (fd <= 0)
+        return NULL;
+    for (int i = 0; i < FD_PATH_SLOTS; i++) {
+        if (fd_path_registry[i].fd == fd)
+            return fd_path_registry[i].path;
+    }
+    return NULL;
+}
+
+static void fd_path_forget(int fd) {
+    if (fd <= 0)
+        return;
+    for (int i = 0; i < FD_PATH_SLOTS; i++) {
+        if (fd_path_registry[i].fd == fd) {
+            fd_path_registry[i].fd = 0;
+            return;
+        }
+    }
 }
 
 FILE * fopen_soloader(const char * filename, const char * mode) {
@@ -103,10 +152,12 @@ int open_soloader(const char * path, int oflag, ...) {
 
     oflag = oflags_bionic_to_newlib(oflag);
     int ret = open(path, oflag, mode);
-    if (ret >= 0)
+    if (ret >= 0) {
+        fd_path_remember(ret, path);
         l_debug("open(%s, %x): %i", path, oflag, ret);
-    else
+    } else {
         l_warn("open(%s, %x): %i", path, oflag, ret);
+    }
     return ret;
 }
 
@@ -147,9 +198,139 @@ int fclose_soloader(FILE * f) {
 }
 
 int close_soloader(int fd) {
+    fd_path_forget(fd);
     int ret = close(fd);
     l_debug("close(%i): %i", fd, ret);
     return ret;
+}
+
+FILE * fdopen_soloader(int fd, const char * mode) {
+#ifdef USE_SCELIBC_IO
+    // The FILE returned here will be fed back into sceLibcBridge_fseek/fread/
+    // fclose by the game, so it MUST be a SceLibc FILE. newlib's fdopen would
+    // return a newlib FILE whose innards SceLibc then corrupts (see the
+    // fd_path_registry comment above). Reopen by path instead and mirror the
+    // fd's current offset; fdopen semantics say the fd is owned by the FILE
+    // afterwards, so the newlib fd is closed once the reopen succeeds.
+    const char *path = fd_path_lookup(fd);
+    if (path) {
+        FILE *f = sceLibcBridge_fopen(path, mode);
+        if (f) {
+            off_t off = lseek(fd, 0, SEEK_CUR);
+            if (off > 0)
+                sceLibcBridge_fseek(f, (long) off, SEEK_SET);
+            fd_path_forget(fd);
+            close(fd);
+            l_debug("fdopen(%i -> %s, %s): %p (SceLibc)", fd, path, mode, f);
+            return f;
+        }
+        l_warn("fdopen(%i): SceLibc reopen of %s failed, falling back to newlib", fd, path);
+    } else {
+        l_warn("fdopen(%i): fd not in registry, falling back to newlib (runtime mix!)", fd);
+    }
+#endif
+    FILE *f = fdopen(fd, mode);
+    l_debug("fdopen(%i, %s): %p", fd, mode, f);
+    return f;
+}
+
+int setvbuf_soloader(FILE * f, char * buf, int mode, size_t size) {
+    // Pure buffering hint. Implementing it would mean writing into a FILE
+    // that belongs to the other C runtime (game FILEs are SceLibc, this
+    // symbol used to be newlib's) -- the exact cross-runtime corruption
+    // documented in Fixes_Log #9. Safe to accept and ignore.
+    l_debug("setvbuf(%p, mode=%i, size=%u): ignored", f, mode, (unsigned) size);
+    return 0;
+}
+
+// --- game printing (stdout/stderr) ---
+//
+// The game's stderr/stdout are entries of the fake __sF array in dynlib.c,
+// and bionic computes &__sF[2] with its own struct stride -- so the pointer
+// can land anywhere inside that array. Every function below first checks
+// whether the FILE* points into the fake array (any stride) and, if so,
+// routes the text to the logger instead of letting either C runtime
+// interpret a fake FILE (SceLibc treating one as its own sprayed formatted
+// text over so_loader's .data -- see plan §9.30).
+
+extern FILE __sF_fake[0x100][3]; // dynlib.c
+
+static int is_fake_std(FILE * f) {
+    uintptr_t p = (uintptr_t) f;
+    uintptr_t base = (uintptr_t) __sF_fake;
+    return p >= base && p < base + sizeof(__sF_fake);
+}
+
+int vfprintf_soloader(FILE * f, const char * fmt, va_list va) {
+    char buf[1024];
+    int n = vsnprintf(buf, sizeof(buf), fmt, va);
+    if (is_fake_std(f)) {
+        if (n > 0)
+            l_info("[game] %s", buf);
+        return n;
+    }
+    if (n <= 0)
+        return n;
+    size_t w = ((size_t) n < sizeof(buf)) ? (size_t) n : sizeof(buf) - 1;
+#ifdef USE_SCELIBC_IO
+    return (int) sceLibcBridge_fwrite(buf, 1, w, f);
+#else
+    return (int) fwrite(buf, 1, w, f);
+#endif
+}
+
+int fprintf_soloader(FILE * f, const char * fmt, ...) {
+    va_list va;
+    va_start(va, fmt);
+    int n = vfprintf_soloader(f, fmt, va);
+    va_end(va);
+    return n;
+}
+
+int fputs_soloader(const char * s, FILE * f) {
+    if (is_fake_std(f)) {
+        l_info("[game] %s", s ? s : "(null)");
+        return 0;
+    }
+#ifdef USE_SCELIBC_IO
+    return sceLibcBridge_fputs(s, f);
+#else
+    return fputs(s, f);
+#endif
+}
+
+int fputc_soloader(int c, FILE * f) {
+    if (is_fake_std(f))
+        return (unsigned char) c; // dropped; single chars aren't worth logging
+#ifdef USE_SCELIBC_IO
+    return sceLibcBridge_fputc(c, f);
+#else
+    return fputc(c, f);
+#endif
+}
+
+size_t fwrite_soloader(const void * ptr, size_t size, size_t nmemb, FILE * f) {
+    if (is_fake_std(f)) {
+        int len = (int)(size * nmemb);
+        if (len > 0 && ptr)
+            l_info("[game] %.*s", len > 1023 ? 1023 : len, (const char *) ptr);
+        return nmemb; // claim success so the game never retries
+    }
+#ifdef USE_SCELIBC_IO
+    return sceLibcBridge_fwrite(ptr, size, nmemb, f);
+#else
+    return fwrite(ptr, size, nmemb, f);
+#endif
+}
+
+int fflush_soloader(FILE * f) {
+    if (is_fake_std(f))
+        return 0;
+#ifdef USE_SCELIBC_IO
+    return sceLibcBridge_fflush(f);
+#else
+    return fflush(f);
+#endif
 }
 
 DIR* opendir_soloader(char* _pathname) {

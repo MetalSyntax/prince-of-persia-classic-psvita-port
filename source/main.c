@@ -13,6 +13,7 @@
 #include <so_util/so_util.h>
 
 #include "audio.h"
+#include "video.h"
 
 int _newlib_heap_size_user = 256 * 1024 * 1024;
 
@@ -26,7 +27,9 @@ extern so_module game_mod;
 
 int main() {
     soloader_init_all();
+    l_success("soloader_init_all() done -- entering game bring-up sequence.");
     audio_init();
+    video_init();
 
     // Touch sampling is off by default -- sceTouchPeek() below always
     // reports reportNum=0 (no touches, ever) until this is called.
@@ -40,10 +43,12 @@ int main() {
     // (*jvm)->GetEnv(...) on it) -- so it must be called on every module that
     // exports it, not just whichever module happens to export it first.
     so_module *jni_onload_mods[] = { &denshion_mod, &cocos2d_mod, &game_mod };
+    const char *jni_onload_names[] = { "libcocosdenshion", "libcocos2d", "libgame_logic" };
     for (int i = 0; i < 3; i++) {
         int (* JNI_OnLoad)(void *jvm, void *reserved) = (void *)so_symbol(jni_onload_mods[i], "JNI_OnLoad");
         if (JNI_OnLoad) {
             JNI_OnLoad(&jvm, NULL);
+            l_debug("JNI_OnLoad(%s) called.", jni_onload_names[i]);
         }
     }
 
@@ -93,8 +98,9 @@ int main() {
         jstring apkSourceDirStr = (*jniEnv)->NewStringUTF(jniEnv, DATA_PATH "original.apk");
         jstring deviceStr = (*jniEnv)->NewStringUTF(jniEnv, "PSVita");
         nativeSetPaths(jniEnv, NULL, apkFilePathStr, apkSourceDirStr, deviceStr);
+        l_success("nativeSetPaths(%s, %soriginal.apk, PSVita) done.", DATA_PATH, DATA_PATH);
     }
-    
+
     if (nativeSetPackageName) {
         jstring pkgStr = (*jniEnv)->NewStringUTF(jniEnv, "org.ubisoft.premium.POPClassic");
         nativeSetPackageName(jniEnv, NULL, pkgStr);
@@ -106,11 +112,14 @@ int main() {
     if (SetControlInVisible) SetControlInVisible(jniEnv, NULL);
 
     gl_init();
+    l_success("gl_init() done.");
 
     if (nativeInit) {
         nativeInit(jniEnv, NULL, 960, 544);
+        l_success("nativeInit(960, 544) done -- game should now be constructing its first scene.");
     }
 
+    l_success("Entering main loop.");
     int lastX[5] = {-1, -1, -1, -1, -1};
     int lastY[5] = {-1, -1, -1, -1, -1};
     // Vita hardware touch id currently occupying each slot, -1 = free. This is
@@ -124,6 +133,8 @@ int main() {
     int slotHwId[5] = {-1, -1, -1, -1, -1};
     uint32_t oldpad = 0;
     int frame = 0;
+    int last_logged_report_num = -1;
+    uint32_t last_logged_pad_buttons = 0;
 
     while (1) {
         SceTouchData touch;
@@ -131,9 +142,21 @@ int main() {
 
         SceCtrlData debug_pad;
         sceCtrlPeekBufferPositive(0, &debug_pad, 1);
-        if ((frame++ % 120) == 0 || touch.reportNum > 0 || debug_pad.buttons != 0) {
+        // Edge-triggered: log only when the touch/pad state actually CHANGES
+        // from the previous frame, plus a periodic heartbeat while idle.
+        // The old level-triggered condition (fired every single frame with
+        // any active touch) meant a sustained drag logged 60 identical
+        // lines/sec -- the logger's consecutive-duplicate suppression
+        // (Fixes_Log.md #13) collapsed exact repeats, but any jitter in
+        // reportNum/buttons between frames defeated that, since those are
+        // distinct messages each time, not repeats.
+        if ((frame++ % 120) == 0
+            || touch.reportNum != last_logged_report_num
+            || debug_pad.buttons != last_logged_pad_buttons) {
             l_debug("input tick: touch.reportNum=%i pad.buttons=0x%08x",
                     touch.reportNum, (unsigned int) debug_pad.buttons);
+            last_logged_report_num = touch.reportNum;
+            last_logged_pad_buttons = debug_pad.buttons;
         }
 
         SceCtrlData pad;
@@ -282,5 +305,6 @@ int main() {
     }
 
     audio_shutdown();
+    video_shutdown();
     sceKernelExitDeleteThread(0);
 }

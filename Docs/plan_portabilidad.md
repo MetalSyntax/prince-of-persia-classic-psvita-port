@@ -472,8 +472,8 @@ tenga el SDK.
    cmake .. -DCMAKE_BUILD_TYPE=Release
    make -j$(sysctl -n hw.ncpu)
    ```
-   Esto genera `popclassic.vpk`.
-4. Instalar `popclassic.vpk` en la consola (VitaShell) e instalar por separado en la tarjeta el árbol de
+   Esto genera `popclassic_audio.vpk` (antes `popclassic.vpk`/`popclassic_soloud.vpk`; renombrado para distinguir la build con audio).
+4. Instalar `popclassic_audio.vpk` en la consola (VitaShell) e instalar por separado en la tarjeta el árbol de
    `ux0:data/popclassic/` construido en la Fase 2 (los `.so` + `Assets/` con `Audio/` incluido).
 5. Requisitos ya cubiertos por el propio `main.c` (validarlos igual en `source/main.c` al migrar):
    `kubridge.skprx` instalado y `ur0:/data/libshacccg.suprx` (o su ruta alterna) presente, o falla con un
@@ -1457,6 +1457,223 @@ También reportó que la cruceta ya **gira** al personaje pero no lo hace **cami
 desplazamiento usado (±60px desde el centro) cruzaba la zona muerta de "girar" del joystick pero no la de
 "caminar". Se amplió a ±120px aprox. (`JOY_LEFT_X=30, JOY_RIGHT_X=270` sobre una base en `150`) — a confirmar
 en la próxima prueba.
+
+### 9.28. Los 11 core dumps del audio SoLoud diagnosticados con `vita-parse-core` + reimplementación definitiva (build `popclassic_soloud.vpk` v01.10)
+
+Contexto: la madrugada del 7-jul (00:16–01:06) la integración WIP de SoLoud crasheó 11 veces al abrir el
+juego, antes del menú. Se salió del paso compilando con `audio.cpp` en stubs ("Audio disabled for stability",
+commit `af0b1ba`) — es decir, **la build "estable" quedó sin sonido y el Fixes_Log describía una integración
+que en realidad no estaba en HEAD**.
+
+**Diagnóstico (no adivinado: los 11 `.psp2dmp` parseados con `vita-parse-core`, py3-fixed):** firma idéntica
+en los 11 — `Prefetch abort` con `PC=0x20` en el hilo principal `POPC00001`, `LR` en `so_loader+0xe31xx–0xe34xx`
+(el código de audio; el offset corre entre dumps porque hubo ~7 rebuilds), hilo `soloud audio output` en
+`Waiting` (o sea: NO fue el use-after-free cross-thread que documentaba el Fixes_Log §6). Los mini-dumps no
+capturan el código de `so_loader` pero sí el stack completo (256KB): caminándolo y simbolizando contra los
+`.so` (bases `0x98/0x99/0x9A000000`, ver §9.25) la cadena es
+`nativeRender → drawScene → CCScheduler::tick → CCCallFunc → LogoScene::OnLogoDisplayFinished →
+MenuScene::scene → MainMenuLayer::init → SimpleAudioEngine::playBackgroundMusic → playBackgroundMusicJNI →
+CallStaticVoidMethod → despachador JNI → BLX a 0x20`. Los logs de esa noche muestran
+`Failed to load BGM: POP_BGM_Menu.ogg (error 2 = file not found)` justo antes: el crash vivía en la **ruta de
+fallo de carga** del BGM del menú. `PC=0x20` (el entero 32) constante entre rebuilds = puntero determinista
+sin inicializar, consistente con leer un `id` de las tablas de métodos como puntero (de hecho `preloadEffect`
+estaba registrado duplicado en `methodsVoid[]` + `methodsInt[]` con firmas incompatibles).
+
+**Fix definitivo:**
+- `source/audio.cpp` reescrito completo sobre SoLoud (backend `vita_homebrew`, ya afinado con stack de 128KB
+  para stb_vorbis): BGM `WavStream` + `playBackground` + voz protegida; SFX `Wav` cacheados por ruta con
+  *voice group* para pause/stop globales sin tocar la música; dummy handles incrementales (`900000X`, nunca
+  `0`); `stopAudioSource()` obligatorio antes de todo `delete`; **ninguna ruta de error ejecuta punteros**.
+- `source/audio_path.h`: sanitizador puro y testeable (`Extra/Audio/*.mp3|.m4a|.mp4` →
+  `DATA_PATH Data/Audio/*.ogg`, fallback `Data_960_576/`). Ojo: el juego pide audio con extensión `.mp4`
+  (`94_jaffar_fight.mp4`) — es sonido, no video.
+- `source/java.c`: restaurado el disparo inmediato de `onVideoCompleted` en `playVideo` (el fix del hang de
+  §9.20 había quedado **comentado** en `af0b1ba` — regresión que volvía a colgar "New Game"), y eliminado el
+  registro duplicado de `preloadEffect` en `methodsVoid[]`.
+- Pruebas de host previas al build (`extras/tests/run_tests.sh`): sanitizador (11 casos con formatos reales),
+  84/84 rutas pedibles por los `.so` resuelven a `.ogg` existente, 93/93 `.ogg` decodifican con el
+  `stb_vorbis` vendorizado. Compilación limpia sin warnings.
+- Identificación: `VITA_VPKNAME=popclassic_soloud`, app "Prince of Persia Classic SND", `01.10`, mismo
+  `TITLEID` (instala encima, conserva saves). `build_and_install.sh` archiva ahora `build/so_loader.elf`
+  (los ELF de los 11 crashes se perdieron porque `/tmp/popclassic-build` se borra al reiniciar — sin ELF no
+  hay simbolización de `so_loader` en dumps futuros).
+
+**Pendiente de validar en consola:** que `ux0:data/popclassic/Data/Audio/` tenga los 93 `.ogg` (el `error 2`
+original era eso) — `audio_init()` ahora lo chequea al boot y avisa en el log; y confirmar BGM del menú +
+SFX de pasos/espada en gameplay real.
+
+### 9.29. La causa raíz REAL de toda la familia de crashes de audio: dos runtimes de C escribiéndose los FILE mutuamente (confirmada con el dump simbolizado de la build v01.10)
+
+La build de §9.28 crasheó en consola igual que las de §9.28 (dump `psp2core-1783462545`), pero esta vez con
+`build/so_loader.elf` archivado la simbolización fue exacta y cambió el diagnóstico por completo:
+
+- El crash es un **Data abort** con `LR` dentro de **`_fseeko_r` de newlib** (el `fseek` estándar), justo en el
+  `blx r9` donde newlib llama `fp->_seek` — y `r9 = 0x9a124058`, un puntero a **datos de `libgame_logic.so`**.
+  La pila: `Cocos2dxMusic_playBackgroundMusic → WavStream::load → stb_vorbis_open_filename → fopen(newlib) OK
+  → fseek(newlib) → salto a basura`. El `FILE` estaba en el **pool estático de FILEs de newlib**
+  (`so_loader@2+0x2454f8`).
+- Re-mirando los 11 dumps de §9.28 con ese lente: TODOS los `LR` (0x810e31xx–0x810e34xx) caen en
+  `_fseeko_r`/`_ftello_r` — el "despachador JNI llamando un id como puntero" de la hipótesis anterior era
+  incorrecto; **siempre fue fseek de newlib sobre un FILE con `_seek` pisoteado** (anoche valía `0x20`, hoy
+  `0x9a124058` — basura distinta, mismo mecanismo).
+- **Causa raíz:** bajo `USE_SCELIBC_IO` el juego recibe `fopen/fseek/fread/fclose` de **SceLibc**, pero
+  `dynlib.c` le exportaba `fdopen` y `setvbuf` de **newlib** (y `putc` también) — el propio comentario del
+  código admitía el hueco ("no tienen NID... usar siempre newlib"). `libgame_logic.so` **importa `fdopen` y
+  `setvbuf`** (confirmado con `nm -D -u`): al cargar el save/profile en el boot hace `open()` → `fdopen()`
+  (newlib crea un FILE en su pool) → y las siguientes `fseek/fread/fclose` (SceLibc) escriben en ese FILE con
+  el layout equivocado → el pool de newlib queda corrupto con punteros del juego. El primer código que después
+  usa stdio de newlib (el fseek de stb_vorbis al cargar el BGM del menú) salta a la basura. Por eso la build
+  "sin sonido" era estable: nadie más usaba FILEs de newlib.
+
+**Fix (doble capa, build `popclassic_soloud.vpk` recompilada):**
+1. `source/reimpl/io.c`: registro `fd → ruta` en `open_soloader`; nuevo `fdopen_soloader` que reabre la ruta
+   con `sceLibcBridge_fopen` (espejando el offset con `lseek` y cerrando el fd de newlib, como manda la
+   semántica de fdopen) → el juego recibe un FILE 100% SceLibc, coherente con el resto de su stdio; nuevo
+   `setvbuf_soloader` no-op (es solo un hint de buffering). `dynlib.c`: `fdopen`/`setvbuf` → versiones
+   `_soloader`, `putc` → `sceLibcBridge_fputc` (putc==fputc). Comentario de advertencia para futuros símbolos.
+2. `source/audio.cpp`: el audio **ya no usa stdio en absoluto** — `sceIoOpen/Read/Getstat` carga el archivo
+   completo a memoria y se lo pasa a SoLoud con `loadMem(aCopy=false, aTakeOwnership=true)` (BGM: el ogg
+   comprimido, <1MB, queda en RAM y `WavStream` decodifica en streaming; SFX: `Wav` decodifica a PCM y SoLoud
+   libera el buffer). Inmune a cualquier corrupción de FILEs, venga de donde venga.
+
+Referencias revisadas: `pop2-vita` (Rinnegatamante) no tiene este problema porque usa **newlib puro para
+todo** (y su audio va por OpenAL del propio juego); `deadspace-vita` (mismo boilerplate que este port) usa la
+familia `*_soloader`/SceLibc **consistentemente** y tampoco exporta fdopen/setvbuf de newlib al juego.
+
+**Pendiente:** probar la nueva build en consola. Si aparece otro dump, `build/so_loader.elf` corresponde a
+esta build exacta.
+
+### 9.30. Tercer dump (`psp2core-1783465753`) revela DOS fuentes más de corrupción; SoLoud eliminado a pedido del usuario — mixer propio sobre sceAudioOut (build `popclassic_audio.vpk` v01.11)
+
+El fix de §9.29 no bastó: nuevo crash idéntico en familia — `_ftello_r` de newlib saltando a `0x3036395f`,
+que es **ASCII**: los bytes `5f 39 36 30` = `"_960"`, un pedazo de la cadena `Data_960_576`. O sea: alguien
+escribió **texto de rutas** sobre el pool de FILEs de newlib. Con el ELF archivado, la pila simbolizó a
+`WavStream::loadogg → stb_vorbis_open_file → ftell(newlib)` y eso destapó todo:
+
+1. **El mecanismo directo de TODOS los crashes (los 14):** `soloud_wavstream.cpp:134` hace
+   `stb_vorbis_open_file((Soloud_Filehack *)mFile, ...)` — SoLoud espera un stb_vorbis compilado con su
+   "file hack" (`soloud_file_hack_on.h` redefine `FILE`/`fopen`/`fseek` hacia su abstracción `SoLoud::File`),
+   pero nuestro CMake compiló `lib/stb/stb_vorbis.c` **crudo**, con el stdio real de newlib. Resultado: cada
+   carga de BGM pasaba un `SoLoud::DiskFile*`/`MemoryFile*` casteado a `FILE*` de newlib → `fseek`/`ftell`
+   leen el "puntero `_seek`" de un offset que en el objeto SoLoud contiene otra cosa → `blx` a basura.
+   Explica el `PC=0x20` (campo del objeto), el `0x9a124058` y el `_960` (bytes del buffer/mDataPtr). Ni
+   siquiera era la mezcla SceLibc/newlib de §9.29 (que era real pero secundaria) — era un contrato interno
+   de SoLoud violado por nuestra integración.
+2. **`__sF_fake[3]` (dynlib.c) era una bomba aparte:** bionic calcula `stderr = &__sF[2]` con SU stride de
+   struct (≠ newlib), así que con un array de 3 los `fprintf(stderr)` del juego caían FUERA del array,
+   sobre la `.data` vecina. Las referencias lo hacen enorme: pop2-vita `[0x1000][3]`, deadspace-vita
+   `[0x100][3]`. cocos2d loguea rutas (`Data_960_576/...`) a stderr constantemente — de ahí el spray de
+   texto sobre los statics.
+
+**Decisión (pedida por el usuario): eliminar SoLoud y seguir el enfoque de las referencias.**
+- `source/audio.cpp` reescrito como **mixer propio sobre `sceAudioOut`** (patrón deadspace-vita, que
+  alimenta sceAudioOut desde su propio hilo en `EAAudioCore.c`): hilo "audio mixer" (stack 128KB — lección
+  del stack overflow de stb_vorbis), `sceAudioOutOutput` bloqueante de 1024 frames @44100 estéreo como
+  reloj, BGM en streaming con `stb_vorbis_open_memory` (ogg comprimido en RAM, <1MB) y SFX decodificados a
+  PCM con `stb_vorbis_decode_memory`, cacheados por ruta. 12 voces con resampling lineal por voz
+  (`step = pitch × rate/44100` — los assets son 22050/32000/44100 Hz medidos), gain/pan/loop/pause, y
+  protección total: cargas fallidas = silencio + dummy handle; `unloadEffect` silencia las voces bajo el
+  lock antes de liberar el PCM. Todo IO por `sceIo*`; stb_vorbis compilado con **`STB_VORBIS_NO_STDIO`**
+  (la API de FILE ya ni existe — la clase de bug queda imposible de reintroducir). OpenAL se evaluó (pop2)
+  pero no está instalado en este vitasdk; el mixer directo no agrega dependencias.
+- `dynlib.c`: `__sF_fake` ahora es `[0x100][3]` (como deadspace) y se queda EN CERO; toda la familia de
+  escritura (`fprintf`/`vfprintf`/`fputs`/`fputc`/`putc`/`fwrite`/`fflush`) va a wrappers `*_soloader`
+  (io.c) que detectan por rango cualquier `FILE*` dentro del fake — con cualquier stride — y mandan el
+  texto al logger; para FILEs reales delegan en SceLibc. Los logs del juego ahora se VEN en nuestro log en
+  vez de corromper memoria.
+- CMake: fuera `SOLOUD_SOURCES`/`WITH_VITA_HOMEBREW`/includes de soloud; `lib/soloud/` queda vendorizado
+  pero sin compilar. VPK renombrado a `popclassic_audio` v01.11 (app "Prince of Persia Classic SND",
+  mismo TITLEID). Tests de host actualizados: `test_vorbis_decode.c` ahora usa `STB_VORBIS_NO_STDIO` +
+  `decode_memory`, espejo exacto de consola (93/93 OK).
+
+**Pendiente:** probar `popclassic_audio.vpk` en consola. `build/so_loader.elf` corresponde a esta build.
+
+### 9.31. Confirmado sin crashes: log secuencial, calidad de audio y video nativo (build `popclassic_audio.vpk` v01.12)
+
+El usuario confirmó que v01.11 (§9.30) ya no crashea — el bug era SoLoud. Con la base estable se resolvieron tres
+pendientes en una sola pasada; el detalle técnico completo está en `Docs/Fixes_Log.md` §11 (ES/EN), resumen aquí:
+
+- **Log solo mostraba crashes:** causa raíz encontrada — `l_debug/l_info/l_success/l_wait` solo se compilaban con
+  `CMAKE_BUILD_TYPE=Debug`, pero `build_and_install.sh` siempre usa `Release`; **nunca existieron en ningún build
+  real**. Nueva opción `ENABLE_VERBOSE_LOG` (CMakeLists.txt, ON por defecto) los activa sin importar el build type
+  (sin costo real: `-O3` ya está hardcodeado). También se reescribió `FalsoJNI_Logger.c` para que el trace de cada
+  llamada JNI vaya al archivo de log del proyecto (antes solo a consola, invisible en hardware real).
+- **Audio distorsionado/bajo:** se verificó con una prueba de host (extracción literal del código de ventaneo +
+  comparación bit-exacta contra un resample de referencia) que el DSP de streaming estaba perfecto — el problema
+  vivía en la mezcla/salida. Se quitó `sceAudioOutSetVolume` (redundante, el puerto ya arranca al máximo por
+  documentación), se dobló `MIX_GRAIN` a 2048 frames (más margen contra underruns), y se reemplazó el hard-clip por
+  un limitador suave (`tanh`, transparente hasta 92% de escala completa).
+- **Video con `SceAvPlayer`:** nuevo `source/video.cpp` + `source/video_path.h` (análogo a `audio_path.h`).
+  `Cocos2dxActivity_playVideo` ahora lee el path real que `CCVideoUtils::playVideo(const char*, ...)` reenvía
+  (confirmado por el símbolo mangled) y reproduce el `.mp4` con el decodificador nativo de la Vita (YUV420→RGB por
+  CPU, quad fullscreen con letterboxing vía GL de función fija, audio por un puerto `sceAudioOut` separado y
+  temporal). Siempre dispara `onVideoCompleted` después, sin importar el resultado — no puede volver a colgar
+  "New Game" como en §9.20. Pendiente de confirmar en consola real si el formato YUV asumido (planar) es correcto
+  o si hace falta ajustar a NV12.
+
+**Build:** `popclassic_audio.vpk` v01.12, mismo TITLEID. Compilación limpia, 93/93 `.ogg` siguen decodificando.
+Pendiente de probar en consola.
+
+### 9.32. v01.12 fue una regresión seria: el logging volvía el juego injugable y empeoraba el audio (build v01.13)
+
+El usuario probó v01.12 en consola y reportó dos problemas graves: el juego iba "muchísimo más lento" (ya no
+jugable) y el audio sonaba "más duro"/distorsionado (peor que en v01.11). Con el log real que adjuntó
+(3531 líneas totales) se encontró la causa exacta: **1658 líneas** eran trazas de FalsoJNI para cada llamada
+JNI *primitiva* (`DeleteLocalRef` ×281, `GetFloatArrayRegion` ×158, `NewStringUTF` ×146, `FindClass` ×144,
+`CallStaticVoidMethodV` ×107...) — funciones que el motor invoca constantemente en operación normal, NO solo
+en eventos de audio/video/escena como se pretendía en §9.31.
+
+**Causa raíz doble:**
+1. `FALSOJNI_DEBUGLEVEL=0` (forzado en §9.31) activa el log de *cada* primitiva JNI interna de FalsoJNI, no
+   solo el dispatch de alto nivel que se quería exponer.
+2. Cada línea de log hacía `sceIoOpen + sceIoWrite + sceIoClose` completo (`source/utils/logger.c`) — abrir y
+   cerrar un archivo en la tarjeta de memoria cientos de veces por segundo. Esto no solo consumía CPU/IO
+   directamente: al dejar el hilo principal atascado bajo el mutex del logger, le robaba tiempo de CPU al
+   hilo de mezcla de audio justo cuando necesitaba su ventana de ~46ms — explicando por qué el audio también
+   sonaba peor (underruns). Ambos síntomas reportados por el usuario eran la misma causa.
+
+**Fix:** `CMakeLists.txt` ya no fuerza `FALSOJNI_DEBUGLEVEL` (queda en su default `FALSOJNI_DEBUG_INFO`, que
+no tiene NINGÚN punto de log en todo `FalsoJNI.c` — confirmado, cero llamadas `fjni_logv_info` — así que
+elimina el 100% del ruido sin perder nada, ya que el trace útil de audio/video/escena vive directamente en
+`l_debug` dentro de `java.c`/`audio.cpp`/`video.cpp`, no en FalsoJNI). `logger.c` ahora abre el archivo de log
+**una sola vez** y mantiene el descriptor abierto para toda la vida del proceso, en vez de abrir/cerrar en
+cada línea. Detalle completo en `Fixes_Log.md` §12.
+
+**Build:** `popclassic_audio.vpk` v01.13, mismo TITLEID. Pendiente confirmar en consola que ambos síntomas
+(velocidad y audio) se resolvieron.
+
+### 9.33. v01.13 seguía lento: una condición de FalsoJNI pre-existente disparaba en cada frame con toque activo (build v01.14)
+
+El usuario confirmó que v01.13 seguía lento — el log apenas bajó de volumen (3596 vs 3531 líneas). Causa:
+`GetArrayLength`/`GetIntArrayRegion`/`GetFloatArrayRegion` de FalsoJNI son WARN/ERROR (siempre compilados) y
+una condición **pre-existente del motor** (no introducida en esta sesión) los dispara una vez por cada frame
+con toque activo — siempre con `length=0`, que en JNI real es un no-op válido, no un error. Antes de §9.31
+(rutear FalsoJNI a nuestro logger de archivo) esto ya pasaba pero solo iba a `sceClibPrintf` (gratis); al
+empezar a escribirse a disco en cada frame se volvió un costo real sostenido durante el juego activo.
+
+De paso se destapó una regresión funcional real: `preloadEffect` (id 27) fallaba "method ID not found" en
+cada carga de nivel — se había sacado de `methodsVoid[]` en la investigación del crash de SoLoud (hipótesis
+descartada, la causa real fue el file-hack de SoLoud, §9.30) y el juego sí lo llama por esa vía.
+
+**Fix (en la fuente, no solo silenciado):** `GetArrayLength` ya no loguea con array `NULL`;
+`GetPrimitiveArrayRegion` ya no falla/loguea con `length==0`; `preloadEffect` restaurado en `methodsVoid[]`
+con cast explícito; `logger.c` suma supresión de líneas duplicadas consecutivas como defensa adicional
+(colapsa también la mayoría de "input tick" durante un toque sostenido). Detalle completo en `Fixes_Log.md`
+§13.
+
+**Build:** `popclassic_audio.vpk` v01.14, mismo TITLEID. Pendiente confirmar en consola.
+
+### 9.34. "input tick" seguía logueando por frame si el toque parpadeaba (build v01.15)
+
+El usuario preguntó directamente si el dedup de §9.33 eliminaba `input tick: touch.reportNum=2 ...`. La
+respuesta era "depende": el dedup de `logger.c` solo colapsa mensajes IDÉNTICOS consecutivos, pero el log en
+`main.c` era por nivel (dispara en cada frame con `touch.reportNum > 0`, no solo en cambios de estado) — si
+`reportNum` parpadea entre valores (jitter del sensor, o el joystick sintético del D-Pad sumando/quitando un
+dedo virtual), cada parpadeo es un mensaje distinto que no se colapsa. Fix real: el log ahora es
+edge-triggered — solo escribe cuando `reportNum`/`pad.buttons` cambian respecto al último valor logueado
+(más un latido cada 120 frames en reposo). Detalle en `Fixes_Log.md` §14.
+
+**Build:** `popclassic_audio.vpk` v01.15, mismo TITLEID. Pendiente confirmar en consola.
 
 ---
 

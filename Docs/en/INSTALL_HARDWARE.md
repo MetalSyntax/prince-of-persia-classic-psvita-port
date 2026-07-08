@@ -1,7 +1,8 @@
 # Install Prince of Persia Classic on a real PS Vita (via FTP)
 
-This guide assumes that you have already compiled `popclassic.vpk` (see `portabilityplan.md` §8, or run
-`./build_and_install.sh` to compile it — generates `build/popclassic.vpk`). Covers everything you need to
+This guide assumes that you have already compiled `popclassic_audio.vpk` (see `portabilityplan.md` §8, or run
+`./build_and_install.sh` to compile it — generates `build/popclassic_audio.vpk`; the older silent build
+was `build/popclassic.vpk` and remains useful as a rollback). Covers everything you need to
 transfer it to a real Vita via FTP with VitaShell, without needing a separate SD card/reader.
 
 ## 0. Requirements in the console
@@ -48,12 +49,12 @@ VitaShell (port `1338`, the same one already used by the `send`/`send_kvdb` targ
 
 ```bash
 # Upload the vpk to ux0 :/
-curl -T build/popclassic.vpk "ftp://${VITA_IP}:1337/ux0:/popclassic.vpk"
+curl -T build/popclassic_audio.vpk "ftp://${VITA_IP}:1337/ux0:/popclassic_audio.vpk"
 ```
 
-Then **in the console**: in VitaShell navigate to `ux0:/`, select `popclassic.vpk` with the **X** button and
+Then **in the console**: in VitaShell navigate to `ux0:/`, select `popclassic_audio.vpk` with the **X** button and
 I chose **Install** from the context menu (**△** button). This installs the game with Title ID `POPC00001`
-(defined in `CMakeLists.txt` as `VITA_TITLEID`). You can delete `ux0:/popclassic.vpk` after installing.
+(defined in `CMakeLists.txt` as `VITA_TITLEID`). You can delete `ux0:/popclassic_audio.vpk` after installing.
 
 ### 2.2. Upload the assets (`ux0:data/popclassic/`)
 
@@ -124,7 +125,7 @@ While you're tweaking just the executable (not the assets), just replace `eboot.
 via FTP instead of reinstalling the entire `.vpk` each time:
 
 ```bash
-curl -T build/popclassic.vpk/eboot.bin "ftp://${VITA_IP}:1337/ux0:/app/POPC00001/eboot.bin"
+curl -T build/eboot.bin "ftp://${VITA_IP}:1337/ux0:/app/POPC00001/eboot.bin"
 ```
 
 (This is exactly what the `send`/`send_kvdb` targets already defined in `CMakeLists.txt` do, which also

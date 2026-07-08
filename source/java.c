@@ -3,6 +3,7 @@
 #include <falso_jni/FalsoJNI.h>
 #include <psp2/kernel/clib.h>
 #include <so_util/so_util.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -10,6 +11,7 @@
 #include <stb/stb_truetype.h>
 
 #include "audio.h"
+#include "video.h"
 
 extern so_module cocos2d_mod;
 
@@ -73,11 +75,13 @@ NameToMethodID nameToMethodId[] = {
 };
 
 jobject Cocos2dxActivity_getDeviceName(jmethodID id, va_list args) {
+    l_debug("Cocos2dxActivity_getDeviceName()");
     JNIEnv *jniEnv = &jni;
     return (*jniEnv)->NewStringUTF(jniEnv, "PSVita");
 }
 
 jobject Cocos2dxActivity_getCurrentLanguage(jmethodID id, va_list args) {
+    l_debug("Cocos2dxActivity_getCurrentLanguage()");
     JNIEnv *jniEnv = &jni;
     return (*jniEnv)->NewStringUTF(jniEnv, "en");
 }
@@ -163,8 +167,11 @@ void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
     jint width = va_arg(args, jint);
     jint height = va_arg(args, jint);
 
+    l_debug("Cocos2dxBitmap_createTextBitmap(\"%s\", size=%i, align=%i, %ix%i)",
+            j_text ? (const char *) j_text : "(null)", (int)fontSize, (int)alignment, (int)width, (int)height);
+
     JNIEnv *jniEnv = &jni;
-    
+
     if (!j_text || !stb_font_ready()) {
         void (* nativeInitBitmapDC)(JNIEnv *, jobject, jint, jint, jbyteArray) =
             (void *) so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxBitmap_nativeInitBitmapDC");
@@ -307,34 +314,55 @@ void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
 
 
 void Cocos2dxActivity_setAnimationInterval(jmethodID id, va_list args) {
-    va_arg(args, jdouble); // interval, unused: our loop drives its own timing
+    jdouble interval = va_arg(args, jdouble); // unused: our loop drives its own timing
+    l_debug("Cocos2dxActivity_setAnimationInterval(%f) (ignored)", (double) interval);
 }
 
 void Cocos2dxActivity_startFlurry(jmethodID id, va_list args) {
+    l_debug("Cocos2dxActivity_startFlurry() (no-op: ENABLE_FLURRY=NO)");
     // No-op: ENABLE_FLURRY=NO in appConfig.txt, analytics have no place here.
 }
 
 void Cocos2dxActivity_initializePapayaFramework(jmethodID id, va_list args) {
+    l_debug("Cocos2dxActivity_initializePapayaFramework() (no-op: ENABLE_PAPAYA=NO)");
     // No-op: ENABLE_PAPAYA=NO in appConfig.txt, no ad framework on Vita.
 }
 
 jint Cocos2dxHelper_getRewardsCoins(jmethodID id, va_list args) {
+    l_debug("Cocos2dxHelper_getRewardsCoins() -> 0");
     return 0;
 }
 
 void Cocos2dxActivity_playVideo(jmethodID id, va_list args) {
-    l_debug("Cocos2dxActivity_playVideo requested");
+    // CCVideoUtils::playVideo(const char *path, bool, bool, ...) forwards
+    // `path` as this call's first argument (confirmed from libgame_logic.so's
+    // mangled symbol, _ZN12CCVideoUtils9playVideoEPKcbbP...). jstring is a
+    // raw char* at runtime in this FalsoJNI (see GetStringUTFChars's
+    // strdup(string) in FalsoJNI.c), matching how audio.cpp already reads
+    // path args directly -- but since we don't fully control what the
+    // compiled game pushes for the other (rarely-exercised) native call
+    // sites into this same method slot, reject anything that isn't a
+    // plausible pointer (guards against misreading e.g. a stray jboolean as
+    // if it were the path) rather than dereferencing blindly.
+    jstring j_path = va_arg(args, jstring);
+    const char *path = (uintptr_t) j_path > 0x1000 ? (const char *) j_path : NULL;
+    l_debug("Cocos2dxActivity_playVideo(\"%s\")", path ? path : "(unreadable arg, skipping)");
 
-    // No video codec on this port -- immediately fire the completion callback
-    // that Android's Java side would normally call back into native once the
-    // video finishes, since VideoLayer (libgame_logic.so) blocks waiting for
-    // it and would otherwise hang forever instead of just skipping the video.
+    if (path) {
+        video_play(path);
+    }
+
+    // Video playback (or the decision to skip it above) must always be
+    // followed by firing the completion callback that Android's Java side
+    // would normally call back into native once the video finishes, since
+    // VideoLayer (libgame_logic.so) blocks waiting for it and would
+    // otherwise hang forever instead of continuing past the cutscene.
     JNIEnv *jniEnv = &jni;
     void (* onVideoCompleted)(JNIEnv *env, jobject thiz) =
         (void *) so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxVideo_onVideoCompleted");
-    // if (onVideoCompleted) {
-    //    onVideoCompleted(jniEnv, NULL);
-    // }
+    if (onVideoCompleted) {
+        onVideoCompleted(jniEnv, NULL);
+    }
 }
 
 MethodsBoolean methodsBoolean[] = {
@@ -378,7 +406,19 @@ MethodsVoid methodsVoid[] = {
     { 24, Cocos2dxSound_resumeEffect },
     { 25, Cocos2dxSound_pauseAllEffects },
     { 26, Cocos2dxSound_resumeAllEffects },
-    { 27, Cocos2dxSound_preloadEffect },
+    // preloadEffect (27) tambien registrado aca ademas de en methodsInt[]:
+    // el juego lo invoca por la ruta CallStaticVoidMethod (confirmado con
+    // logs reales -- "method ID 27 not found!" en cada carga de nivel,
+    // methodVoidCall no lo encontraba porque se habia sacado de esta tabla
+    // por sospecha de que la doble tabla causaba el crash PC=0x20 de SoLoud;
+    // esa hipotesis quedo descartada (la causa real fue el file-hack de
+    // SoLoud, ver Fixes_Log.md #10) y quitarlo de aca solo rompio el
+    // preload real sin arreglar nada. El cast es necesario porque
+    // Cocos2dxSound_preloadEffect devuelve jint pero esta tabla espera
+    // void(*)(...); el valor de retorno simplemente se ignora en la
+    // convencion de llamada de ARM, sin efectos indeseados (mismo patron ya
+    // usado en dynlib.c para varios simbolos).
+    { 27, (void (*)(jmethodID, va_list)) Cocos2dxSound_preloadEffect },
     { 28, Cocos2dxSound_unloadEffect },
     { 30, Cocos2dxSound_setEffectsVolume },
 };

@@ -197,6 +197,11 @@ va_list _AtoV(int dummy, ...);
 })
 
 #define GetPrimitiveArrayRegion(fun_name, fieldType, jType, array, start, length, buffer) ({ \
+    /* length==0 (copy zero elements) is a valid no-op per the real JNI spec */ \
+    /* even against an array we never tracked -- some engine code paths in */ \
+    /* this port probe with length==0 every single frame while touch input */ \
+    /* is active, so don't spend a log line on that (see Fixes_Log.md #13). */ \
+    if (length == 0) return; \
     JavaDynArray * jda = jda_find((void *) array); \
     if (!jda) { \
         fjni_logv_err("[JNI] %s(env, 0x%x, %i, %i, 0x%x): Array not found.", fun_name, (int)array, start, length, buffer); \

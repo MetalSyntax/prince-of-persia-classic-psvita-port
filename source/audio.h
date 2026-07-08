@@ -11,6 +11,12 @@ extern "C" {
 void audio_init();
 void audio_shutdown();
 
+// Used by video.cpp: cutscenes have their own audio track, so the game's own
+// BGM is paused (not stopped -- resumed exactly where it left off) for the
+// duration of video playback instead of fighting it for the same output.
+void audio_pause_bgm_for_video();
+void audio_resume_bgm_after_video();
+
 // Cocos2dxMusic (BGM)
 void Cocos2dxMusic_playBackgroundMusic(jmethodID id, va_list args);
 void Cocos2dxMusic_stopBackgroundMusic(jmethodID id, va_list args);

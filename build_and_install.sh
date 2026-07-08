@@ -5,7 +5,7 @@ set -e
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="/tmp/popclassic-build"
 SRC_DIR="/tmp/popclassic-src"
-VPK_NAME="popclassic.vpk"
+VPK_NAME="popclassic_video_fix_nologs.vpk"
 
 echo "================================================================"
 echo "  🚀 Script de Build Automático para Prince of Persia (PS Vita)"
@@ -55,6 +55,11 @@ mkdir -p "$PROJECT_DIR/build"
 cp "$VPK_NAME" "$PROJECT_DIR/build/$VPK_NAME"
 if [ -f "eboot.bin" ]; then
     cp "eboot.bin" "$PROJECT_DIR/build/eboot.bin"
+fi
+# El ELF con símbolos es imprescindible para simbolizar psp2dmp con
+# vita-parse-core; /tmp se borra al reiniciar, así que se archiva junto al VPK.
+if [ -f "so_loader" ]; then
+    cp "so_loader" "$PROJECT_DIR/build/so_loader.elf"
 fi
 
 echo "✅ Build exitoso: $PROJECT_DIR/build/$VPK_NAME"

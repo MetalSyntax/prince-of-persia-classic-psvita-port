@@ -18,87 +18,63 @@
 #include "FalsoJNI.h"
 
 #include <psp2/kernel/clib.h>
-#include <psp2/kernel/threadmgr.h>
 
-#define COLOR_RED     "\x1B[31m"
-#define COLOR_ORANGE  "\x1B[33m"
-#define COLOR_BLUE    "\x1B[34m"
+// Routed into the loader's own logger (utils/logger.h) instead of a private
+// sceClibPrintf-only path: on real hardware there is no attached console, so
+// every JNI dispatch trace used to be invisible -- it only ever reached the
+// screen under a debugger. This is what actually shows "todo el proceso del
+// juego y su ejecucion secuencial" (every native<->"Java" call the game
+// makes) instead of just crashes -- see Docs/Fixes_Log.md #11.
+#include "utils/logger.h"
 
-#define COLOR_END     "\033[0m"
-
-static SceKernelLwMutexWork _fjni_log_mutex;
-static volatile short int _fjni_log_mutex_inited = 0;
-
-static char _fjni_log_buffer_1[2048];
-static char _fjni_log_buffer_2[2048];
-
-#define LOG_LOCK \
-    if (!_fjni_log_mutex_inited) { \
-        int ret = sceKernelCreateLwMutex(&_fjni_log_mutex, "fjni_log_lock", 0, 0, NULL); \
-        if (ret < 0) { \
-            sceClibPrintf("[JNI] Error: failed to create log mutex: 0x%x\n", ret); \
-            return; \
-        } \
-        _fjni_log_mutex_inited = 1; \
-    } \
-    sceKernelLockLwMutex(&_fjni_log_mutex, 1, NULL);
-
-#define LOG_UNLOCK \
-    if (_fjni_log_mutex_inited) { \
-        sceKernelUnlockLwMutex(&_fjni_log_mutex, 1); \
-    }
-
-#define LOG_PRINT \
-    va_list list; \
-    va_start(list, fmt); \
-    sceClibVsnprintf(_fjni_log_buffer_2, sizeof(_fjni_log_buffer_2), _fjni_log_buffer_1, list); \
-    va_end(list); \
-    sceClibPrintf(_fjni_log_buffer_2);
+// Local (stack) message buffer, not static: JNI dispatch can be reached from
+// more than one thread (e.g. SimpleAudioEngine's background thread calls
+// back into the game via JNI env pointers), and a shared static buffer here
+// would race between the vsnprintf below and the l_* call reading it -- the
+// underlying logger.c mutex only protects _log_print's own internals, not
+// this staging buffer.
+#define FJNI_LOG_MSG_SIZE 512
 
 void _fjni_log_info(const char *fi, int li, const char *fn, const char* fmt, ...) {
 #if FALSOJNI_DEBUGLEVEL <= FALSOJNI_DEBUG_INFO
-    LOG_LOCK
-
-    sceClibSnprintf(_fjni_log_buffer_1, sizeof(_fjni_log_buffer_1),
-                    "%s[INFO] %s%s\n", COLOR_BLUE, fmt, COLOR_END);
-
-    LOG_PRINT
-    LOG_UNLOCK
+    char msg[FJNI_LOG_MSG_SIZE];
+    va_list list;
+    va_start(list, fmt);
+    sceClibVsnprintf(msg, sizeof(msg), fmt, list);
+    va_end(list);
+    l_info("[JNI][%s:%d][%s] %s", fi, li, fn, msg);
 #endif
 }
 
 void _fjni_log_warn(const char *fi, int li, const char *fn, const char* fmt, ...) {
 #if FALSOJNI_DEBUGLEVEL <= FALSOJNI_DEBUG_WARN
-    LOG_LOCK
-
-    sceClibSnprintf(_fjni_log_buffer_1, sizeof(_fjni_log_buffer_1),
-                    "%s[WARN][%s:%d][%s] %s%s\n", COLOR_ORANGE, fi, li, fn, fmt, COLOR_END);
-
-    LOG_PRINT
-    LOG_UNLOCK
+    char msg[FJNI_LOG_MSG_SIZE];
+    va_list list;
+    va_start(list, fmt);
+    sceClibVsnprintf(msg, sizeof(msg), fmt, list);
+    va_end(list);
+    l_warn("[JNI][%s:%d][%s] %s", fi, li, fn, msg);
 #endif
 }
 
 void _fjni_log_debug(const char *fi, int li, const char *fn, const char* fmt, ...) {
 #if FALSOJNI_DEBUGLEVEL <= FALSOJNI_DEBUG_ALL
-    LOG_LOCK
-
-    sceClibSnprintf(_fjni_log_buffer_1, sizeof(_fjni_log_buffer_1),
-                    "[DBG][%s:%d][%s] %s\n", fi, li, fn, fmt);
-
-    LOG_PRINT
-    LOG_UNLOCK
+    char msg[FJNI_LOG_MSG_SIZE];
+    va_list list;
+    va_start(list, fmt);
+    sceClibVsnprintf(msg, sizeof(msg), fmt, list);
+    va_end(list);
+    l_debug("[JNI][%s:%d][%s] %s", fi, li, fn, msg);
 #endif
 }
 
 void _fjni_log_error(const char *fi, int li, const char *fn, const char* fmt, ...) {
 #if FALSOJNI_DEBUGLEVEL <= FALSOJNI_DEBUG_ERROR
-    LOG_LOCK
-
-    sceClibSnprintf(_fjni_log_buffer_1, sizeof(_fjni_log_buffer_1),
-                    "%s[ERROR][%s:%d][%s] %s%s\n", COLOR_RED, fi, li, fn, fmt, COLOR_END);
-
-    LOG_PRINT
-    LOG_UNLOCK
+    char msg[FJNI_LOG_MSG_SIZE];
+    va_list list;
+    va_start(list, fmt);
+    sceClibVsnprintf(msg, sizeof(msg), fmt, list);
+    va_end(list);
+    l_error("[JNI][%s:%d][%s] %s", fi, li, fn, msg);
 #endif
 }

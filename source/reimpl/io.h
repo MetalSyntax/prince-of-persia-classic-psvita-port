@@ -86,6 +86,22 @@ int close_soloader(int fd);
 
 int fclose_soloader(FILE *f);
 
+FILE *fdopen_soloader(int fd, const char *mode);
+
+int setvbuf_soloader(FILE *f, char *buf, int mode, size_t size);
+
+int vfprintf_soloader(FILE *f, const char *fmt, va_list va);
+
+int fprintf_soloader(FILE *f, const char *fmt, ...);
+
+int fputs_soloader(const char *s, FILE *f);
+
+int fputc_soloader(int c, FILE *f);
+
+size_t fwrite_soloader(const void *ptr, size_t size, size_t nmemb, FILE *f);
+
+int fflush_soloader(FILE *f);
+
 int closedir_soloader(DIR *dir);
 
 int fcntl_soloader(int fd, int cmd, ...);

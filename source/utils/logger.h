@@ -31,18 +31,20 @@ extern "C" {
 #define l_warn(...)    _log_print(LT_WARN,    __VA_ARGS__)
 #define l_success(...) _log_print(LT_SUCCESS, __VA_ARGS__)
 #define l_wait(...)    _log_print(LT_WAIT,    __VA_ARGS__)
+#define l_error(...)   _log_print(LT_ERROR,   __VA_ARGS__)
+#define l_fatal(...)   _log_print(LT_FATAL,   __VA_ARGS__)
 #else
 #define l_debug(...)
 #define l_info(...)
 #define l_warn(...)
 #define l_success(...)
 #define l_wait(...)
+#define l_error(...)
+#define l_fatal(...)
 #endif
 
-#define l_error(...)   _log_print(LT_ERROR,   __VA_ARGS__)
-#define l_fatal(...)   _log_print(LT_FATAL,   __VA_ARGS__)
-
 void _log_print(int t, const char* fmt, ...)
+
                 __attribute__ ((format (printf, 2, 3)));
 
 #ifdef __cplusplus

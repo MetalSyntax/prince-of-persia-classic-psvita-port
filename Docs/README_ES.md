@@ -32,7 +32,7 @@ Para realizar la instalación en una PS Vita real:
    ur0:tai/fd_fix.skprx
    ```
 3. Instala `libshacccg.suprx` (puedes usar la app ShaRKBR33D).
-4. Instala el archivo `popclassic.vpk` en tu consola.
+4. Instala el archivo `popclassic_audio.vpk` (build con audio; la antigua `popclassic.vpk` es la build estable sin sonido) en tu consola.
 5. Obtén tu juego legal de Android. Debes usar un **APK modificado mínimo** y un **OBB modificado** (optimizado/extraído) compatible con este port. Copia los archivos del `.obb` extraído y de la carpeta de assets del `.apk` dentro de la carpeta correspondiente en `ux0:app/POPCLASC1/` o `ux0:data/popclassic/`.
 6. Extrae las librerías de la carpeta `lib/armeabi/` o `lib/armeabi-v7a/` de tu `.apk` y colócalas junto con los datos del juego:
    * `libcocos2d.so`

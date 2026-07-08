@@ -1281,7 +1281,14 @@ jsize GetArrayLength(JNIEnv* env, jarray array) {
     jsize ret = jda_sizeof(array);
     if (ret > -1) return ret;
 
-    fjni_logv_warn("Array 0x%x not found. Unknown array type?", (int)array);
+    // A NULL array querying its own length is a degenerate case some engine
+    // code paths probe defensively every single frame while touch input is
+    // active (confirmed: this port's game logic calls it once per touch-
+    // active frame, always with array==NULL) -- not a real error, so don't
+    // spend a full log line on it every time (see Docs/Fixes_Log.md #13).
+    if (array != NULL) {
+        fjni_logv_warn("Array 0x%x not found. Unknown array type?", (int)array);
+    }
     return 0;
 }
 

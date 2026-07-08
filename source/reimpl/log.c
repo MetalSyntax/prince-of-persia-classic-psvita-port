@@ -13,6 +13,7 @@
 #include <stdlib.h>
 
 #define print_common \
+    if (tag && sceClibStrncmp(tag, "cocos2d-x debug info", 20) == 0) { } else { \
     switch (prio) { \
         case ANDROID_LOG_INFO: \
             l_info("[ALOG][%s] %s", tag, text); \
@@ -32,7 +33,7 @@
         default: \
             l_debug("[ALOG][%s] %s", tag, text); \
             break; \
-    }
+    } }
 
 int __android_log_write(int prio, const char* tag, const char* text) {
     print_common

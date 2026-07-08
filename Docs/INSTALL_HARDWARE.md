@@ -1,7 +1,8 @@
 # Instalar Prince of Persia Classic en una PS Vita real (vía FTP)
 
-Esta guía asume que ya compilaste `popclassic.vpk` (ver `plan_portabilidad.md` §8, o corré
-`./build_and_install.sh` para compilarlo — genera `build/popclassic.vpk`). Cubre todo lo necesario para
+Esta guía asume que ya compilaste `popclassic_audio.vpk` (ver `plan_portabilidad.md` §8, o corré
+`./build_and_install.sh` para compilarlo — genera `build/popclassic_audio.vpk`; la build vieja sin
+sonido era `build/popclassic.vpk` y sigue sirviendo de rollback). Cubre todo lo necesario para
 pasarlo a una Vita real por FTP con VitaShell, sin necesitar una tarjeta SD/lector aparte.
 
 ## 0. Requisitos en la consola
@@ -48,12 +49,12 @@ VitaShell (puerto `1338`, el mismo que ya usan los targets `send`/`send_kvdb` de
 
 ```bash
 # Sube el vpk a ux0:/
-curl -T build/popclassic.vpk "ftp://${VITA_IP}:1337/ux0:/popclassic.vpk"
+curl -T build/popclassic_audio.vpk "ftp://${VITA_IP}:1337/ux0:/popclassic_audio.vpk"
 ```
 
-Luego, **en la consola**: en VitaShell navegá a `ux0:/`, seleccioná `popclassic.vpk` con el botón **X** y
+Luego, **en la consola**: en VitaShell navegá a `ux0:/`, seleccioná `popclassic_audio.vpk` con el botón **X** y
 elegí **Install** en el menú contextual (botón **△**). Esto instala el juego con el Title ID `POPC00001`
-(definido en `CMakeLists.txt` como `VITA_TITLEID`). Podés borrar `ux0:/popclassic.vpk` después de instalar.
+(definido en `CMakeLists.txt` como `VITA_TITLEID`). Podés borrar `ux0:/popclassic_audio.vpk` después de instalar.
 
 ### 2.2. Subir los assets (`ux0:data/popclassic/`)
 
@@ -124,7 +125,7 @@ Mientras estás ajustando solo el ejecutable (no los assets), alcanza con reempl
 por FTP en vez de reinstalar el `.vpk` completo cada vez:
 
 ```bash
-curl -T build/popclassic.vpk/eboot.bin "ftp://${VITA_IP}:1337/ux0:/app/POPC00001/eboot.bin"
+curl -T build/eboot.bin "ftp://${VITA_IP}:1337/ux0:/app/POPC00001/eboot.bin"
 ```
 
 (Esto es exactamente lo que hacen los targets `send`/`send_kvdb` ya definidos en `CMakeLists.txt`, que además

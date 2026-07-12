@@ -113,6 +113,8 @@ int main() {
 
     gl_init();
     l_success("gl_init() done.");
+    
+    sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
 
     if (nativeInit) {
         nativeInit(jniEnv, NULL, 960, 544);
@@ -135,6 +137,7 @@ int main() {
     int frame = 0;
     int last_logged_report_num = -1;
     uint32_t last_logged_pad_buttons = 0;
+
 
     while (1) {
         SceTouchData touch;
@@ -164,17 +167,13 @@ int main() {
         uint32_t current_pad = pad.buttons;
 
         // Build one combined list of "virtual fingers" for this frame: the
-        // real touches plus (if held) a synthetic one for the D-Pad-driven
-        // joystick drag -- see below. They all compete for the SAME 5 engine
-        // touch slots (0-4), never a 6th one: cocos2d-x's Android touch
-        // dispatch is sized for CC_MAX_TOUCHES == 5, so id 5 is already one
-        // past the end of its internal array -- confirmed the hard way, that
-        // exact off-by-one corrupted the heap on real hardware.
-        // Moving the base further right (240) so we have more room to drag left.
-        // We increase the displacement to 200 pixels to ensure we cross the walk/run threshold.
-        const int JOY_BASE_X = 240, JOY_BASE_Y = 450;
-        const int DPAD_VIRTUAL_HWID = -2; // never a real SceTouchReport::id (0-255) or the -1 "free" sentinel
-
+        // real touches plus (if held) synthetic ones for the D-Pad-driven
+        // joystick drag and the combat/action buttons below. They all
+        // compete for the SAME 5 engine touch slots (0-4), never a 6th one:
+        // cocos2d-x's Android touch dispatch is sized for CC_MAX_TOUCHES ==
+        // 5, so id 5 is already one past the end of its internal array --
+        // confirmed the hard way, that exact off-by-one corrupted the heap
+        // on real hardware.
         int reportHwId[5], reportX[5], reportY[5], reportCount = 0;
         for (int r = 0; r < touch.reportNum && reportCount < 5; r++) {
             reportHwId[reportCount] = touch.report[r].id;
@@ -184,38 +183,43 @@ int main() {
         }
 
         // Map Left Analog Stick to D-Pad buttons so they share the same logic
-        if (pad.lx < 80) current_pad |= SCE_CTRL_LEFT;
-        if (pad.lx > 175) current_pad |= SCE_CTRL_RIGHT;
-        if (pad.ly < 80) current_pad |= SCE_CTRL_UP;
-        if (pad.ly > 175) current_pad |= SCE_CTRL_DOWN;
+        if (pad.lx < 90) current_pad |= SCE_CTRL_LEFT;
+        if (pad.lx > 165) current_pad |= SCE_CTRL_RIGHT;
+        if (pad.ly < 90) current_pad |= SCE_CTRL_UP;
+        if (pad.ly > 165) current_pad |= SCE_CTRL_DOWN;
 
         int dpadWantLeft = (current_pad & SCE_CTRL_LEFT) != 0;
         int dpadWantRight = (current_pad & SCE_CTRL_RIGHT) != 0;
-        int wantWalk = (current_pad & SCE_CTRL_RTRIGGER) != 0; // The button on the right is actually Walk/Sneak
 
-        // Simulate touching the extreme left of the slider (<) to RUN left
-        if (dpadWantLeft && reportCount < 5) {
-            reportHwId[reportCount] = -2; // Virtual ID for Left Arrow
-            reportX[reportCount] = 30;    // Shifted far left to 30 (extreme edge to run)
-            reportY[reportCount] = 400;   // Y coordinate in 960x544 space
-            reportCount++;
-        }
+        int wantWalk = (current_pad & SCE_CTRL_SQUARE) != 0;
 
-        // Simulate touching the extreme right of the slider (>) to RUN right
-        if (dpadWantRight && reportCount < 5) {
-            reportHwId[reportCount] = -3; // Virtual ID for Right Arrow
-            reportX[reportCount] = 220;   // Shifted far right to 220 (extreme edge to run)
-            reportY[reportCount] = 400;   // Y coordinate in 960x544 space
-            reportCount++;
-        }
-
-        // Simulate touching the Walk/Sneak button on the right side of the screen
+        const int ARROW_Y = 400;
+        const int WALK_X_LEFT = 95, RUN_X_LEFT = 30;
+        const int WALK_X_RIGHT = 155, RUN_X_RIGHT = 220;
+        
+        // Square is walk toggle button
         if (wantWalk && reportCount < 5) {
-            reportHwId[reportCount] = -4; // Virtual ID for Walk button
-            reportX[reportCount] = 780;
+            reportHwId[reportCount] = -7;
+            reportX[reportCount] = 780; // Virtual Walk button
             reportY[reportCount] = 450;
             reportCount++;
         }
+
+        if (dpadWantLeft && reportCount < 5) {
+            reportHwId[reportCount] = -2; // Virtual ID for Left Arrow
+            reportX[reportCount] = wantWalk ? 95 : 30;
+            reportY[reportCount] = ARROW_Y;
+            reportCount++;
+        }
+
+        if (dpadWantRight && reportCount < 5) {
+            reportHwId[reportCount] = -3; // Virtual ID for Right Arrow
+            reportX[reportCount] = wantWalk ? 155 : 220;
+            reportY[reportCount] = ARROW_Y;
+            reportCount++;
+        }
+        
+        // DPAD DOWN is handled via nativeKeyDown to preserve menu scrolling
 
         int seenThisFrame[5] = {0, 0, 0, 0, 0};
 
@@ -266,25 +270,33 @@ int main() {
             if ((current_pad & SCE_CTRL_SELECT) && !(oldpad & SCE_CTRL_SELECT)) nativeKeyDown(jniEnv, NULL, 82);
             if (!(current_pad & SCE_CTRL_SELECT) && (oldpad & SCE_CTRL_SELECT)) nativeKeyUp(jniEnv, NULL, 82);
 
-            // DPAD
+            // DPAD UP and DOWN keep their keycodes to allow proper menu scrolling. 
+            // Left and Right must remain exclusively touch-based to prevent forced walking.
             if ((current_pad & SCE_CTRL_UP) && !(oldpad & SCE_CTRL_UP)) nativeKeyDown(jniEnv, NULL, 19);
             if (!(current_pad & SCE_CTRL_UP) && (oldpad & SCE_CTRL_UP)) nativeKeyUp(jniEnv, NULL, 19);
             
             if ((current_pad & SCE_CTRL_DOWN) && !(oldpad & SCE_CTRL_DOWN)) nativeKeyDown(jniEnv, NULL, 20);
             if (!(current_pad & SCE_CTRL_DOWN) && (oldpad & SCE_CTRL_DOWN)) nativeKeyUp(jniEnv, NULL, 20);
-            
-            if ((current_pad & SCE_CTRL_LEFT) && !(oldpad & SCE_CTRL_LEFT)) nativeKeyDown(jniEnv, NULL, 21);
-            if (!(current_pad & SCE_CTRL_LEFT) && (oldpad & SCE_CTRL_LEFT)) nativeKeyUp(jniEnv, NULL, 21);
-            
-            if ((current_pad & SCE_CTRL_RIGHT) && !(oldpad & SCE_CTRL_RIGHT)) nativeKeyDown(jniEnv, NULL, 22);
-            if (!(current_pad & SCE_CTRL_RIGHT) && (oldpad & SCE_CTRL_RIGHT)) nativeKeyUp(jniEnv, NULL, 22);
 
-            // ACTIONS
-            if ((current_pad & SCE_CTRL_CROSS) && !(oldpad & SCE_CTRL_CROSS)) nativeKeyDown(jniEnv, NULL, 23); // DPAD CENTER
-            if (!(current_pad & SCE_CTRL_CROSS) && (oldpad & SCE_CTRL_CROSS)) nativeKeyUp(jniEnv, NULL, 23);
+            // ACTIONS - Keyboard simulated actions
+            // Face buttons
+            if ((current_pad & SCE_CTRL_CROSS) && !(oldpad & SCE_CTRL_CROSS)) {
+                nativeKeyDown(jniEnv, NULL, 23); // DPAD CENTER (Menu Select / Attack)
+                nativeKeyDown(jniEnv, NULL, 96); // BUTTON_A (Jump in Android TV)
+            }
+            if (!(current_pad & SCE_CTRL_CROSS) && (oldpad & SCE_CTRL_CROSS)) {
+                nativeKeyUp(jniEnv, NULL, 23);
+                nativeKeyUp(jniEnv, NULL, 96);
+            }
 
-            if ((current_pad & SCE_CTRL_SQUARE) && !(oldpad & SCE_CTRL_SQUARE)) nativeKeyDown(jniEnv, NULL, 99); // BUTTON_X
-            if (!(current_pad & SCE_CTRL_SQUARE) && (oldpad & SCE_CTRL_SQUARE)) nativeKeyUp(jniEnv, NULL, 99);
+            if ((current_pad & SCE_CTRL_CIRCLE) && !(oldpad & SCE_CTRL_CIRCLE)) {
+                nativeKeyDown(jniEnv, NULL, 4);  // BACK (Menu Back)
+                nativeKeyDown(jniEnv, NULL, 97); // BUTTON_B (Action/Drop in Android TV)
+            }
+            if (!(current_pad & SCE_CTRL_CIRCLE) && (oldpad & SCE_CTRL_CIRCLE)) {
+                nativeKeyUp(jniEnv, NULL, 4);
+                nativeKeyUp(jniEnv, NULL, 97);
+            }
             
             if ((current_pad & SCE_CTRL_TRIANGLE) && !(oldpad & SCE_CTRL_TRIANGLE)) nativeKeyDown(jniEnv, NULL, 100); // BUTTON_Y
             if (!(current_pad & SCE_CTRL_TRIANGLE) && (oldpad & SCE_CTRL_TRIANGLE)) nativeKeyUp(jniEnv, NULL, 100);

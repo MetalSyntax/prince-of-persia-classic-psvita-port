@@ -257,14 +257,36 @@ void video_play(const char *raw) {
     int audioPort = -1;
     int audioChannels = 0;
 
+    SceCtrlData pad_start;
+    sceCtrlPeekBufferPositive(0, &pad_start, 1);
+    uint32_t old_pad_buttons = pad_start.buttons;
+
     bool skipped = false;
+    
+    // Explicitly start the player just in case autoStart fails
+    sceAvPlayerStart(handle);
+
+    // Wait for the asynchronous video decoder to become active
+    int wait_count = 0;
+    while (!sceAvPlayerIsActive(handle) && wait_count < 500) {
+        sceKernelDelayThread(10000); // 10ms
+        wait_count++;
+    }
+    
+    if (!sceAvPlayerIsActive(handle)) {
+        l_warn("video: timed out waiting for video decoder to become active (%s)", path.c_str());
+    }
+    
     while (sceAvPlayerIsActive(handle)) {
         SceCtrlData pad;
         sceCtrlPeekBufferPositive(0, &pad, 1);
-        if (pad.buttons & (SCE_CTRL_CROSS | SCE_CTRL_START)) {
+        uint32_t pressed = pad.buttons & ~old_pad_buttons;
+        
+        if (pressed & (SCE_CTRL_CROSS | SCE_CTRL_START)) {
             skipped = true;
             break;
         }
+        old_pad_buttons = pad.buttons;
 
         SceAvPlayerFrameInfo video;
         if (sceAvPlayerGetVideoData(handle, &video)) {

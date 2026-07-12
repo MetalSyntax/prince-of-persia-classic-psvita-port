@@ -218,18 +218,13 @@ void video_play(const char *raw) {
 
     SceAvPlayerInitData init;
     memset(&init, 0, sizeof(init));
-    // Do NOT override memory allocators with memalign. SceAvPlayer requires 
-    // hardware-accessible memory (uncached LPDDR/CDRAM). By leaving these NULL, 
-    // it will use its proper internal allocators instead.
-    // init.memoryReplacement.allocate = av_alloc;
-    // init.memoryReplacement.deallocate = av_free;
-    // init.memoryReplacement.allocateTexture = av_alloc;
-    // init.memoryReplacement.deallocateTexture = av_free;
-    init.fileReplacement.objectPointer = &fileCtx;
-    init.fileReplacement.open = av_ctx_open;
-    init.fileReplacement.close = av_ctx_close;
-    init.fileReplacement.readOffset = av_ctx_read;
-    init.fileReplacement.size = av_ctx_size;
+    init.memoryReplacement.allocate = av_alloc;
+    init.memoryReplacement.deallocate = av_free;
+    init.memoryReplacement.allocateTexture = av_alloc;
+    init.memoryReplacement.deallocateTexture = av_free;
+    // Let SceAvPlayer handle file I/O internally. 
+    // init.fileReplacement is unnecessary for standalone files on ux0:
+    // and can cause thread synchronization issues or bugs.
     init.basePriority = 0x10000100;
     init.numOutputVideoFrameBuffers = 2;
     init.autoStart = SCE_TRUE;
@@ -266,8 +261,7 @@ void video_play(const char *raw) {
 
     bool skipped = false;
     
-    // Explicitly start the player just in case autoStart fails
-    sceAvPlayerStart(handle);
+    // Let autoStart handle the playback initiation.
 
     // Wait for the asynchronous video decoder to become active
     int wait_count = 0;

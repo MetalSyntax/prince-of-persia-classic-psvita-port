@@ -218,10 +218,13 @@ void video_play(const char *raw) {
 
     SceAvPlayerInitData init;
     memset(&init, 0, sizeof(init));
-    init.memoryReplacement.allocate = av_alloc;
-    init.memoryReplacement.deallocate = av_free;
-    init.memoryReplacement.allocateTexture = av_alloc;
-    init.memoryReplacement.deallocateTexture = av_free;
+    // Do NOT override memory allocators with memalign. SceAvPlayer requires 
+    // hardware-accessible memory (uncached LPDDR/CDRAM). By leaving these NULL, 
+    // it will use its proper internal allocators instead.
+    // init.memoryReplacement.allocate = av_alloc;
+    // init.memoryReplacement.deallocate = av_free;
+    // init.memoryReplacement.allocateTexture = av_alloc;
+    // init.memoryReplacement.deallocateTexture = av_free;
     init.fileReplacement.objectPointer = &fileCtx;
     init.fileReplacement.open = av_ctx_open;
     init.fileReplacement.close = av_ctx_close;

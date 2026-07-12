@@ -70,28 +70,20 @@ To install the port on a real PS Vita:
    ```
 3. Install `libshacccg.suprx` (Sony's shader compiler). You can obtain a legitimate copy from your own console using the ShaRKBR33D homebrew — it can never be redistributed, so it is **not** included in this repository (`.gitignore`: `*.suprx`).
 4. Install the generated `.vpk` (see the table above for Debug vs. Play).
-5. Obtain your own legal copy of the Android game (`.apk` + `.obb`). Extract the `.obb` and the `.apk`'s `assets/` folder, and lay them out on the console under `ux0:data/popclassic/` with **exactly** this structure — all packed audio must be converted/extracted to `.ogg` (the mixer does not read `.mp3`):
+5. Obtain your own legal copy of the Android game (`.apk` + `.obb`). Extract the `.obb` and the `.apk`'s `assets/` folder, and lay them out on the console under `ux0:data/popclassic/` with **exactly** this structure:
    ```
    ux0:data/popclassic/
    ├── libcocos2d.so
    ├── libcocosdenshion.so
    ├── libgame_logic.so
-   ├── original.apk
-   ├── main.1.org.ubisoft.premium.POPClassic.obb
-   ├── appConfig.txt
-   ├── assets/
-   │   └── appConfig.txt
-   ├── save/                      <- empty folder, the game writes its saves here
-   └── Data/
-       ├── Animations/
-       ├── Audio/                 <- all tracks/effects as .ogg
-       ├── Effects/
-       ├── Localization/
-       ├── Logo/
-       ├── Maps/
-       ├── Particles/
-       ├── Texture/
-       └── Video/                 <- cutscenes as .mp4 (see Known Issues)
+   ├── original.apk                               <- Must be the complete APK
+   ├── main.1.org.ubisoft.premium.POPClassic.obb  <- Reconstructed minimal OBB (~511 KB)
+   ├── save/                                      <- empty folder, the game writes its saves here
+   ├── Data/
+   │   ├── Audio/                                 <- all tracks/effects as .mp3 (loose files)
+   │   ├── font/                                  <- .ttf files (loose files)
+   │   └── Video/High/                            <- cutscenes as .mp4 (loose files)
+   └── Data_960_576/                              <- Animations, Effects, Localization, Logo, Maps, Particles, Texture, appConfig.txt
    ```
 6. Extract the three native libraries from the `lib/armeabi/` (or `lib/armeabi-v7a/`) folder of your `.apk` and place them directly under `ux0:data/popclassic/` as shown above:
    * `libcocos2d.so`
@@ -100,7 +92,7 @@ To install the port on a real PS Vita:
 
 For a full step-by-step FTP transfer walkthrough (using VitaShell), see [`Docs/en/INSTALL_HARDWARE.md`](Docs/en/INSTALL_HARDWARE.md).
 
-*(Note: check community forums for patching scripts and tools to prepare your legal APK/OBB and to batch-convert the audio to `.ogg`.)*
+*(Note: check community forums for patching scripts and tools to prepare your legal APK/OBB files.)*
 
 ## Controls
 

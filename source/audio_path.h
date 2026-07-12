@@ -9,8 +9,12 @@
 //     Extra/Audio/Music/POP_BGM_Menu.mp3
 //     Extra/Audio/SFX/Enemies/Jaffar/94_jaffar_fight.mp4   (audio, not video!)
 //     Extra/Audio/Music/95_boss_fight_2.m4a
-// while the unpacked assets on the memory card are .ogg files under
+// while the unpacked assets on the memory card are .mp3 files under
 //     ux0:data/popclassic/Data/Audio/...
+// (the game's original mp3 files copied as-is -- the handful of non-mp3
+// sources, .m4a/.mp4-container audio, are the only ones actually
+// transcoded, once, offline, straight to .mp3 so the engine only ever needs
+// one native decoder).
 
 #include <string>
 
@@ -18,16 +22,16 @@
 #define DATA_PATH "ux0:data/popclassic/"
 #endif
 
-// Replace whatever extension the request has (.mp3/.m4a/.mp4/none) with .ogg.
-static inline std::string audio_swap_ext_to_ogg(const std::string &p) {
+// Replace whatever extension the request has (.mp3/.m4a/.mp4/none) with .mp3.
+static inline std::string audio_swap_ext_to_mp3(const std::string &p) {
     size_t slash = p.find_last_of('/');
     size_t dot = p.find_last_of('.');
     if (dot == std::string::npos || (slash != std::string::npos && dot < slash))
-        return p + ".ogg";
-    return p.substr(0, dot) + ".ogg";
+        return p + ".mp3";
+    return p.substr(0, dot) + ".mp3";
 }
 
-// Map any path the game may request to the real .ogg under DATA_PATH "Data/".
+// Map any path the game may request to the real .mp3 under DATA_PATH "Data/".
 // Anchors on the "Audio/" component so it tolerates "Extra/", "assets/Extra/",
 // leading slashes, or an already-translated "Data/Audio/..." input.
 static inline std::string sanitize_audio_path(const char *raw) {
@@ -50,7 +54,7 @@ static inline std::string sanitize_audio_path(const char *raw) {
         }
     }
 
-    return std::string(DATA_PATH) + "Data/" + audio_swap_ext_to_ogg(rel);
+    return std::string(DATA_PATH) + "Data/" + audio_swap_ext_to_mp3(rel);
 }
 
 // Alternate location some assets ship in (resolution-suffixed data folder).

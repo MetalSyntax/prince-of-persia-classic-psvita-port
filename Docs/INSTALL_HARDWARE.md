@@ -66,17 +66,47 @@ ux0:data/popclassic/
 ├── libcocosdenshion.so
 ├── libcocos2d.so
 ├── libgame_logic.so
-├── original.apk                                  <- copia de original/*.apk (assets/appConfig.txt vive ahí)
-├── main.1.org.ubisoft.premium.POPClassic.obb      <- copia de original/*.obb (con ese nombre exacto)
-├── appConfig.txt
-├── assets/
-│   └── appConfig.txt
+├── original.apk                                  <- copia de original/*.apk (assets/appConfig.txt vive ahí,
+│                                                     imprescindible: nativeSetPaths lo abre como zip a nivel
+│                                                     nativo, no hay forma de evitarlo)
+├── main.1.org.ubisoft.premium.POPClassic.obb     <- MÍNIMO (~511 KB): solo Localization/*.loc + Logo/logo.png
+│                                                     + appConfig.txt, bajo los 3 prefijos Data/Data_640_384/
+│                                                     Data_960_576 -- imprescindible, ver nota más abajo
 ├── save/                                          <- carpeta vacía, el juego escribe sus saves ahí
-└── Data/
-    ├── Animations/  Audio/  Effects/  Localization/
-    ├── Logo/  Maps/  Particles/  Texture/
-    └── ... (todo el contenido de Data/, ~113 MB)
+├── Data/
+│   ├── Audio/       <- .mp3 sueltos, leídos directo por source/audio.cpp (sceIo, sin pasar por CCFileUtils)
+│   ├── font/         <- .ttf sueltos, leídos directo por get_font() en source/java.c
+│   └── Video/High/   <- .mp4 sueltos, leídos directo por source/video.cpp
+└── Data_960_576/     <- Animations, Effects, Localization, Logo, Maps, Particles, Texture, appConfig.txt
+                          (~97 MB). HERMANA de Data/, NO va adentro -- este es el prefijo de resolución que
+                          CCFileUtils::getFileData busca en runtime, con loose-file-first de fábrica (sin
+                          hook nuestro) para texturas/mapas/animaciones.
 ```
+
+> [!IMPORTANT]
+> **`main.1.org.ubisoft.premium.POPClassic.obb` NO se puede eliminar por completo** (a diferencia de lo que
+> se pensó en una primera pasada de §9.35): `Localization/*.loc` se lee por un mecanismo nativo aparte,
+> hardcodeado dentro de `libgame_logic.so`/`libcocos2d.so`, que arma la ruta al `.obb` directamente
+> (`apkFilePath` + el nombre del `.obb`, ver comentario en `source/main.c:76-88`) y lo abre **sin pasar por
+> el chequeo de "archivo suelto primero"** que sí usan las texturas/mapas. Confirmado con un crash real en
+> consola al sacar el `.obb` (`psp2core-1783808202...`, `vita-parse-core`): Data abort dentro de `strlen()`
+> con `R0=0xFFFFFFF8` (un puntero corrupto con toda la pinta de "NULL menos un header de 8 bytes"), llamado
+> desde código del propio `.so` del juego -- el fallback silencioso al `.obb` ausente devolvió un buffer nulo
+> que el motor no chequeó antes de tratarlo como string. Fix: se reconstruyó el `.obb` en su versión **mínima**
+> (~511 KB: Localization + Logo + appConfig.txt bajo los 3 prefijos de resolución, la misma composición ya
+> confirmada en consola real en el plan §9.19) en vez del completo de 65 MB -- eso sí se puede evitar,
+> combinado con `Data_960_576/` suelta para Texturas/Mapas/Animations/Effects/Particles. Detalle completo en
+> `plan_portabilidad.md` §9.36.
+>
+> **Convención local de nombres (solo en `ux0_data/popclassic/`, no en la consola):** el `.obb` mínimo se
+> guarda en disco como `main.1.org.ubisoft.premium.POPClassic.mini.obb` -- un nombre distinto a propósito,
+> para no pisar el `main.1.org.ubisoft.premium.POPClassic.obb` completo (65 MB, backup conocido-funcional)
+> mientras se prueba el mínimo. **La consola SIEMPRE necesita el archivo con el nombre exacto
+> `main.1.org.ubisoft.premium.POPClassic.obb`** -- el motor lo busca por ese nombre literal
+> (`nativeSetPaths`/la ruta hardcodeada de Localization), nunca va a buscar uno que termine en `.mini.obb`.
+> Para probar el mínimo: subilo a la consola y renombralo ahí a `main.1.org.ubisoft.premium.POPClassic.obb`
+> (o subilo directamente con ese nombre). Para volver al completo si algo falla: subí
+> `main.1.org.ubisoft.premium.POPClassic.obb` (el de 65 MB) en su lugar.
 
 > [!IMPORTANT]
 > `ux0_data/` está en `.gitignore` (son los assets extraídos del APK/OBB originales, con copyright de
@@ -84,23 +114,60 @@ ux0:data/popclassic/
 > reconstruir esa carpeta siguiendo la Fase 2 del plan (`plan_portabilidad.md` §2) antes de este paso.
 
 Crear la carpeta remota y subir todo de una vez con `curl` (recursivo por `find`, ya que `curl` no sube
-directorios completos de un solo golpe):
+directorios completos de un solo golpe). **Importante:** `ux0_data/popclassic/` en disco todavía tiene la
+carpeta `Data/` completa (con `Animations`/`Effects`/`Localization`/`Logo`/`Maps`/`Particles`/`Texture`
+duplicados dentro de `Data_960_576/`, y también respaldos `.full`/`.bk.zip` del `.obb` viejo de 65 MB) —
+subir todo el árbol tal cual subiría mucho más de lo necesario. La lista de abajo sube el `.obb` **mínimo**
+(~511 KB, ya reconstruido — ver nota más arriba), excluye los respaldos `.full`/`.bk.zip`/`.tmp` y las
+subcarpetas de `Data/` ya cubiertas por `Data_960_576/`, y sube el resto (`Data/Audio`, `Data/font`,
+`Data/Video`, `Data/save`, `Data_960_576/` completa, los `.so`, `original.apk`, `appConfig.txt`, `assets/`):
 
 ```bash
 # Crea la carpeta base (curl -Q manda comandos FTP crudos antes de la transferencia)
 curl -s "ftp://${VITA_IP}:1337/ux0:/data/" -Q "MKD popclassic" -Q "MKD popclassic/save" -Q "MKD popclassic/assets" > /dev/null
 
-# Sube todo el árbol preservando subcarpetas
 cd ux0_data/popclassic
-find . -type f | while read -r f; do
-    remote_dir="ux0:data/popclassic/$(dirname "$f")"
-    # crea la subcarpeta remota si no existe (ignora error si ya existe)
-    curl -s "ftp://${VITA_IP}:1337/${remote_dir}/" -Q "MKD $(dirname "$f")" > /dev/null 2>&1 || true
+
+# PASO 1: crear TODAS las subcarpetas necesarias antes de subir ningún archivo.
+# Importante: MKD de FTP no crea niveles intermedios que no existan todavía
+# (a diferencia de "mkdir -p") -- un solo "MKD Data_960_576/Texture/Menu/buttons"
+# falla en silencio si "Data_960_576", "Data_960_576/Texture" y
+# "Data_960_576/Texture/Menu" no existen aún. `sort` ordena las rutas más
+# cortas (padres) antes que las más largas (hijas) porque cualquier prefijo
+# de un string ordena antes que ese mismo string extendido -- así que crear
+# cada carpeta EN ESE ORDEN, una por una, sí funciona.
+find . -type d ! -path "." ! -path "./save" ! -path "./assets" \
+    ! -path "./Data/Animations" ! -path "./Data/Animations/*" \
+    ! -path "./Data/Effects" ! -path "./Data/Effects/*" \
+    ! -path "./Data/Localization" ! -path "./Data/Localization/*" \
+    ! -path "./Data/Logo" ! -path "./Data/Logo/*" \
+    ! -path "./Data/Maps" ! -path "./Data/Maps/*" \
+    ! -path "./Data/Particles" ! -path "./Data/Particles/*" \
+    ! -path "./Data/Texture" ! -path "./Data/Texture/*" \
+    | sed 's#^\./##' | sort | while read -r d; do
+    curl -s "ftp://${VITA_IP}:1337/ux0:/data/popclassic/${d}/" -Q "MKD ${d}" > /dev/null 2>&1 || true
+done
+
+# PASO 2: subir los archivos (todas las carpetas ya existen del paso 1).
+# Salvo error, `curl -T` no muestra nada -- si algo falla, avisa por stderr,
+# no queda en silencio como el MKD de arriba.
+find . -type f \
+    ! -name "*.full" ! -name "*.bk.zip" ! -name "*.tmp" ! -name "original.zip" \
+    ! -path "./Data/Animations/*" ! -path "./Data/Effects/*" ! -path "./Data/Localization/*" \
+    ! -path "./Data/Logo/*" ! -path "./Data/Maps/*" ! -path "./Data/Particles/*" ! -path "./Data/Texture/*" \
+    ! -path "./Data/appConfig.txt" \
+    | while read -r f; do
     echo "Subiendo: $f"
-    curl -s -T "$f" "ftp://${VITA_IP}:1337/ux0:/data/popclassic/${f#./}"
+    curl -T "$f" "ftp://${VITA_IP}:1337/ux0:/data/popclassic/${f#./}"
 done
 cd ../..
 ```
+
+**Cómo verificar que funcionó (antes de volver a probar el juego):** abrí VitaShell en la consola, navegá a
+`ux0:data/popclassic/` y confirmá a simple vista que `Data_960_576/` tiene contenido real (que al entrar
+veas `Animations/`, `Effects/`, `Localization/`, `Logo/`, `Maps/`, `Particles/`, `Texture/`,
+`appConfig.txt` — no una carpeta vacía). Si en el paso 2 de arriba `curl -T` imprime algún error
+("(21) Failed FTP upload" o similar), significa que el paso 1 no creó bien esa carpeta puntual.
 
 Esto puede tardar varios minutos (~116 MB en total). Si preferís una GUI en vez de la terminal, cualquier
 cliente FTP normal (**Cyberduck**, **FileZilla**, **Transmit**) conectando a `ftp://<IP>:1337` sin usuario/

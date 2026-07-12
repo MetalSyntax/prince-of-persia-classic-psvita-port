@@ -11,24 +11,32 @@
 //
 // Hard rules kept from that debugging:
 //  * NO stdio anywhere here: files are read with sceIo, decoding uses only
-//    stb_vorbis' *_memory APIs (built with STB_VORBIS_NO_STDIO so the file
-//    API doesn't even exist to be misused).
+//    minimp3's *_buf APIs (memory in, memory/callback out -- no FILE* ever
+//    touches this file).
 //  * No failure path ever executes a pointer: failed loads log + return a
 //    valid dummy handle (never 0 -- Cocos2d-x loops on 0, the "infinite
 //    jump" bug).
 //  * Sample data referenced by the mixer thread is only freed after the
 //    voices using it are silenced under the mixer lock (no use-after-free).
 //
-// Assets are stereo .ogg at 22050/32000/44100 Hz (measured); the mixer
-// output runs at 44100 stereo and every voice resamples linearly with
-// step = pitch * (src_rate / 44100).
+// Assets are the game's original .mp3 files (mono or stereo, 22050/32000/
+// 44100 Hz, measured), decoded natively with minimp3 -- no offline mp3->ogg
+// transcode step. That transcode used to run every asset through a second
+// lossy encode on top of the source mp3's own compression (already as low as
+// 56kbps/22050Hz), which is what made music/SFX sound noticeably worse than
+// the original Android build. The mixer output runs at 44100 stereo and
+// every voice resamples linearly with step = pitch * (src_rate / 44100);
+// mono sources are upmixed to stereo by duplicating the sample to both
+// channels (same treatment stb_vorbis's forced-stereo mode used to give us
+// for free -- minimp3 decodes exactly the source channel count, so it's done
+// by hand here for BGM streaming and in mix_voice() for one-shot SFX).
 
 #include "audio.h"
 #include "audio_path.h"
 #include "utils/logger.h"
 
-#define STB_VORBIS_HEADER_ONLY
-#include <stb/stb_vorbis.c>
+#define MINIMP3_IMPLEMENTATION
+#include <minimp3/minimp3_ex.h>
 
 #include <psp2/audioout.h>
 #include <psp2/io/fcntl.h>
@@ -74,7 +82,7 @@ static int gPort = -1;
 static SceUID gThread = -1;
 
 struct SfxSample {
-    short *pcm;       // interleaved, native rate/channels, malloc'd by stb_vorbis
+    short *pcm;       // interleaved, native rate/channels, malloc'd by minimp3
     unsigned frames;
     int channels;     // 1 or 2
     int rate;
@@ -95,12 +103,14 @@ static Voice gVoices[MAX_VOICES];
 static float gSfxVolume = 1.0f;
 static jint gNextHandle = 1;
 
-// --- BGM: streamed decode from the compressed ogg kept in RAM ---
-static unsigned char *gBgmOgg = NULL; // malloc'd; must outlive gBgmV
-static stb_vorbis *gBgmV = NULL;
+// --- BGM: streamed decode from the compressed mp3 kept in RAM ---
+static unsigned char *gBgmMp3Buf = NULL; // malloc'd; must outlive gBgmMp3
+static mp3dec_ex_t gBgmMp3;
+static bool gBgmMp3Open = false;
+static int gBgmChannels = 2; // source channel count (1 or 2) of gBgmMp3
 static std::string gBgmPath;
 static double gBgmStep = 1.0, gBgmReadPos = 0.0;
-static short gBgmWin[BGM_WIN * 2];
+static short gBgmWin[BGM_WIN * 2]; // always stereo-interleaved, upmixed from mono if needed
 static int gBgmAvail = 0;   // valid frames in gBgmWin
 static bool gBgmPlaying = false, gBgmPaused = false, gBgmLoop = false, gBgmEnded = false;
 static float gBgmVolume = 1.0f;
@@ -125,7 +135,7 @@ static std::string resolve_audio_file(const char *raw) {
     return path;
 }
 
-// malloc'd buffer (stb_vorbis_open_memory needs it alive while decoding).
+// malloc'd buffer (mp3dec_ex_open_buf/mp3dec_load_buf need it alive while decoding).
 static unsigned char *read_entire_file(const std::string &path, int *out_len) {
     *out_len = 0;
     SceUID fd = sceIoOpen(path.c_str(), SCE_O_RDONLY, 0);
@@ -135,7 +145,7 @@ static unsigned char *read_entire_file(const std::string &path, int *out_len) {
     }
     SceOff size = sceIoLseek(fd, 0, SCE_SEEK_END);
     sceIoLseek(fd, 0, SCE_SEEK_SET);
-    if (size <= 0 || size > 32 * 1024 * 1024) { // biggest game .ogg is <1MB
+    if (size <= 0 || size > 32 * 1024 * 1024) { // biggest game .mp3 is ~1MB
         l_error("Bad audio file size for %s: %lld", path.c_str(), (long long)size);
         sceIoClose(fd);
         return NULL;
@@ -184,6 +194,32 @@ static inline short soft_clip16(int v) {
     return (short) outv;
 }
 
+// Reads up to frames_wanted frames (bounded by remaining space in gBgmWin)
+// from gBgmMp3 into gBgmWin at offset gBgmAvail, upmixing mono source to
+// stereo by duplicating each sample to both channels. Returns frames
+// actually appended (0 = decoder has no more samples right now).
+static int bgm_refill_from_decoder(int frames_wanted) {
+    int space = BGM_WIN - gBgmAvail;
+    if (frames_wanted > space) frames_wanted = space;
+    if (frames_wanted <= 0) return 0;
+
+    if (gBgmChannels == 2) {
+        size_t got = mp3dec_ex_read(&gBgmMp3, gBgmWin + gBgmAvail * 2, (size_t) frames_wanted * 2);
+        int gotFrames = (int)(got / 2);
+        gBgmAvail += gotFrames;
+        return gotFrames;
+    }
+
+    static short mono[BGM_WIN]; // scratch, frames_wanted <= BGM_WIN
+    size_t got = mp3dec_ex_read(&gBgmMp3, mono, (size_t) frames_wanted);
+    for (size_t i = 0; i < got; i++) {
+        gBgmWin[(gBgmAvail + (int) i) * 2 + 0] = mono[i];
+        gBgmWin[(gBgmAvail + (int) i) * 2 + 1] = mono[i];
+    }
+    gBgmAvail += (int) got;
+    return (int) got;
+}
+
 // Refill gBgmWin so at least 2 frames are readable from gBgmReadPos.
 // Returns false when the stream is over (and not looping).
 static bool bgm_ensure_window(void) {
@@ -202,14 +238,12 @@ static bool bgm_ensure_window(void) {
         if (gBgmReadPos < 0.0) gBgmReadPos = 0.0;
         gBgmAvail = keep;
 
-        int got = stb_vorbis_get_samples_short_interleaved(
-            gBgmV, 2, gBgmWin + gBgmAvail * 2, (BGM_WIN - gBgmAvail) * 2);
+        int got = bgm_refill_from_decoder(BGM_WIN - gBgmAvail);
         if (got > 0) {
-            gBgmAvail += got;
             continue;
         }
         if (gBgmLoop) {
-            stb_vorbis_seek_start(gBgmV);
+            mp3dec_ex_seek(&gBgmMp3, 0);
             continue;
         }
         return false; // stream exhausted
@@ -217,7 +251,7 @@ static bool bgm_ensure_window(void) {
 }
 
 static void mix_bgm(int *acc, int frames) {
-    if (!gBgmV || !gBgmPlaying || gBgmPaused || gBgmEnded)
+    if (!gBgmMp3Open || !gBgmPlaying || gBgmPaused || gBgmEnded)
         return;
     for (int i = 0; i < frames; i++) {
         if (!bgm_ensure_window()) {
@@ -309,8 +343,10 @@ void audio_init() {
     // bit-exact/0dBFS-peaking via a host-side resampling test -- see
     // Docs/Fixes_Log.md #11).
 
-    // 128KB stack: stb_vorbis decodes frames on this thread's stack and 64KB
-    // was proven too small (core dump) during the SoLoud bring-up.
+    // 128KB stack: the mp3 decoder works on this thread's stack and 64KB
+    // was proven too small (core dump) during the SoLoud bring-up (with
+    // stb_vorbis; kept the same margin switching decoders since minimp3's
+    // own frame buffers are a comparable size).
     gThread = sceKernelCreateThread("audio mixer", mixer_thread, 0x10000100, 0x20000, 0, 0, NULL);
     if (gThread < 0) {
         l_error("audio mixer thread creation failed (0x%08X) -- audio disabled", (unsigned)gThread);
@@ -321,7 +357,7 @@ void audio_init() {
     sceKernelStartThread(gThread, 0, NULL);
     gAudioReady = true;
 
-    if (audio_file_exists(DATA_PATH "Data/Audio/Music/POP_BGM_Menu.ogg")) {
+    if (audio_file_exists(DATA_PATH "Data/Audio/Music/POP_BGM_Menu.mp3")) {
         l_info("Audio initialized (sceAudioOut mixer), assets present at " DATA_PATH "Data/Audio/");
     } else {
         l_warn("Audio initialized but " DATA_PATH "Data/Audio/ seems missing -- copy Data/Audio to the memory card or everything will be silent");
@@ -346,8 +382,8 @@ void audio_shutdown() {
         delete it->second;
     }
     gSfxCache.clear();
-    if (gBgmV) { stb_vorbis_close(gBgmV); gBgmV = NULL; }
-    free(gBgmOgg); gBgmOgg = NULL;
+    if (gBgmMp3Open) { mp3dec_ex_close(&gBgmMp3); gBgmMp3Open = false; }
+    free(gBgmMp3Buf); gBgmMp3Buf = NULL;
 }
 
 // --- Background Music ---
@@ -358,36 +394,37 @@ static bool bgm_prepare(const char *raw) {
     std::string path = resolve_audio_file(raw);
     if (path.empty())
         return false;
-    if (gBgmV && path == gBgmPath)
+    if (gBgmMp3Open && path == gBgmPath)
         return true;
 
     int len = 0;
-    unsigned char *ogg = read_entire_file(path, &len);
-    if (!ogg)
+    unsigned char *mp3 = read_entire_file(path, &len);
+    if (!mp3)
         return false;
 
-    int err = 0;
-    stb_vorbis *v = stb_vorbis_open_memory(ogg, len, &err, NULL);
-    if (!v) {
-        l_error("Failed to open BGM: %s (stb_vorbis error %d)", path.c_str(), err);
-        free(ogg);
+    mp3dec_ex_t dec;
+    if (mp3dec_ex_open_buf(&dec, mp3, (size_t) len, MP3D_SEEK_TO_SAMPLE) != 0) {
+        l_error("Failed to open BGM: %s", path.c_str());
+        free(mp3);
         return false;
     }
-    stb_vorbis_info info = stb_vorbis_get_info(v);
-    if (info.channels < 1 || info.channels > 2 || info.sample_rate == 0) {
-        l_error("Unsupported BGM format: %s (rate=%u ch=%d)", path.c_str(), info.sample_rate, info.channels);
-        stb_vorbis_close(v);
-        free(ogg);
+    if (dec.info.channels < 1 || dec.info.channels > 2 || dec.info.hz == 0) {
+        l_error("Unsupported BGM format: %s (rate=%d ch=%d)", path.c_str(), dec.info.hz, dec.info.channels);
+        mp3dec_ex_close(&dec);
+        free(mp3);
         return false;
     }
 
     pthread_mutex_lock(&gLock);
-    stb_vorbis *oldV = gBgmV;
-    unsigned char *oldOgg = gBgmOgg;
-    gBgmV = v;
-    gBgmOgg = ogg;
+    bool hadOld = gBgmMp3Open;
+    mp3dec_ex_t oldDec = gBgmMp3;
+    unsigned char *oldBuf = gBgmMp3Buf;
+    gBgmMp3 = dec;
+    gBgmMp3Buf = mp3;
+    gBgmMp3Open = true;
+    gBgmChannels = dec.info.channels;
     gBgmPath = path;
-    gBgmStep = (double)info.sample_rate / (double)MIX_RATE;
+    gBgmStep = (double) dec.info.hz / (double) MIX_RATE;
     gBgmReadPos = 0.0;
     gBgmAvail = 0;
     gBgmPlaying = false;
@@ -395,8 +432,8 @@ static bool bgm_prepare(const char *raw) {
     gBgmEnded = false;
     pthread_mutex_unlock(&gLock);
 
-    if (oldV) stb_vorbis_close(oldV); // mixer can't touch it anymore
-    free(oldOgg);
+    if (hadOld) mp3dec_ex_close(&oldDec); // mixer can't touch it anymore
+    free(oldBuf);
     return true;
 }
 
@@ -409,7 +446,7 @@ void Cocos2dxMusic_playBackgroundMusic(jmethodID id, va_list args) {
         return; // silence, never a crash
 
     pthread_mutex_lock(&gLock);
-    stb_vorbis_seek_start(gBgmV);
+    mp3dec_ex_seek(&gBgmMp3, 0);
     gBgmReadPos = 0.0;
     gBgmAvail = 0;
     gBgmLoop = isLoop ? true : false;
@@ -425,7 +462,7 @@ void Cocos2dxMusic_stopBackgroundMusic(jmethodID id, va_list args) {
     pthread_mutex_lock(&gLock);
     gBgmPlaying = false;
     gBgmEnded = false;
-    if (gBgmV) { stb_vorbis_seek_start(gBgmV); gBgmReadPos = 0.0; gBgmAvail = 0; }
+    if (gBgmMp3Open) { mp3dec_ex_seek(&gBgmMp3, 0); gBgmReadPos = 0.0; gBgmAvail = 0; }
     pthread_mutex_unlock(&gLock);
 }
 
@@ -446,7 +483,7 @@ void audio_pause_bgm_for_video() {
 void audio_resume_bgm_after_video() {
     if (!gAudioReady) return;
     pthread_mutex_lock(&gLock);
-    if (gBgmV && gBgmPlaying)
+    if (gBgmMp3Open && gBgmPlaying)
         gBgmPaused = false;
     pthread_mutex_unlock(&gLock);
 }
@@ -454,7 +491,7 @@ void audio_resume_bgm_after_video() {
 void Cocos2dxMusic_resumeBackgroundMusic(jmethodID id, va_list args) {
     if (!gAudioReady) return;
     pthread_mutex_lock(&gLock);
-    if (gBgmV && gBgmPlaying)
+    if (gBgmMp3Open && gBgmPlaying)
         gBgmPaused = false;
     pthread_mutex_unlock(&gLock);
 }
@@ -462,8 +499,8 @@ void Cocos2dxMusic_resumeBackgroundMusic(jmethodID id, va_list args) {
 void Cocos2dxMusic_rewindBackgroundMusic(jmethodID id, va_list args) {
     if (!gAudioReady) return;
     pthread_mutex_lock(&gLock);
-    if (gBgmV) {
-        stb_vorbis_seek_start(gBgmV);
+    if (gBgmMp3Open) {
+        mp3dec_ex_seek(&gBgmMp3, 0);
         gBgmReadPos = 0.0;
         gBgmAvail = 0;
         gBgmEnded = false;
@@ -473,7 +510,7 @@ void Cocos2dxMusic_rewindBackgroundMusic(jmethodID id, va_list args) {
 }
 
 jboolean Cocos2dxMusic_isBackgroundMusicPlaying(jmethodID id, va_list args) {
-    return (gAudioReady && gBgmV && gBgmPlaying && !gBgmPaused && !gBgmEnded) ? JNI_TRUE : JNI_FALSE;
+    return (gAudioReady && gBgmMp3Open && gBgmPlaying && !gBgmPaused && !gBgmEnded) ? JNI_TRUE : JNI_FALSE;
 }
 
 jfloat Cocos2dxMusic_getBackgroundMusicVolume(jmethodID id, va_list args) {
@@ -506,29 +543,31 @@ static SfxSample *sfx_get(const char *raw) {
         return it->second;
 
     int len = 0;
-    unsigned char *ogg = read_entire_file(path, &len);
-    if (!ogg)
+    unsigned char *mp3 = read_entire_file(path, &len);
+    if (!mp3)
         return NULL;
 
-    int channels = 0, rate = 0;
-    short *pcm = NULL;
-    int frames = stb_vorbis_decode_memory(ogg, len, &channels, &rate, &pcm);
-    free(ogg);
-    if (frames <= 0 || !pcm || channels < 1 || channels > 2 || rate <= 0) {
-        l_error("Failed to decode SFX: %s (frames=%d ch=%d rate=%d)", path.c_str(), frames, channels, rate);
-        free(pcm);
+    mp3dec_t dec;
+    mp3dec_file_info_t info;
+    memset(&info, 0, sizeof(info));
+    int ret = mp3dec_load_buf(&dec, mp3, (size_t) len, &info, NULL, NULL);
+    free(mp3);
+    if (ret != 0 || !info.buffer || info.samples == 0 || info.channels < 1 || info.channels > 2 || info.hz <= 0) {
+        l_error("Failed to decode SFX: %s (ret=%d samples=%zu ch=%d rate=%d)",
+                path.c_str(), ret, info.samples, info.channels, info.hz);
+        free(info.buffer);
         return NULL;
     }
 
     SfxSample *s = new (std::nothrow) SfxSample;
     if (!s) {
-        free(pcm);
+        free(info.buffer);
         return NULL;
     }
-    s->pcm = pcm;
-    s->frames = (unsigned)frames;
-    s->channels = channels;
-    s->rate = rate;
+    s->pcm = info.buffer;
+    s->frames = (unsigned)(info.samples / (size_t) info.channels);
+    s->channels = info.channels;
+    s->rate = info.hz;
 
     pthread_mutex_lock(&gLock);
     gSfxCache[path] = s;

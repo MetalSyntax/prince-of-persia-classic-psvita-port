@@ -39,9 +39,9 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 #          pan, or gain. The variadic va_arg was reading garbage uninitialized memory from the stack
 #          for these missing parameters, resulting in a gain of 0.0f, which silenced all sound
 #          effects. They are now hardcoded to 1.0f/0.0f/1.0f (see Fixes_Log #15).
-set(VITA_APP_NAME "Prince of Persia Classic SND")
+set(VITA_APP_NAME "Prince of Persia Classic")
 set(VITA_TITLEID "POPC00001")
-set(VITA_VPKNAME "popclassic_video_fix_nologs")
+set(VITA_VPKNAME "popclassic")
 set(VITA_VERSION "01.16")
 set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
 
@@ -57,11 +57,6 @@ option(USE_SCELIBC_IO "Use SceLibcBridge for IO and some other std functions" ON
 if (USE_SCELIBC_IO)
   add_definitions(-DUSE_SCELIBC_IO)
 endif()
-
-# stb_vorbis decodes only from memory buffers loaded via sceIo (audio.cpp):
-# compiling out its stdio API makes the FILE*-mixing crash class impossible
-# to reintroduce by accident (see Docs/Fixes_Log.md #10).
-add_definitions(-DSTB_VORBIS_NO_STDIO)
 
 option(EMULATOR_BUILD "Relax hardware-only safety checks (e.g. kubridge presence) for Vita3K testing" OFF)
 if (EMULATOR_BUILD)
@@ -150,8 +145,7 @@ add_executable(${CMAKE_PROJECT_NAME}
                lib/falso_jni/FalsoJNI_Logger.c
                lib/sha1/sha1.c
                lib/fios/fios.c
-               lib/so_util/so_util.c
-               lib/stb/stb_vorbis.c)
+               lib/so_util/so_util.c)
 
 add_subdirectory(lib/libc_bridge)
 add_dependencies(${CMAKE_PROJECT_NAME} SceLibcBridge)
@@ -196,8 +190,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
                       ScePower_stub
                       SceTouch_stub
                       SceVshBridge_stub
-                      vorbisidec
-                      ogg
                       )
 
 vita_create_self(eboot.bin ${CMAKE_PROJECT_NAME} UNSAFE NOASLR)

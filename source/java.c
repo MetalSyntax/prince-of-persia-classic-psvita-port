@@ -2,10 +2,12 @@
 #include <falso_jni/FalsoJNI_Impl.h>
 #include <falso_jni/FalsoJNI.h>
 #include <psp2/kernel/clib.h>
+#include <psp2/io/fcntl.h>
 #include <so_util/so_util.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb/stb_truetype.h>
@@ -104,41 +106,117 @@ void Cocos2dxHelper_showMessageBox(jmethodID id, va_list args) {
 // can produce real glyph data under this emulator, though the same code
 // would very likely work on real hardware where the firmware actually
 // implements them. This rasterizes with stb_truetype instead (public domain,
-// vendored at lib/stb/stb_truetype.h) against DejaVuSans.ttf (Bitstream Vera
-// license, bundled into the .vpk itself as app0:/DejaVuSans.ttf via
-// CMakeLists.txt's vita_create_vpk FILE list -- see extras/fonts/), which
-// doesn't depend on any Sony system library and so works the same under
-// Vita3K and on real hardware.
-static stbtt_fontinfo g_stb_font;
-static int g_stb_font_state = 0; // 0=not loaded, 1=ready, -1=failed
+// vendored at lib/stb/stb_truetype.h), which doesn't depend on any Sony
+// system library and so works the same under Vita3K and on real hardware.
+//
+// The game's createTextBitmap call always names a specific font asset (real
+// strings seen in the decompiled APK/.so: "Extra/font/UbiGameTextLReg.ttf",
+// "Extra/font/UbisoftText.ttf", "Extra/font/msmincho.ttf" for Japanese) --
+// an earlier version of this stub ignored that argument entirely and always
+// rendered with the bundled DejaVuSans.ttf, which is why in-game text never
+// matched the original Ubisoft look. The real files already live on the
+// card at DATA_PATH "Data/font/" (same place the engine's own asset loader
+// reads them from), so createTextBitmap just needs to actually read
+// fontName and load the matching one from there. DejaVuSans.ttf (bundled
+// into the .vpk itself as app0:/DejaVuSans.ttf via CMakeLists.txt's
+// vita_create_vpk FILE list -- see extras/fonts/) is kept only as a
+// last-resort fallback if fontName is empty or names something not on the
+// card, so text never silently disappears over a font-name mismatch.
+#define MAX_FONTS 4
+typedef struct {
+    char name[64]; // basename this slot was loaded for, e.g. "UbiGameTextLReg.ttf"
+    stbtt_fontinfo info;
+    int state; // 0=empty, 1=ready, -1=failed
+} LoadedFont;
+static LoadedFont g_fonts[MAX_FONTS];
 
-static int stb_font_ready(void) {
-    if (g_stb_font_state != 0) return g_stb_font_state > 0;
-    g_stb_font_state = -1;
-
-    FILE *f = fopen("app0:/DejaVuSans.ttf", "rb");
-    if (!f) return 0;
-    fseek(f, 0, SEEK_END);
-    long font_size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    unsigned char *font_data = malloc((size_t) font_size);
-    if (!font_data) {
-        fclose(f);
-        return 0;
+static unsigned char *read_font_file_sceio(const char *path, int *out_size) {
+    *out_size = 0;
+    SceUID fd = sceIoOpen(path, SCE_O_RDONLY, 0);
+    if (fd < 0) return NULL;
+    SceOff size = sceIoLseek(fd, 0, SCE_SEEK_END);
+    sceIoLseek(fd, 0, SCE_SEEK_SET);
+    if (size <= 0 || size > 16 * 1024 * 1024) {
+        sceIoClose(fd);
+        return NULL;
     }
-    fread(font_data, 1, (size_t) font_size, f);
-    fclose(f);
-
-    if (!stbtt_InitFont(&g_stb_font, font_data, 0)) {
-        free(font_data);
-        return 0;
+    unsigned char *buf = malloc((size_t) size);
+    if (!buf) {
+        sceIoClose(fd);
+        return NULL;
     }
-    // font_data is intentionally never freed: stbtt_fontinfo keeps pointers
-    // into it for the lifetime of the process, and there's only ever one
-    // font loaded here.
-    g_stb_font_state = 1;
-    return 1;
+    int off = 0;
+    while (off < (int) size) {
+        int n = sceIoRead(fd, buf + off, (SceSize) ((int) size - off));
+        if (n <= 0) {
+            free(buf);
+            sceIoClose(fd);
+            return NULL;
+        }
+        off += n;
+    }
+    sceIoClose(fd);
+    *out_size = (int) size;
+    return buf;
+}
+
+static const char *font_basename(const char *fontName) {
+    if (!fontName) return "";
+    const char *slash = strrchr(fontName, '/');
+    return slash ? slash + 1 : fontName;
+}
+
+// Loads (or reuses a cached) stbtt_fontinfo for the font the game requested.
+static stbtt_fontinfo *get_font(const char *fontName) {
+    const char *base = font_basename(fontName);
+    if (!*base) base = "DejaVuSans.ttf";
+
+    for (int i = 0; i < MAX_FONTS; i++) {
+        if (g_fonts[i].state != 0 && strcmp(g_fonts[i].name, base) == 0)
+            return g_fonts[i].state > 0 ? &g_fonts[i].info : NULL;
+    }
+
+    int slot = -1;
+    for (int i = 0; i < MAX_FONTS; i++) {
+        if (g_fonts[i].state == 0) { slot = i; break; }
+    }
+    if (slot < 0) slot = MAX_FONTS - 1; // reuse the last slot rather than fail silently
+
+    snprintf(g_fonts[slot].name, sizeof(g_fonts[slot].name), "%s", base);
+    g_fonts[slot].state = -1;
+
+    char path[160];
+    snprintf(path, sizeof(path), DATA_PATH "Data/font/%s", base);
+    int size = 0;
+    unsigned char *data = read_font_file_sceio(path, &size);
+
+    if (!data && strcmp(base, "DejaVuSans.ttf") != 0) {
+        l_warn("createTextBitmap: font \"%s\" not found on card, falling back to DejaVuSans.ttf", base);
+        snprintf(g_fonts[slot].name, sizeof(g_fonts[slot].name), "DejaVuSans.ttf");
+        FILE *f = fopen("app0:/DejaVuSans.ttf", "rb");
+        if (f) {
+            fseek(f, 0, SEEK_END);
+            long fsize = ftell(f);
+            fseek(f, 0, SEEK_SET);
+            data = malloc((size_t) fsize);
+            if (data && fread(data, 1, (size_t) fsize, f) == (size_t) fsize) {
+                size = (int) fsize;
+            } else {
+                free(data);
+                data = NULL;
+            }
+            fclose(f);
+        }
+    }
+
+    if (!data || !stbtt_InitFont(&g_fonts[slot].info, data, 0)) {
+        free(data);
+        return NULL;
+    }
+    // data is intentionally never freed: stbtt_fontinfo keeps pointers into
+    // it for the lifetime of the process.
+    g_fonts[slot].state = 1;
+    return &g_fonts[slot].info;
 }
 
 static int utf8_decode(const char **p) {
@@ -161,18 +239,21 @@ static int utf8_decode(const char **p) {
 
 void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
     jstring j_text = va_arg(args, jstring);
-    va_arg(args, jstring); // fontName, unused
+    jstring j_fontName = va_arg(args, jstring);
     jint fontSize = va_arg(args, jint);
     jint alignment = va_arg(args, jint);
     jint width = va_arg(args, jint);
     jint height = va_arg(args, jint);
 
-    l_debug("Cocos2dxBitmap_createTextBitmap(\"%s\", size=%i, align=%i, %ix%i)",
-            j_text ? (const char *) j_text : "(null)", (int)fontSize, (int)alignment, (int)width, (int)height);
+    const char *fontName = (const char *) j_fontName;
+    l_debug("Cocos2dxBitmap_createTextBitmap(\"%s\", font=%s, size=%i, align=%i, %ix%i)",
+            j_text ? (const char *) j_text : "(null)", fontName ? fontName : "(null)",
+            (int)fontSize, (int)alignment, (int)width, (int)height);
 
     JNIEnv *jniEnv = &jni;
+    stbtt_fontinfo *font = get_font(fontName);
 
-    if (!j_text || !stb_font_ready()) {
+    if (!j_text || !font) {
         void (* nativeInitBitmapDC)(JNIEnv *, jobject, jint, jint, jbyteArray) =
             (void *) so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxBitmap_nativeInitBitmapDC");
         if (nativeInitBitmapDC) nativeInitBitmapDC(jniEnv, NULL, 0, 0, NULL);
@@ -180,9 +261,9 @@ void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
     }
 
     const char *text = (*jniEnv)->GetStringUTFChars(jniEnv, j_text, NULL);
-    float scale = stbtt_ScaleForPixelHeight(&g_stb_font, (float) fontSize);
+    float scale = stbtt_ScaleForPixelHeight(font, (float) fontSize);
     int ascent, descent, lineGap;
-    stbtt_GetFontVMetrics(&g_stb_font, &ascent, &descent, &lineGap);
+    stbtt_GetFontVMetrics(font, &ascent, &descent, &lineGap);
     int line_height = (int)((ascent - descent + lineGap) * scale);
     if (line_height <= 0) line_height = 1;
 
@@ -204,7 +285,7 @@ void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
             int cp = utf8_decode(&p);
             
             int advance, lsb;
-            stbtt_GetCodepointHMetrics(&g_stb_font, cp, &advance, &lsb);
+            stbtt_GetCodepointHMetrics(font, cp, &advance, &lsb);
             int char_w = (int)(advance * scale);
             
             if (width > 0 && cur_w + char_w > width) {
@@ -256,16 +337,16 @@ void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
                 int cp = utf8_decode(&cp_ptr);
                 
                 int advance, lsb;
-                stbtt_GetCodepointHMetrics(&g_stb_font, cp, &advance, &lsb);
+                stbtt_GetCodepointHMetrics(font, cp, &advance, &lsb);
                 
                 int x0, y0, x1, y1;
-                stbtt_GetCodepointBitmapBox(&g_stb_font, cp, scale, scale, &x0, &y0, &x1, &y1);
+                stbtt_GetCodepointBitmapBox(font, cp, scale, scale, &x0, &y0, &x1, &y1);
                 int glyph_w = x1 - x0, glyph_h = y1 - y0;
                 
                 if (glyph_w > 0 && glyph_h > 0) {
                     unsigned char *glyph = calloc(1, (size_t) glyph_w * glyph_h);
                     if (glyph) {
-                        stbtt_MakeCodepointBitmap(&g_stb_font, glyph, glyph_w, glyph_h, glyph_w, scale, scale, cp);
+                        stbtt_MakeCodepointBitmap(font, glyph, glyph_w, glyph_h, glyph_w, scale, scale, cp);
                         
                         int origin_x = pen_x + x0;
                         int origin_y = baseline + y0;

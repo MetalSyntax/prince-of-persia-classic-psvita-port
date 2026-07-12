@@ -5,7 +5,7 @@ set -e
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="/tmp/popclassic-build"
 SRC_DIR="/tmp/popclassic-src"
-VPK_NAME="popclassic_video_fix_nologs.vpk"
+VPK_NAME="popclassic.vpk"
 
 echo "================================================================"
 echo "  🚀 Script de Build Automático para Prince of Persia (PS Vita)"
@@ -45,6 +45,20 @@ if [ "$TARGET_OPTION" == "1" ]; then
 else
     echo "[!] Configurando para Vita3k (EMULATOR_BUILD=ON)"
     CMAKE_FLAGS="-DEMULATOR_BUILD=ON"
+fi
+
+# ENABLE_VERBOSE_LOG apaga TODO el logging si está OFF (l_debug/l_info y
+# también l_error/l_fatal -- ver comentario en CMakeLists.txt junto a la
+# opción: todos comparten el mismo #ifdef DEBUG_SOLOADER). Default ON acá
+# porque sin esto el juego no escribe una sola línea al log, ni siquiera al
+# crashear -- por eso el log de pruebas anteriores siempre se veía "igual",
+# el build no estaba generando ninguno nuevo.
+read -p "¿Habilitar logging detallado (ENABLE_VERBOSE_LOG)? [S/n] " VERBOSE_LOG_OPTION
+if [[ "$VERBOSE_LOG_OPTION" =~ ^[nN]$ ]]; then
+    echo "[!] Logging desactivado (no se escribirá ux0:data/popclassic/logs/)."
+else
+    echo "[!] Logging detallado activado."
+    CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_VERBOSE_LOG=ON"
 fi
 
 cmake "$SRC_DIR" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release $CMAKE_FLAGS

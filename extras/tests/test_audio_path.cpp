@@ -33,41 +33,41 @@ int main(int argc, char **argv) {
     // Real request shapes seen in the game .so string tables
     expect_eq("Extra/Audio/Music/POP_BGM_Menu.mp3",
               sanitize_audio_path("Extra/Audio/Music/POP_BGM_Menu.mp3"),
-              P + "Data/Audio/Music/POP_BGM_Menu.ogg");
+              P + "Data/Audio/Music/POP_BGM_Menu.mp3");
     expect_eq("Extra/Audio/Music/95_boss_fight_2.m4a",
               sanitize_audio_path("Extra/Audio/Music/95_boss_fight_2.m4a"),
-              P + "Data/Audio/Music/95_boss_fight_2.ogg");
+              P + "Data/Audio/Music/95_boss_fight_2.mp3");
     // Audio request with a .mp4 extension (it's a sound, not a video)
     expect_eq("Extra/Audio/SFX/Enemies/Jaffar/94_jaffar_fight.mp4",
               sanitize_audio_path("Extra/Audio/SFX/Enemies/Jaffar/94_jaffar_fight.mp4"),
-              P + "Data/Audio/SFX/Enemies/Jaffar/94_jaffar_fight.ogg");
+              P + "Data/Audio/SFX/Enemies/Jaffar/94_jaffar_fight.mp3");
     // Spaces in filenames must survive
     expect_eq("Extra/Audio/SFX/Footstep/step concrete_4.mp3",
               sanitize_audio_path("Extra/Audio/SFX/Footstep/step concrete_4.mp3"),
-              P + "Data/Audio/SFX/Footstep/step concrete_4.ogg");
+              P + "Data/Audio/SFX/Footstep/step concrete_4.mp3");
     // Tolerated prefix variants
     expect_eq("assets/Extra/Audio/Ambiance/POP_AMB_Level_1.mp3",
               sanitize_audio_path("assets/Extra/Audio/Ambiance/POP_AMB_Level_1.mp3"),
-              P + "Data/Audio/Ambiance/POP_AMB_Level_1.ogg");
+              P + "Data/Audio/Ambiance/POP_AMB_Level_1.mp3");
     expect_eq("/Extra/Audio/Music/28_Heroic.mp3",
               sanitize_audio_path("/Extra/Audio/Music/28_Heroic.mp3"),
-              P + "Data/Audio/Music/28_Heroic.ogg");
+              P + "Data/Audio/Music/28_Heroic.mp3");
     // Already-translated input stays stable (idempotent)
-    expect_eq("Data/Audio/Music/POP_BGM_Menu.ogg",
-              sanitize_audio_path("Data/Audio/Music/POP_BGM_Menu.ogg"),
-              P + "Data/Audio/Music/POP_BGM_Menu.ogg");
+    expect_eq("Data/Audio/Music/POP_BGM_Menu.mp3",
+              sanitize_audio_path("Data/Audio/Music/POP_BGM_Menu.mp3"),
+              P + "Data/Audio/Music/POP_BGM_Menu.mp3");
     // Directory with a dot in it must not confuse the extension swap
     expect_eq("Extra/Audio/Music/Short/24_Accident.mp3",
               sanitize_audio_path("Extra/Audio/Music/Short/24_Accident.mp3"),
-              P + "Data/Audio/Music/Short/24_Accident.ogg");
+              P + "Data/Audio/Music/Short/24_Accident.mp3");
     // Degenerate inputs must not crash and must produce *some* path
-    expect_eq(NULL, sanitize_audio_path(NULL), P + "Data/.ogg");
-    expect_eq("", sanitize_audio_path(""), P + "Data/.ogg");
+    expect_eq(NULL, sanitize_audio_path(NULL), P + "Data/.mp3");
+    expect_eq("", sanitize_audio_path(""), P + "Data/.mp3");
 
     // Fallback folder translation
     expect_eq("(fallback)",
-              audio_fallback_path(P + "Data/Audio/Music/x.ogg"),
-              P + "Data_960_576/Audio/Music/x.ogg");
+              audio_fallback_path(P + "Data/Audio/Music/x.mp3"),
+              P + "Data_960_576/Audio/Music/x.mp3");
 
     // Optional exhaustive pass over the real request list
     if (argc == 3) {

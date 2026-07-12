@@ -1675,6 +1675,284 @@ edge-triggered — solo escribe cuando `reportNum`/`pad.buttons` cambian respect
 
 **Build:** `popclassic_audio.vpk` v01.15, mismo TITLEID. Pendiente confirmar en consola.
 
+### 9.35. Audio nativo por `.mp3` (minimp3) y fuentes por nombre real; diagnóstico de "no veo los videos de ESCENAS"; resuelto el `.obb` sin hook de riesgo
+
+**Audio:** se reemplazó `stb_vorbis`/`vorbisidec` (`.ogg`, transcodeados) por `lib/minimp3` leyendo los `.mp3`
+originales del juego tal cual (menos un puñado de fuentes `.m4a`/`.mp4`-contenedor que sí se transcodean una
+vez, offline, a `.mp3` — ver comentario nuevo en `source/audio_path.h`). Un solo decoder nativo para todo el
+audio del juego. `CMakeLists.txt` ya no linkea `vorbisidec`/`ogg` ni define `STB_VORBIS_NO_STDIO`.
+
+**Fuentes:** `Cocos2dxBitmap_createTextBitmap` ahora lee el argumento `fontName` real (antes se ignoraba y
+todo se renderizaba con `DejaVuSans.ttf` embebido) y carga la `.ttf` que pide el juego
+(`UbiGameTextLReg.ttf`, `UbisoftText.ttf`, `msmincho.ttf`...) desde `Data/font/` en la tarjeta vía `sceIo`,
+con caché de hasta 4 fuentes (`MAX_FONTS`) y `DejaVuSans.ttf` embebido como último recurso si falta el
+archivo. Texto ahora con la tipografía real de Ubisoft en vez de siempre DejaVu.
+
+**Diagnóstico de "no veo los videos" (reportado en el menú EXTRAS → ESCENAS):** revisando el log completo
+(no solo la cola), la cinemática de intro (`PoP_V1_1.mp4`, disparada por "Nueva Partida") sí corre sin
+ningún error de `sceIoOpen`/`sceAvPlayerInit`/`sceAvPlayerAddSource` — el pipeline de `video.cpp` funciona a
+nivel de API. Pero en las 3 veces que el usuario entró a ESCENAS en esta sesión, el log solo muestra
+`POP_SFX_GAMEMENU_LevelSelectionScroll.mp3` (scroll de la galería) — nunca `Cocos2dxActivity_playVideo(...)`.
+El motor nunca llegó a pedir un video desde esa pantalla; no es un fallo de reproducción, es que nunca se
+solicitó. Sin descartar aún: (a) gating de progreso del juego original (galerías de escenas suelen requerir
+haber visto la cutscene en campaña) o (b) que el tap puntual sobre una miniatura no se distinga del gesto de
+scroll. **Pendiente:** pedir al usuario un toque corto y quieto (sin arrastrar) sobre una miniatura, sin
+scrollear antes, y revisar si aparece `Cocos2dxActivity_playVideo` en el log nuevo — eso separa "contenido
+bloqueado" de "bug real de dispatch de tap".
+
+**`.apk`/`.obb`: resuelto sin el hook de riesgo que había quedado diferido en §9.19.** Se retomó la idea de no
+depender obligatoriamente del `.obb` pesado. La nota vieja asumía que hacía falta hookear
+`CCFileUtils::getFileData` (con el riesgo real de que el buffer no calce con el `delete[]` del motor). Pero
+releyendo la evidencia real de §9.19: `CCFileUtils::getFileData` **ya tiene, de fábrica, el comportamiento
+"archivo suelto primero, ZIP como fallback"** — no hace falta ningún hook para eso, es cocos2d-x stock. El
+`.obb` solo se volvió "obligatorio" porque el motor busca sus assets bajo el prefijo `Data_960_576/` (su
+bucket de resolución en runtime), no `Data/` a secas — confirmado en su momento porque hasta
+`Data/Logo/logo.png` cayó al fallback ZIP a pesar de existir suelto, solo por estar en el prefijo equivocado.
+
+**Decisión (confirmada con el usuario):** construir `ux0_data/popclassic/Data_960_576/` como carpeta suelta
+real (copia de `Data/Animations`, `Data/Effects`, `Data/Localization`, `Data/Logo`, `Data/Maps`,
+`Data/Particles`, `Data/Texture` y `Data/appConfig.txt` — 303 archivos, ~97 MB) y dejar de subir el `.obb` al
+`ux0:data/popclassic/` de la consola. `Data/Audio`, `Data/font` y `Data/Video` **no** se duplican ahí: ya se
+leen sueltos por rutas propias (`audio.cpp`/`audio_path.h`, `get_font()` en `java.c`, `video.cpp`/
+`video_path.h`), completamente al margen de `CCFileUtils` — incluirlos también en `Data_960_576/` sería solo
+peso muerto (confirmado: la copia del `.obb` actual ya incluye `Data_960_576/Audio` sin que nada lo lea,
+porque el audio nunca pasa por ahí). `original.apk` (824 B) sigue siendo imprescindible sin excepción:
+`nativeSetPaths` lo abre como zip a nivel nativo dentro del `.so`, sin ninguna frontera JNI nuestra ahí.
+
+**Costo real en tarjeta:** ~155 MB sueltos (97 MB `Data_960_576/` + 17 MB `Data/Audio` + 9 MB `Data/font` +
+32 MB `Data/Video`) contra los ~65 MB del `.obb` actual — el doble, por overhead de bloques de filesystem en
+muchos archivos chicos (mismo fenómeno ya documentado en §9.19). El usuario priorizó no depender del `.obb`
+por sobre ese espacio extra. **Pendiente:** subir `Data_960_576/` por FTP a la consola (reemplaza al `.obb`
+en `Docs/INSTALL_HARDWARE.md` §2.2) y confirmar en hardware real que el juego arranca y carga texturas/mapas
+igual que con el `.obb`.
+
+### 9.36. Corregido: sacar el `.obb` por completo SÍ rompe el juego — crash real diagnosticado con `vita-parse-core`, fix final híbrido (`.obb` mínimo + `Data_960_576/` suelta)
+
+El usuario siguió las instrucciones de §9.35 (sacar el `.obb` de la consola) y sufrió un crash. **La
+conclusión de §9.35 estaba incompleta**: no alcanzaba con mirar el comportamiento de `CCFileUtils::getFileData`
+para Texturas/Mapas — el propio comentario en `source/main.c:76-88` (de una sesión anterior) ya advertía que
+`Localization/*.loc` se resuelve por un mecanismo **separado y hardcodeado** dentro de `libgame_logic.so`/
+`libcocos2d.so`: arma la ruta al `.obb` directamente (`apkFilePath` + el nombre fijo del archivo) y lo abre
+sin pasar por el chequeo de "archivo suelto primero" que sí tienen las texturas. Si el `.obb` no existe, ese
+`fopen()` interno falla, y a diferencia del bug histórico del `original.apk` faltante (§9.19, ya bindeado con
+`file_exists()` + `fatal_error()` en nuestro `main.c`), acá no hay ningún chequeo nuestro posible porque el
+`fopen()` ocurre dentro del `.so` cerrado, no en código nuestro.
+
+**Diagnóstico confirmado con dump real, no adivinado:** el usuario pasó `log_1783532543_.txt` (nombre de
+archivo repetido de la sesión anterior — el reloj de la consola parece no avanzar entre reinicios sin
+batería de RTC, algo a tener en cuenta para futuros logs) y un `psp2core-*.psp2dmp.tmp` nuevo. El `.tmp` en el
+nombre venía con el segmento `PT_NOTE` final truncado (dump cortado antes de terminar de escribirse), lo que
+rompía `vita-parse-core` con `elftools.construct.core.FieldError: expected 4, found 0`. Se parcheó
+`init_notes()` para tolerar segmentos `PT_NOTE` truncados (try/except por segmento en vez de abortar toda la
+lectura) y se corrigió `util.c_str()` en `~/vita-tools/vita-parse-core/util.py` (comparaba `bytes[i] != '\0'`,
+un resabio de Python 2 que en Python 3.14 tira `TypeError` al concatenar `str` + `int` — reescrito con
+`bytes.find(b'\0', ...)` + `.decode('latin-1')`). Con eso, el hilo principal (`POPC00001`) mostró:
+
+- **Stop reason:** `0x30004` (Data abort exception).
+- **PC:** `0x8109bfe4`, dentro de `strlen()` (newlib estático vendorizado en el propio `so_loader`, resuelto
+  vía `arm-vita-eabi-addr2line`).
+- **LR:** `0x9a0a41f9` — dirección dentro de uno de los `.so` del juego (rango `0x9A000000`, el más alto de
+  los 3 según §9.29), no de nuestro código.
+- **R0 (arg de `strlen`):** `0xFFFFFFF8` — la firma clásica de "puntero NULL menos un header pequeño (8
+  bytes)" tratado como si fuera válido: algo devolvió NULL (el `fopen()` del `.obb` ausente), el motor no lo
+  chequeó, le restó un header de tamaño fijo pensando que apuntaba a un buffer real, y pasó el resultado a
+  `strlen()` — que lee memoria inválida en `0xFFFFFFF8` y crashea.
+
+**Fix adoptado (híbrido, sin volver al `.obb` de 65 MB):** se reconstruyó
+`ux0_data/popclassic/main.1.org.ubisoft.premium.POPClassic.obb` en su versión **mínima** (511.891 bytes,
+misma composición confirmada en consola real en §9.19: `Localization/*.loc` de los 7 idiomas + `Logo/logo.png`
++ `appConfig.txt`, cada uno bajo los 3 prefijos `Data/`, `Data_640_384/`, `Data_960_576/` — sin certeza de
+cuál usa el mecanismo hardcodeado de Localization, así que se mantienen los 3 por seguridad, igual que en
+§9.19). El `.obb` completo viejo se conserva sin tocar como respaldo (`main.1.org.ubisoft.premium.POPClassic.obb.full`
+y `.bk.zip`). `Data_960_576/` suelta (Texturas/Mapas/Animations/Effects/Particles, ~97 MB) se mantiene sin
+cambios — esa parte del cambio de §9.35 sí estaba bien fundamentada. `Docs/INSTALL_HARDWARE.md` §2.2
+actualizado con el árbol y el comando de subida corregidos.
+
+**Confirmado por el usuario en la misma sesión:** los 3 `appConfig.txt` sueltos (`ux0:data/popclassic/appConfig.txt`,
+`assets/appConfig.txt`) que quedaron de una fase temprana (§2.5) **no hacen falta** — solo se lee el que vive
+dentro de `original.apk` (vía `nativeSetPaths`). Se pueden sacar de `ux0_data/popclassic/` con confianza (no
+se documenta acá su remoción del disco porque no afecta la subida — `Docs/INSTALL_HARDWARE.md` §2.2 ya no los
+menciona en el árbol esperado).
+
+**Pendiente:** el usuario todavía no confirmó si el `.obb` mínimo nuevo resuelve el crash (subir y probar en
+consola), y sigue sin resolverse el diagnóstico de "no veo los videos de ESCENAS" (§9.35) — el usuario hizo
+tap en una miniatura y el video correspondiente no se reprodujo a pesar de que los `.mp4` están en
+`Data/Video/High/`; hace falta el log de ESE intento puntual (el que se mandó en esta sesión es el mismo de
+antes, sin líneas nuevas de `Cocos2dxActivity_playVideo` ni de scroll posteriores al tap) para seguir esa
+punta por separado.
+
+### 9.37. Causa real de "siempre el mismo log": `ENABLE_VERBOSE_LOG` apagado por defecto en `build_and_install.sh`, no un problema de reloj
+
+El usuario reportó "no tengo activo los logs en este juego" — el log que mandó era, confirmado, byte-a-byte
+idéntico al de la sesión anterior. La hipótesis del reloj sin batería RTC (barajada en §9.36) era plausible
+pero no era la causa real: `source/utils/logger.h` gatea **todos** los niveles de log —incluidos
+`l_error`/`l_fatal`, no solo `l_debug`— bajo un único `#ifdef DEBUG_SOLOADER`, y ese símbolo solo se define si
+`ENABLE_VERBOSE_LOG` está `ON` en CMake (`CMakeLists.txt`, default `OFF`). `build_and_install.sh` nunca pasaba
+ese flag, así que **cualquier build hecho con el script tal cual no escribe una sola línea de log, ni
+siquiera al crashear** — el archivo que el usuario seguía mandando era simplemente uno viejo de una sesión
+anterior (compilada a mano con `-DENABLE_VERBOSE_LOG=ON` vía el workflow de `~/popc-build`), nunca
+sobreescrito porque el build actual no vuelve a tocar el logger en absoluto.
+
+**Fix 1 — `build_and_install.sh`:** ahora pregunta `¿Habilitar logging detallado (ENABLE_VERBOSE_LOG)? [S/n]`
+(default SÍ, ya que el proyecto sigue en fase de debugging activo) y agrega `-DENABLE_VERBOSE_LOG=ON` a
+`CMAKE_FLAGS` salvo que se responda que no.
+
+**Fix 2 — `source/utils/logger.c`, nombre de archivo sin depender del reloj:** aunque la causa real no era el
+reloj, se corrigió igual porque es un riesgo real e independiente: el nombre de archivo salía de
+`time(NULL)`, que en una consola sin RTC con batería (o nunca configurado) puede devolver el mismo valor en
+cada arranque, haciendo que sesiones distintas reusen el mismo archivo (`O_APPEND`, nunca trunca) y sea
+imposible saber a simple vista cuál es la corrida más nueva. Reemplazado por `next_log_index()`: escanea
+`ux0:data/popclassic/logs/` con `sceIoDopen`/`sceIoDread`, busca el número más alto entre los `log_NNNNNN_.txt`
+existentes y usa el siguiente — sin ninguna dependencia de reloj, cada corrida garantiza un archivo nuevo, y
+el nombre con cero-padding (`%06u`) ordena alfabéticamente igual que numéricamente (el archivo con el número
+más alto es siempre el de la corrida más reciente).
+
+**Build nuevo:** compilado y verificado sin errores/warnings nuevos en `logger.c` con el workflow de
+`~/popc-build` (`-DENABLE_VERBOSE_LOG=ON -DCMAKE_BUILD_TYPE=Debug -DEMULATOR_BUILD=OFF`), copiado a
+`build/popclassic.vpk` / `build/eboot.bin` / `build/so_loader(.elf)` en el repo. **Pendiente:** el usuario
+tiene que instalar este `popclassic.vpk` nuevo (además de subir el `.obb` mínimo de §9.36) y volver a probar
+— recién ahí un log nuevo va a tener contenido fresco para diagnosticar tanto el crash del `.obb` como el
+tema de los videos de ESCENAS.
+
+### 9.38. Controles: doble-tap-para-correr en la cruceta, se saca R como "Walk/Sneak", se agregan Cuadrado/Círculo/Cruz como botones de combate/salto
+
+A pedido del usuario, antes de probar los fixes de §9.36/§9.37, tres cambios en `source/main.c`:
+
+1. **Doble-tap para correr:** la cruceta izquierda/derecha (commit `f99fce5`) simulaba un touch instantáneo
+   en el borde extremo del control deslizante (`control_arrow_left/right`, ver
+   `Data/Texture/Menu/controls_btn.plist`) pensando que la distancia del touch al centro determinaba
+   caminar/correr — el usuario confirmó que **siempre caminaba**, nunca corría, sin importar la posición. La
+   mecánica real (aclarada por el usuario) es doble-tap: un solo toque-y-sostener = caminar, doble
+   toque-y-sostener = correr, igual que la UI táctil original. Se implementó detección de doble-tap real:
+   `sceKernelGetProcessTimeWide()` (monotónico desde el arranque del proceso, no depende del reloj de pared —
+   mismo criterio que el fix de `logger.c` en §9.37) mide el tiempo entre flancos de subida de cada dirección;
+   si el segundo toque llega dentro de 350ms del anterior, se activa "correr" (toca el borde extremo, x=30/
+   220) y se mantiene mientras se sostiene el botón; al soltar, vuelve a "caminar" (toca cerca del centro,
+   x=95/155) hasta el próximo doble-tap. Track por separado para izquierda y derecha (`lastTapTimeLeft/Right`,
+   `isRunningLeft/Right`).
+2. **Sacado: R ya no simula "Walk/Sneak".** El bloque que tocaba `(780,450)` con `SCE_CTRL_RTRIGGER` se
+   eliminó por completo, a pedido del usuario.
+3. **Nuevos botones de combate/salto por touch**, mismo mecanismo que ya usaba el D-Pad (botón físico →
+   touch sintético sobre el botón real de la UI original, identificado en `controls_btn.plist`): Cuadrado →
+   `control_combat_seath` (envainar), Círculo → `control_combat_defend` (defender), Cruz →
+   `control_platform_jump` (salto, **además** del keycode 23 que ya existía — el usuario pidió duplicarlo por
+   las dudas). El usuario decidió explícitamente NO mapear `control_combat_attack` a ningún botón nuevo (no
+   se tocó) y dejar Arriba/Abajo de la cruceta sin cambios (solo keycode, sin touch nuevo).
+
+**Coordenadas sin confirmar visualmente:** ninguna posición de pantalla viene de un dato real (el `.plist`
+solo tiene el recorte dentro del atlas de texturas, no dónde se dibuja cada botón en el HUD) — son una
+primera estimación ubicada en la misma zona general donde vivía el viejo botón "Walk/Sneak" (rango
+x≈780-850, y≈400-460). Van a necesitar ajuste una vez que el usuario las vea en consola.
+
+**Build:** compilado y verificado sin errores con el workflow de `~/popc-build`, copiado a
+`build/popclassic.vpk` (con `ENABLE_VERBOSE_LOG=ON` de §9.37 también incluido). **Pendiente:** el usuario va
+a hacer todas las pruebas juntas en la próxima sesión en consola — este cambio de controles, el `.obb`
+mínimo de §9.36, y el logging de §9.37 — y traer log + dump + video.
+
+### 9.39. `Data_960_576/` seguía fallando tras subirla — causa real: el script de subida de `INSTALL_HARDWARE.md` §2.2 no creaba subcarpetas anidadas
+
+El usuario probó con los 3 logs nuevos (`log_000004/5/6_.txt`, ya con nombre secuencial gracias a §9.37) y
+en cada corrida falló un archivo **distinto** de `Data_960_576/` (`buttons.plist`, después
+`Localizable.loc`, después `buttons.plist` de nuevo) — vía `Cocos2dxHelper_showMessageBox` con
+`"Get data from file(...) failed!"`, no un crash duro esta vez. Un archivo distinto cada vez, no siempre el
+mismo, es la señal de que **`Data_960_576/` no existía en absoluto** en la consola, no que faltara un
+archivo puntual.
+
+**Causa real, no del motor ni de la estrategia del `.obb` mínimo — un bug en el script de subida que yo
+mismo escribí:** el comando de §2.2 creaba la carpeta remota con un solo `MKD $(dirname "$f")` por archivo
+(ej. `MKD Data_960_576/Texture/Menu/buttons`). FTP no crea niveles intermedios inexistentes en un solo
+`MKD` (a diferencia de `mkdir -p`) — si `Data_960_576`, `Data_960_576/Texture` y `Data_960_576/Texture/Menu`
+no existen todavía, ese `MKD` de 4 niveles falla. Como el `curl -s` de esa línea calla los errores, el script
+seguía sin avisar nada, subiendo prácticamente nada de lo que tiene 2+ niveles de subcarpetas (que es casi
+todo `Data_960_576/`).
+
+**Fix en `Docs/INSTALL_HARDWARE.md` §2.2:** dos pasos separados. Paso 1 crea TODAS las subcarpetas
+necesarias primero, iterando `find -type d` ordenado (`sort` garantiza que una ruta padre siempre ordena
+antes que su hija, porque cualquier prefijo de un string ordena antes que el string extendido) — así cada
+`MKD` individual recibe un padre que ya existe. Paso 2 recién ahí sube los archivos (ahora sin `-s` en
+`curl -T`, para que un error de subida real se vea en la terminal en vez de quedar en silencio como el
+`MKD` de antes). Se agregó además un paso de verificación manual por VitaShell antes de volver a probar el
+juego.
+
+**No hay ningún bug de código de nuestra parte confirmado en esta vuelta** — la arquitectura híbrida
+(`.obb` mínimo + `Data_960_576/` suelta) sigue siendo válida; lo que falló fue puramente el paso de
+despliegue/subida. **Pendiente:** el usuario tiene que volver a correr la subida con el script corregido,
+confirmar visualmente en VitaShell que `Data_960_576/` tiene contenido real, y recién ahí volver a probar.
+
+### 9.40. Retest con `Data_960_576/` ya subida: el `.obb` mínimo volvió a fallar en `buttons.plist` — el completo sigue andando; ajustes de controles
+
+Con `Data_960_576/` ya subida (confirmado por el usuario, "la estructura de carpeta está OK"), se probó de
+nuevo: 3 corridas con el `.obb` completo (`log_000007/8/10_.txt`) llegaron sanas hasta el menú EXTRAS sin
+ningún error. Pero la ÚNICA corrida con el `.obb` mínimo (`log_000009_.txt`, mismo build, misma
+`Data_960_576/` sin tocar) volvió a fallar exactamente en `buttons.plist`, igual que antes de arreglar el
+script de subida. Como la única variable que cambió es el `.obb` en sí (mismo `Data_960_576/` en ambos
+casos), esto **contradice la premisa central de §9.19/§9.35**: `buttons.plist` NO se está resolviendo por
+`Data_960_576/` suelta como se asumía — se sigue resolviendo por el `.obb`, y solo funciona cuando el
+`.obb` lo contiene. No hay evidencia todavía de por qué (¿el mecanismo de loose-file-first de
+`CCFileUtils::getFileData` no aplica a este tipo de archivo? ¿algo específico del `.plist`/atlas de
+texturas que sí necesita el `.obb`? sin descartar aún un problema de mayúsculas/permisos puntual de
+`Data_960_576/Texture/` en la tarjeta que no se vio al revisar la carpeta "por arriba" con VitaShell).
+**Decisión pragmática del usuario: seguir usando el `.obb` completo** (`main.1.org.ubisoft.premium.
+POPClassic.obb`, 65 MB) como el que sirve; el mínimo (`.mini.obb`) queda pausado, no se sigue adivinando
+sin más evidencia — retomar solo si aparece un dato nuevo (por ejemplo, comparar `unzip -v` del `.obb`
+completo contra el `.mini.obb` para ver si difieren en método de compresión, ya que el completo nunca se
+reconstruyó desde cero con esta sesión y podría no ser un ZIP puro-deflate como el mínimo).
+
+**Controles, dos pedidos del usuario tras esta prueba:**
+
+1. **Cuadrado agachaba y caminaba lento en vez de solo caminar lento.** La posición vieja de Cuadrado
+   (780,460) estaba a ~10px de la posición vieja de R ("Walk/Sneak", 780,450) y producía el mismo efecto —
+   casi seguro que ese punto es en realidad `control_platform_crouch` (un botón de contexto "plataforma",
+   visible fuera de combate) y no `control_combat_seath` (un botón de combate, probablemente invisible en
+   este contexto) como se había asumido. Movido a (700,500), lejos de ese cluster -- sigue siendo una
+   suposición sin confirmar visualmente.
+2. **Correr con R + izquierda/derecha, no con doble-tap.** El usuario confirmó que ni el toque directo en
+   el borde (commit `f99fce5`) ni el doble-tap (§9.38) lograron correr nunca. Causa real, ahora identificada:
+   en ambos casos el primer `nativeTouchesBegin` de cada toque ocurría YA en la posición final (borde), o
+   sea desplazamiento cero desde el punto de bajada — un drag real de dedo siempre tiene un punto de bajada
+   y un punto de movimiento distintos, y nuestro código nunca simulaba eso. Fix: el primer frame de cada
+   pulsación de dirección ahora manda el `Begin` en una posición base/centro (x=125) y **recién al frame
+   siguiente** manda un `Move` real hacia el target (borde si `R` está presionado = correr, cerca del centro
+   si no = caminar) -- un desplazamiento real, no una teletransportación. Se sacó toda la lógica de
+   doble-tap (`lastTapTimeLeft/Right`, `isRunningLeft/Right`, `DOUBLE_TAP_WINDOW_US`), no aportaba nada.
+
+**Build:** compilado sin errores/warnings nuevos con el workflow de `~/popc-build`, copiado a `build/`.
+**Pendiente:** confirmar en consola si el drag Begin-centro→Move-borde con R sí logra correr, y si la nueva
+posición de Cuadrado deja de agachar.
+
+### 9.41. §9.40 fue una regresión real: Cruz rompió la navegación de menú, el drag Begin-centro rompió caminar por completo. Revertido.
+
+Confirmado con `log_000011_.txt`, línea por línea: al apretar Cruz (`pad.buttons=0x00004000`) suena
+`POP_SFX_MENU_Select` y el menú entra directo a "RECOMPENSAS" (el ÚLTIMO ítem de la lista EXTRAS), sin
+importar qué ítem estuviera resaltado — el touch sintético de Cruz en (815,400), agregado en §9.38 "por las
+dudas" además del keycode de salto, cae sobre lo que sea que esté dibujado ahí en cada menú y secuestra la
+navegación. El usuario además reportó dos regresiones más: (a) Cuadrado en la nueva posición (700,500) TODAVÍA
+agacha y camina lento — tercer intento fallido de encontrar dónde vive `control_combat_seath`; (b) el drag
+Begin-centro→Move-borde de §9.40 (pensado para lograr correr) **dejó de caminar directamente con las
+direccionales**, una regresión real sobre el único comportamiento que sí andaba bien antes de tocar nada.
+
+**Revertido en `source/main.c`:**
+- El touch sintético de Cruz (duplicado de salto) **se sacó por completo** — el salto ya funciona por
+  keycode (`nativeKeyDown(23)`), no hacía falta y rompía menús.
+- El touch sintético de Cuadrado **se sacó por completo** (no solo se movió) — van 3 posiciones distintas
+  (780,460 → 700,500) y las 3 cayeron en agacharse. Adivinar una cuarta sin datos reales no es productivo;
+  hace falta una captura de pantalla real del HUD táctil del juego antes de reintentarlo.
+- El drag Begin-centro→Move-borde para caminar/correr **se revirtió a la mecánica simple de un solo toque
+  directo** (la misma que ya caminaba bien, confirmada varias veces) — R sigue eligiendo entre dos x fijas
+  (95/155 caminar, 30/220 correr) pero sin el paso intermedio de "bajar en el centro", que fue lo que rompió
+  caminar. Sin `R`, el comportamiento es ahora *byte a byte* igual al que ya funcionaba, así que no debería
+  volver a romper caminar — si correr con `R` tampoco se logra esta vez, al menos no empeora nada.
+- Circle/Defender se dejó sin cambios (no fue reportado como roto).
+
+**Lección para no repetir:** con datos de posición de HUD desconocidos, cambiar dos cosas a la vez (mecánica
+de touch + botones nuevos) en una sola vuelta hace muy difícil aislar cuál cambio causó cuál regresión.
+Confirmado otra vez en `log_000011_.txt` que ningún bit `0x00000200` (R) aparece en toda la sesión — no se
+pudo verificar si el usuario llegó a probar R+dirección en este intento en absoluto.
+
+**Build:** recompilado y verificado sin errores, copiado a `build/`. **Pendiente:** confirmar que caminar
+volvió a funcionar igual que antes, y que ya no hay regresión de menú por Cruz. Correr con R sigue sin
+confirmar. Cuadrado/Círculo quedan pausados hasta tener una captura real del HUD.
+
 ---
 
 ## 10. Pulido final

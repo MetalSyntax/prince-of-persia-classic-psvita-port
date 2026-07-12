@@ -11,7 +11,7 @@
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/io/fcntl.h>
 #include <psp2/io/stat.h>
-#include <time.h>
+#include <psp2/io/dirent.h>
 
 #include <stdbool.h>
 #include <stdatomic.h>
@@ -48,6 +48,38 @@ static int log_fd = -1;
 // spamming the exact same line every single frame.
 static char last_msg[2048] = {0};
 static unsigned int repeat_count = 0;
+
+// Picks the next free log_<N>_.txt index by scanning the logs/ directory,
+// instead of stamping the filename with time(NULL): consoles without a
+// battery-backed RTC (or one that's just never been set) don't advance their
+// clock across power cycles, so every run computed the exact same "unique"
+// timestamp and kept re-appending to one stale file forever -- looked like
+// logging had stopped working. A sequential index has no clock dependency,
+// so every run is guaranteed a fresh file no matter what the RTC thinks the
+// date is. Zero-padded so lexicographic and numeric filename order agree.
+static unsigned int next_log_index(const char *dir) {
+    unsigned int max_idx = 0;
+    SceUID d = sceIoDopen(dir);
+    if (d < 0) return 1;
+
+    SceIoDirent entry;
+    while (sceIoDread(d, &entry) > 0) {
+        const char *name = entry.d_name;
+        if (sceClibStrncmp(name, "log_", 4) != 0) continue;
+        const char *p = name + 4;
+        unsigned int idx = 0;
+        int digits = 0;
+        while (*p >= '0' && *p <= '9') {
+            idx = idx * 10 + (unsigned int) (*p - '0');
+            p++;
+            digits++;
+        }
+        if (digits > 0 && sceClibStrncmp(p, "_.txt", 5) == 0 && idx > max_idx)
+            max_idx = idx;
+    }
+    sceIoDclose(d);
+    return max_idx + 1;
+}
 
 static void flush_repeat_notice(void) {
     if (repeat_count == 0)
@@ -113,9 +145,9 @@ void _log_print(int t, const char* fmt, ...) {
     // filesystem work on a memory card, not a cheap syscall.
     if (log_fd < 0) {
         sceIoMkdir(DATA_PATH "logs", 0777);
+        unsigned int idx = next_log_index(DATA_PATH "logs");
         char log_file_path[256];
-        time_t tt = time(NULL);
-        sceClibSnprintf(log_file_path, sizeof(log_file_path), "%slogs/log_%u_.txt", DATA_PATH, (unsigned int)tt);
+        sceClibSnprintf(log_file_path, sizeof(log_file_path), "%slogs/log_%06u_.txt", DATA_PATH, idx);
         log_fd = sceIoOpen(log_file_path, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_APPEND, 0777);
     }
 #endif

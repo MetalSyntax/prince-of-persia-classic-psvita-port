@@ -41,12 +41,10 @@ static inline std::string sanitize_video_path(const char *raw) {
     // Requests may come in without the "High/" resolution folder or with a
     // bare filename (e.g. just "PoP_V1_1.mp4") if the enum->path mapping the
     // game does internally doesn't preserve the full Android asset path --
-    // normalize to always land under Video/High/.
-    if (rel.compare(0, 6, "Video/") != 0) {
-        rel = "Video/High/" + rel;
-    } else if (rel.compare(0, 11, "Video/High/") != 0) {
-        rel = "Video/High/" + rel.substr(6);
-    }
+    // normalize to always land under Video/Mid/.
+    size_t lastSlash = rel.find_last_of('/');
+    std::string filename = (lastSlash == std::string::npos) ? rel : rel.substr(lastSlash + 1);
+    rel = "Video/Mid/" + filename;
 
     return std::string(DATA_PATH) + "Data/" + rel;
 }

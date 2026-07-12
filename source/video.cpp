@@ -262,6 +262,7 @@ void video_play(const char *raw) {
     bool skipped = false;
     
     // Let autoStart handle the playback initiation.
+    sceAvPlayerStart(handle); // Restore explicit start just in case!
 
     // Wait for the asynchronous video decoder to become active
     int wait_count = 0;
@@ -269,6 +270,10 @@ void video_play(const char *raw) {
         sceKernelDelayThread(10000); // 10ms
         wait_count++;
     }
+    
+    l_info("video: loop starting. active=%d, wait_count=%d", sceAvPlayerIsActive(handle), wait_count);
+    
+    int frame_count = 0;
     
     if (!sceAvPlayerIsActive(handle)) {
         l_warn("video: timed out waiting for video decoder to become active (%s)", path.c_str());
@@ -280,6 +285,7 @@ void video_play(const char *raw) {
         uint32_t pressed = pad.buttons & ~old_pad_buttons;
         
         if (pressed & (SCE_CTRL_CROSS | SCE_CTRL_START)) {
+            l_info("video: skipped by user button press!");
             skipped = true;
             break;
         }
@@ -319,8 +325,15 @@ void video_play(const char *raw) {
                 sceAudioOutOutput(audioPort, audio.pData);
         }
 
+        frame_count++;
+        if (frame_count == 1) {
+            l_info("video: successfully completed first loop iteration!");
+        }
+
         sceKernelDelayThread(1000); // avoid a tight spin when neither frame type is ready yet
     }
+    
+    l_info("video: loop exited! active=%d, frames=%d", sceAvPlayerIsActive(handle), frame_count);
 
     if (audioPort >= 0)
         sceAudioOutReleasePort(audioPort);

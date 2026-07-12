@@ -84,12 +84,34 @@ static uint64_t av_ctx_size(void *p) {
 
 static void *av_alloc(void *arg, uint32_t alignment, uint32_t size) {
     (void) arg;
-    return memalign(alignment, size);
+    // Hardware video decoders require uncached LPDDR or CDRAM.
+    uint32_t alloc_size = (size + alignment + sizeof(SceUID) + 0xFFF) & ~0xFFF;
+    SceUID memid = sceKernelAllocMemBlock("avplayer_mem", SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW, alloc_size, NULL);
+    if (memid < 0) {
+        memid = sceKernelAllocMemBlock("avplayer_mem", SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE, alloc_size, NULL);
+    }
+    if (memid < 0) return NULL;
+    
+    void *base = NULL;
+    sceKernelGetMemBlockBase(memid, &base);
+    
+    uintptr_t ptr = (uintptr_t)base + sizeof(SceUID);
+    uintptr_t offset = ptr % alignment;
+    if (offset != 0) {
+        ptr += (alignment - offset);
+    }
+    
+    SceUID *puid = (SceUID *)(ptr - sizeof(SceUID));
+    *puid = memid;
+    
+    return (void *)ptr;
 }
 
 static void av_free(void *arg, void *ptr) {
     (void) arg;
-    free(ptr);
+    if (!ptr) return;
+    SceUID memid = *(((SceUID *)ptr) - 1);
+    sceKernelFreeMemBlock(memid);
 }
 
 // --- YUV420 planar -> RGB888, BT.601, plain integer math ---

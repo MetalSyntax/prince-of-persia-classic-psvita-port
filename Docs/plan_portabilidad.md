@@ -1953,6 +1953,175 @@ pudo verificar si el usuario llegó a probar R+dirección en este intento en abs
 volvió a funcionar igual que antes, y que ya no hay regresión de menú por Cruz. Correr con R sigue sin
 confirmar. Cuadrado/Círculo quedan pausados hasta tener una captura real del HUD.
 
+### 9.42. Videos de ESCENAS: el player se activaba y moría en milisegundos con frames=0 — allocators de memoria equivocados + basePriority inválida en `video.cpp`
+
+**Buena noticia previa:** ESCENAS ahora SÍ despacha `Cocos2dxActivity_playVideo` (el misterio de §9.35 quedó
+resuelto en la práctica — los `.mp4` ahora viven en `Data/Video/Mid/` y el motor los pide). El síntoma nuevo
+(logs `log_000023/24/25_.txt`): el video "arranca y se corta en milisegundos" — la música del menú se pausa
+(`audio_pause_bgm_for_video`) y se reanuda al instante sin que nada aparezca en pantalla. La instrumentación
+agregada a `video.cpp` (entre builds, en una iteración previa a esta sesión) lo mostró con precisión:
+`sceAvPlayerAddSource` OK → `active=1, wait_count=0` → **muerto en la iteración siguiente, `frames=0`**.
+
+**Descartado primero con evidencia:** los 6 `.mp4` de `Data/Video/Mid/` verificados con `ffprobe` — H.264
+Constrained Baseline 480x320 + AAC-LC 44.1/48kHz, exactamente el perfil que el decodificador de hardware de
+SceAvPlayer soporta. El códec NO era el problema.
+
+**Causa real (dos errores en la config de `sceAvPlayerInit`, introducidos en una revisión intermedia de
+`video.cpp` que también quitó el `fileReplacement`):**
+1. `memoryReplacement.allocate` (el allocator GENERAL) respaldaba **cada** allocación interna del player con
+   su propio `sceKernelAllocMemBlock` (CDRAM o UNCACHE). AvPlayer hace montones de allocaciones chicas al
+   arrancar (demuxer, buffers de stream, colas) — cada una quemaba un memblock del kernel, se agota el
+   límite de memblocks del proceso en pleno arranque del player, una allocación interna devuelve NULL y el
+   player pasa a inactivo silenciosamente justo después de activarse. Exactamente el síntoma observado.
+2. `basePriority = 0x10000100` (`SCE_KERNEL_DEFAULT_PRIORITY_USER`) — es un sentinel especial, y AvPlayer
+   deriva las prioridades de sus hilos INTERNOS sumando offsets a esa base; offsets sobre el sentinel no son
+   prioridades válidas.
+
+**Fix — patrón probado en hardware real por los ports so-loader con video funcionando (movie.c de
+gtasa_vita y todos sus descendientes):**
+- Allocator general: `memalign`/`free` del heap de newlib (tenemos 256 MB) — allocaciones chicas y muchas,
+  al heap normal.
+- Allocator de texturas: `vglAlloc(size, VGL_MEM_SLOW)` (pool PHYCONT de vitaGL — el decodificador AVC de
+  hardware exige memoria físicamente contigua para los frame buffers), alineación mínima 256 KB
+  (`AV_FB_ALIGNMENT 0x40000`), `glFinish()` + `vglFree()` al liberar. Son solo ~2 allocaciones
+  (`numOutputVideoFrameBuffers`), sin presión sobre el pool.
+- `basePriority = 0xA0` (el valor de los ports de referencia).
+- Se quitó el `sceAvPlayerStart` explícito redundante (`autoStart=SCE_TRUE` ya arranca dentro de
+  `AddSource`) y el código muerto del file-replacement viejo (struct `AvFileCtx` + 4 callbacks sin uso).
+
+**Build:** compilado sin errores, copiado a `build/popclassic.vpk`. **Pendiente:** confirmar en consola que
+los videos de ESCENAS reproducen de verdad (y de paso la cinemática de intro por "Nueva Partida", que
+comparte todo este código); si los colores salen mal, el paso siguiente ya documentado es probar NV12 en
+`yuv420p_to_rgb()`.
+
+**Retest (`log_000026_.txt`): progreso real pero aún no reproduce.** El fix de §9.42 movió la falla hacia
+adelante: antes el player moría en la primera iteración (`frames=0`), ahora corre ~57-64 iteraciones (~60ms,
+el loop duerme 1ms por vuelta) antes de pasar a inactivo — o sea que el arranque interno del player ya no
+falla (los allocators generales con `memalign` funcionan), y ahora muere aproximadamente cuando el
+decodificador intenta emitir su primer frame. Sospecha principal (SIN confirmar todavía, y esta vez no se
+adivina): `vglAlloc(VGL_MEM_SLOW)` devolviendo NULL porque el pool PHYCONT de vitaGL quedó vacío — nuestro
+`_newlib_heap_size_user` es 256 MB (todo el presupuesto de RAM principal), y las allocaciones PHYCONT salen
+del mismo presupuesto (gtasa_vita, la referencia, usa 240 MB de heap justamente dejando margen). Cambios de
+esta vuelta, diseñados para responder la pregunta en UN solo viaje de consola en vez de iterar a ciegas:
+- `av_alloc_texture` ahora intenta PHYCONT y hace **fallback a CDRAM** (`VGL_MEM_VRAM`, también memoria
+  físicamente contigua que el decodificador puede escribir por DMA), y loguea cada allocación con pool
+  elegido, tamaños y el estado libre de ambos pools.
+- `av_alloc` general loguea solo si falla.
+- `video_init` loguea el estado libre de los 3 pools de vitaGL al arrancar (responde directamente si
+  PHYCONT=0 sin esperar a ninguna allocación).
+- El loop loguea el primer frame de video decodificado (con dimensiones y pData) y el primer frame de audio
+  — el próximo log distingue "nunca llegó un frame" de "llegaron frames y murió después".
+NO se tocó el tamaño del heap todavía (una variable por vez — lección de §9.41): si el próximo log muestra
+PHYCONT=0 y el fallback CDRAM funcionando, listo; si ambos pools están vacíos, el paso siguiente con datos
+en mano es bajar el heap a 240 MB como gtasa_vita.
+
+**Retest 2 (`log_000027_.txt`): la instrumentación respondió todo — la hipótesis del heap era FALSA, la
+causa real es que `vglAlloc` no alinea punteros.**
+- PHYCONT tiene 26.7 MB libres (es un presupuesto separado del heap de newlib — la teoría del heap de 256 MB
+  queda descartada con evidencia; no bajar el heap, no hace falta).
+- Las DOS allocaciones de textura del player succeeded en PHYCONT... pero el log muestra los punteros
+  devueltos: el decodificador pidió su pool de frames de 5 MB con **alineación de 1 MB**
+  (`req align=1048576`) y recibió `0x75180260` — NO alineado a 1 MB (ni el primero, `0x75100250`, está
+  alineado a los 128 que pedía). `vglAlloc(size, type)` no tiene parámetro de alineación (su allocator de
+  pool antepone un header), y el código solo alineaba el TAMAÑO, no el puntero. Un buffer de decodificador
+  desalineado → el decodificador AVC de hardware falla al inicializar → player inactivo con
+  `video_frames=0, audio_frames=0` tras ~80 iteraciones. Todo consistente.
+- Bonus del log: **leak de ~5.7 MB por video** — el pool PHYCONT no se recupera entre videos
+  (26.7→21.5→16.2 MB). Puede ser consecuencia del mismo decoder muriendo mal (AvPlayer no llega a llamar
+  `deallocateTexture`); se agregó log en el free para confirmarlo en la próxima corrida.
+
+**Fix:** `av_alloc_texture` ahora sobre-alloca `size + alignment + sizeof(void*)`, devuelve un puntero
+ALINEADO de verdad al requisito pedido (mínimo 256 KB), y guarda el puntero crudo del pool justo debajo del
+alineado; `av_free_texture` lo recupera de ahí para `vglFree`. (`vglMemalign` existe en el header pero no
+permite elegir pool — necesitamos PHYCONT/CDRAM específicamente, así que alineación manual.) Se mantiene el
+fallback PHYCONT→CDRAM y todo el logging. Compilado y exportado a `build/popclassic.vpk`. **Pendiente:**
+retest — si esta vez `video_frames > 0` pero no se ve nada en pantalla, el sospechoso pasa a ser el path de
+render (draw_video_frame/formato YUV); si los frees no aparecen en el log, atacar el leak por separado.
+
+**Retest 3 (`log_000028_.txt`): alineación confirmada correcta en el log (`aligned=0x75200000`) y AUN ASÍ
+`video_frames=0, audio_frames=0`.** Tiempo hasta morir variable (83/427/336 iteraciones) — huele a I/O
+asíncrono fallando, no a un init determinista. Leak confirmado: el buffer chico se libera al Close, el pool
+de 5 MB del decodificador nunca (`texture free` aparece solo para el primero). Se comparó campo por campo
+contra una referencia REAL con la misma arquitectura: `loader/fmv.c` de **raider-vita** (Rinnegatamante,
+Tomb Raider 1&2 Android→Vita, so-loader + vitaGL, FMVs confirmados en hardware) — nuestra config actual ya
+coincide en allocators (memalign general / `vglAlloc(VGL_MEM_SLOW)` textura, sin siquiera alinear puntero:
+raider NI SIQUIERA alinea y le funciona), `basePriority 0xA0`, `autoStart`. Diferencias restantes: raider usa
+3 frame buffers (nosotros 2), consume el audio en un hilo dedicado, renderiza el frame YUV directo como
+textura GXM (`SCE_GXM_TEXTURE_FORMAT_YVU420P2_CSC1`, sin conversión CPU), y NO bloquea el hilo de render.
+Ninguna explica un `frames=0` absoluto.
+
+**En vez de una cuarta adivinanza, esta build agrega los dos canales de visibilidad que faltaban:**
+1. `eventReplacement.eventCallback` — el canal de diagnóstico propio de AvPlayer que nunca usamos: loguea
+   cada transición de estado (STOP/READY/PLAY/BUFFERING, con nombres decodificados) y, para el evento
+   `WARNING_ID` (0x20), el código de error real que hasta ahora era invisible (el player moría en silencio,
+   `IsActive` simplemente pasaba a false).
+2. `fileReplacement` restaurado sobre `sceIo` con instrumentación: loguea open (path + fd), size, los
+   primeros 5 reads y cualquier read fallido (capped — lección de Fixes_Log #12 sobre logging de alta
+   frecuencia), y al close el total de reads/bytes. Doble propósito: (a) si el problema era el I/O interno
+   del player (nuestro proceso inicializa FIOS con overlay propio en el boot — `lib/fios/fios.c` — que
+   podría interferir con el FIOS2 interno de AvPlayer), esto directamente lo ARREGLA; (b) si no, el log
+   muestra exactamente hasta dónde llegó a leer el archivo antes de rendirse.
+Compilado y exportado a `build/popclassic.vpk`. **Pendiente:** retest — el próximo log tiene que contener
+líneas `video: event ...` y `video: file ...` que digan la verdad de una vez.
+
+**Retest 4 (`log_000029_.txt`): la instrumentación habló. Hechos nuevos, hipótesis viejas descartadas:**
+- **File I/O funciona**: open OK, size 5.505.762, reads #1 y #2 (64 KB c/u, secuenciales desde pos 0)
+  exitosos... y **nunca más lee** (close reporta `reads=2, total_bytes=131072`). Leyó lo justo para parsear
+  headers y se rindió.
+- **El player nunca emite `STATE_READY` ni `STATE_PLAY`** — solo dos `STATE_STOP` limpios, **sin ningún
+  evento `WARNING_ID`/código de error**. Muere en silencio durante el arranque del pipeline de decode.
+- Que parseó bien el `moov` está confirmado por la primera allocación de textura: 460800 bytes = 480×320×3
+  exactos (conoce las dimensiones reales del video).
+- **Hipótesis "moov al final del archivo" refutada**: los 6 `.mp4` tienen `ftyp@0 moov@24 mdat@...` — ya son
+  fast-start de fábrica (verificado parseando los átomos top-level con Python).
+- **Hipótesis "la memoria extendida (`ATTRIBUTE2=12`) deshabilita el decodificador de hardware" refutada**:
+  raider-vita usa exactamente el mismo `ATTRIBUTE2=12` en su `VITA_MKSFOEX_FLAGS` y sus FMVs funcionan.
+  (De paso: gtasa_vita NO tiene player de video — la "referencia" que se citaba de memoria en §9.42 era en
+  realidad el patrón de fmv.c/movie.c de raider-vita y familia, no de gtasa.)
+
+**El sospechoso restante, con la mejor evidencia disponible: el TIPO de memoria de los frame buffers.** Se
+revisó `player.c` de **OpenFMV** (Rinnegatamante — el uso de SceAvPlayer más probado de la plataforma, con
+ports comerciales de juegos FMV encima): su `gpu_alloc` NO usa PHYCONT — usa **memblocks de CDRAM**
+(`SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW`) con alineación garantizada por kernel
+(`SceKernelAllocMemBlockOpt.alignment`) y `sceGxmMapMemory` — y su `vglInitWithCustomThreshold` deja 32 MB
+de CDRAM sin reclamar por vitaGL justamente para eso. raider-vita usa `vglAlloc(VGL_MEM_SLOW)` (PHYCONT),
+pero sobre una vitaGL moderna — la nuestra está pinneada al commit antiguo `aa75c61`, cuyo pool PHYCONT
+puede tener flags/propiedades distintas que el decodificador rechaza (en silencio, como se ve).
+
+**Cambio de esta vuelta (uno solo):** `av_alloc_texture` ahora prueba **CDRAM primero** (el pool VRAM de
+vitaGL ya está mapeado a GXM — mismas propiedades que la memoria de OpenFMV, sin tocar `gl_init`), PHYCONT
+queda como fallback. Se mantiene la alineación manual y todo el logging (el próximo log dirá "texture alloc
+CDRAM ok"). Compilado y exportado. **Pendiente:** retest. Si CDRAM tampoco decodifica, el siguiente paso con
+más evidencia es replicar el `gpu_alloc` de OpenFMV textualmente (memblock CDRAM directo + threshold en el
+init de vitaGL) y/o considerar actualizar la vitaGL pinneada.
+
+**Retest 5 (`log_000030_.txt`): CDRAM del pool de vitaGL, alineado perfecto (`aligned=0x64000000`) — MISMO
+resultado (STATE_STOP silencioso, 0 frames).** Con esto, todos los parámetros del player ya están igualados
+a las referencias y solo queda UNA diferencia estructural: OpenFMV no saca los frame buffers de un pool de
+vitaGL sino de **memblocks de kernel dedicados, uno por allocación** (`sceKernelAllocMemBlock` CDRAM +
+`SceKernelAllocMemBlockOpt.alignment` + `sceGxmMapMemory`). Mecanismo plausible: el decodificador AVC
+identifica/pinnea el memblock DUEÑO de la dirección que recibe (estilo `sceKernelFindMemBlockByAddr`); una
+dirección en el medio del memblock gigante de vitaGL resuelve a un bloque con tamaño/flags/dueño
+equivocados y se rechaza — en silencio, como se viene observando.
+
+**Cambios (esta vez son dos, pero el segundo es prerequisito del primero):**
+1. `av_alloc_texture`/`av_free_texture` replican el `gpu_alloc`/`gpu_free` de OpenFMV textualmente:
+   memblock CDRAM dedicado con alineación de kernel + `sceGxmMapMemory`, registro interno de hasta 8 bloques
+   vivos para el free (unmap + free del memblock), logging de todos los códigos de retorno (incluido el
+   error de `sceKernelAllocMemBlock` si el presupuesto CDRAM estuviera agotado).
+2. `gl_init` (`source/utils/glutil.c`): `vglInitExtended` → `vglInitWithCustomThreshold(0, 960, 544, 6MB,
+   **32MB de threshold CDRAM**, 0, 0, msaa)` — deja 32 MB de CDRAM sin reclamar por vitaGL para que esos
+   memblocks tengan de dónde salir (mismo valor y razón que el init de OpenFMV; sin esto el paso 1 fallaría
+   con presupuesto agotado). Costo: el pool de texturas del juego pierde 32 MB, quedaba ~70 MB libre en el
+   peor momento observado, margen de sobra. Símbolo `vglInitWithCustomThreshold` verificado presente en
+   nuestra vitaGL pinneada (`nm libvitaGL.a`).
+
+Compilado y exportado a `build/popclassic.vpk`. **Pendiente:** retest. Nota: el usuario ofreció el APK
+decompilado (`apk_decompiled/`) y `libgame_logic` decompilado (`so_decompiled/`) — no hacen falta para este
+problema (el despacho del juego funciona: `playVideo` se dispara y el archivo se abre; el fallo es 100%
+nuestro lado del player), pero quedan anotados como recurso para cualquier pregunta futura sobre lógica del
+juego (p.ej. gating de desbloqueo de ESCENAS).
+
 ---
 
 ## 10. Pulido final
@@ -1977,3 +2146,8 @@ confirmar. Cuadrado/Círculo quedan pausados hasta tener una captura real del HU
   copia de `bin/` distinta que sí incluya audio, saltarse la extracción manual del APK.
 - La recomendación de usar `Data_960_576` (§2) es una recomendación de calce de resolución, no una certeza:
   confirmar visualmente en consola que no introduce artefactos de escalado en UI fija en píxeles.
+
+**Nota de Retest / Versión 01.18:**
+Se implementó una optimización masiva de rendimiento en `video.cpp` para la conversión YUV a RGBA utilizando **Tablas Precalculadas (LUT)**, lo que eliminó el cuello de botella del CPU y permitió que el video de las cinemáticas (cutscenes) corra a una velocidad y fluidez perfectas. Sin embargo, el **audio en las cinemáticas sigue sin escucharse** y queda registrado de manera oficial como un **issue conocido**. Múltiples intentos de variar dinámicamente el tamaño del paquete de fotogramas de audio resultaron en fallas directas de la inicialización del puerto de sonido `sceAudioOutOpenPort` de la consola. El puerto debe permanecer forzado a 1024 frames por seguridad.
+
+Adicionalmente, se revirtió un intento de soportar un modo de "solo botones físicos" (`PHYSICAL_BUTTONS_ONLY`) debido a que esto rompía por completo la simulación de toques virtuales necesaria para el D-Pad direccional del juego. Se re-estableció la funcionalidad del D-Pad y se ajustó el mapeo del botón Círculo (O) para que emita **únicamente la acción de agacharse** (`BUTTON_B` / `97`), eliminando su mapeo simultáneo a `BACK` (el cual abría constantemente el menú de pausa y arruinaba la experiencia de juego). El botón START sigue funcionando como `BACK` de manera exclusiva.

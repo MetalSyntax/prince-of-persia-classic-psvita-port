@@ -218,7 +218,22 @@ int main() {
             reportY[reportCount] = ARROW_Y;
             reportCount++;
         }
-        
+
+        // Jump's on-screen virtual button intentionally does NOT get a
+        // synthetic touch (and so never lights up as "pressed"): Cross also
+        // means "confirm" in menus, and ANY synthetic touch tied to Cross --
+        // even at the real, screenshot-measured button position (904,399),
+        // not a guess -- reproduces the exact same regression as the first
+        // guessed attempt at (815,400): it hijacks list navigation (confirmed
+        // twice now, log_000011 and log_000039, both landing on the wrong
+        // list item on Cross press). Root cause: this file has no signal to
+        // tell "in a menu" from "in gameplay" apart, so a synthetic touch
+        // fires in both, and menus interpret it as a real tap. Needs a real
+        // gameplay/menu state signal (not currently exposed anywhere in this
+        // codebase) before this can be attempted safely again -- do not
+        // re-add without one. Jump itself still works correctly via the
+        // keycodes below; only the virtual pad's visual highlight is missing.
+
         // DPAD DOWN is handled via nativeKeyDown to preserve menu scrolling
 
         int seenThisFrame[5] = {0, 0, 0, 0, 0};
@@ -275,8 +290,16 @@ int main() {
             if ((current_pad & SCE_CTRL_UP) && !(oldpad & SCE_CTRL_UP)) nativeKeyDown(jniEnv, NULL, 19);
             if (!(current_pad & SCE_CTRL_UP) && (oldpad & SCE_CTRL_UP)) nativeKeyUp(jniEnv, NULL, 19);
             
-            if ((current_pad & SCE_CTRL_DOWN) && !(oldpad & SCE_CTRL_DOWN)) nativeKeyDown(jniEnv, NULL, 20);
-            if (!(current_pad & SCE_CTRL_DOWN) && (oldpad & SCE_CTRL_DOWN)) nativeKeyUp(jniEnv, NULL, 20);
+            // Crouch (keycode 20, DPAD_DOWN) is now shared by two physical
+            // buttons -- Down/left-stick-down AND Circle (see below; keycode
+            // 97/BUTTON_B did nothing in gameplay, confirmed on hardware).
+            // Transition on the COMBINED state, not each button separately:
+            // sending keyUp on Circle's release alone would cancel crouch
+            // even while Down is still physically held.
+            int wantCrouch = (current_pad & (SCE_CTRL_DOWN | SCE_CTRL_CIRCLE)) != 0;
+            int wantedCrouch = (oldpad & (SCE_CTRL_DOWN | SCE_CTRL_CIRCLE)) != 0;
+            if (wantCrouch && !wantedCrouch) nativeKeyDown(jniEnv, NULL, 20);
+            if (!wantCrouch && wantedCrouch) nativeKeyUp(jniEnv, NULL, 20);
 
             // ACTIONS - Keyboard simulated actions
             // Face buttons
@@ -287,15 +310,6 @@ int main() {
             if (!(current_pad & SCE_CTRL_CROSS) && (oldpad & SCE_CTRL_CROSS)) {
                 nativeKeyUp(jniEnv, NULL, 23);
                 nativeKeyUp(jniEnv, NULL, 96);
-            }
-
-            if ((current_pad & SCE_CTRL_CIRCLE) && !(oldpad & SCE_CTRL_CIRCLE)) {
-                nativeKeyDown(jniEnv, NULL, 4);  // BACK (Menu Back)
-                nativeKeyDown(jniEnv, NULL, 97); // BUTTON_B (Action/Drop in Android TV)
-            }
-            if (!(current_pad & SCE_CTRL_CIRCLE) && (oldpad & SCE_CTRL_CIRCLE)) {
-                nativeKeyUp(jniEnv, NULL, 4);
-                nativeKeyUp(jniEnv, NULL, 97);
             }
             
             if ((current_pad & SCE_CTRL_TRIANGLE) && !(oldpad & SCE_CTRL_TRIANGLE)) nativeKeyDown(jniEnv, NULL, 100); // BUTTON_Y

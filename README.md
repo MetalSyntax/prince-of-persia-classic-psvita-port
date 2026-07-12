@@ -76,8 +76,8 @@ To install the port on a real PS Vita:
    ├── libcocos2d.so
    ├── libcocosdenshion.so
    ├── libgame_logic.so
-   ├── original.apk                               <- Must be the complete APK
-   ├── main.1.org.ubisoft.premium.POPClassic.obb  <- Reconstructed minimal OBB (~511 KB)
+   ├── original.apk                               <- Minimal APK containing only assets/appConfig.txt
+   ├── main.1.org.ubisoft.premium.POPClassic.obb  <- Near-complete OBB containing Data_960_576, Data/Localization, and internal OBB data structure
    ├── save/                                      <- empty folder, the game writes its saves here
    ├── Data/
    │   ├── Audio/                                 <- all tracks/effects as .mp3 (loose files)

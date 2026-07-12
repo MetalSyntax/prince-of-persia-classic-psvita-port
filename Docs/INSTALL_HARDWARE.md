@@ -66,12 +66,10 @@ ux0:data/popclassic/
 ├── libcocosdenshion.so
 ├── libcocos2d.so
 ├── libgame_logic.so
-├── original.apk                                  <- copia de original/*.apk (assets/appConfig.txt vive ahí,
-│                                                     imprescindible: nativeSetPaths lo abre como zip a nivel
-│                                                     nativo, no hay forma de evitarlo)
-├── main.1.org.ubisoft.premium.POPClassic.obb     <- MÍNIMO (~511 KB): solo Localization/*.loc + Logo/logo.png
-│                                                     + appConfig.txt, bajo los 3 prefijos Data/Data_640_384/
-│                                                     Data_960_576 -- imprescindible, ver nota más abajo
+├── original.apk                                  <- APK mínimo que contiene únicamente assets/appConfig.txt
+├── main.1.org.ubisoft.premium.POPClassic.obb     <- OBB casi completo: contiene la estructura de carpetas
+│                                                     con el contenido de Data_960_576, los .loc de Data
+│                                                     y el otro Data que tiene el OBB interno.
 ├── save/                                          <- carpeta vacía, el juego escribe sus saves ahí
 ├── Data/
 │   ├── Audio/       <- .mp3 sueltos, leídos directo por source/audio.cpp (sceIo, sin pasar por CCFileUtils)
@@ -84,29 +82,12 @@ ux0:data/popclassic/
 ```
 
 > [!IMPORTANT]
-> **`main.1.org.ubisoft.premium.POPClassic.obb` NO se puede eliminar por completo** (a diferencia de lo que
-> se pensó en una primera pasada de §9.35): `Localization/*.loc` se lee por un mecanismo nativo aparte,
-> hardcodeado dentro de `libgame_logic.so`/`libcocos2d.so`, que arma la ruta al `.obb` directamente
-> (`apkFilePath` + el nombre del `.obb`, ver comentario en `source/main.c:76-88`) y lo abre **sin pasar por
-> el chequeo de "archivo suelto primero"** que sí usan las texturas/mapas. Confirmado con un crash real en
-> consola al sacar el `.obb` (`psp2core-1783808202...`, `vita-parse-core`): Data abort dentro de `strlen()`
-> con `R0=0xFFFFFFF8` (un puntero corrupto con toda la pinta de "NULL menos un header de 8 bytes"), llamado
-> desde código del propio `.so` del juego -- el fallback silencioso al `.obb` ausente devolvió un buffer nulo
-> que el motor no chequeó antes de tratarlo como string. Fix: se reconstruyó el `.obb` en su versión **mínima**
-> (~511 KB: Localization + Logo + appConfig.txt bajo los 3 prefijos de resolución, la misma composición ya
-> confirmada en consola real en el plan §9.19) en vez del completo de 65 MB -- eso sí se puede evitar,
-> combinado con `Data_960_576/` suelta para Texturas/Mapas/Animations/Effects/Particles. Detalle completo en
-> `plan_portabilidad.md` §9.36.
+> **`main.1.org.ubisoft.premium.POPClassic.obb` NO se puede eliminar por completo**, ni usar un `.obb` totalmente vacío. Se debe utilizar un archivo `.obb` casi completo que contenga la estructura base de directorios, incluyendo `Data_960_576` y `Data/Localization`.
+> El motor arma la ruta al `.obb` directamente (`apkFilePath` + el nombre del `.obb`) y lo abre **sin pasar por el chequeo de "archivo suelto primero"** para ciertos archivos cruciales como `Localization/*.loc`.
 >
-> **Convención local de nombres (solo en `ux0_data/popclassic/`, no en la consola):** el `.obb` mínimo se
-> guarda en disco como `main.1.org.ubisoft.premium.POPClassic.mini.obb` -- un nombre distinto a propósito,
-> para no pisar el `main.1.org.ubisoft.premium.POPClassic.obb` completo (65 MB, backup conocido-funcional)
-> mientras se prueba el mínimo. **La consola SIEMPRE necesita el archivo con el nombre exacto
-> `main.1.org.ubisoft.premium.POPClassic.obb`** -- el motor lo busca por ese nombre literal
-> (`nativeSetPaths`/la ruta hardcodeada de Localization), nunca va a buscar uno que termine en `.mini.obb`.
-> Para probar el mínimo: subilo a la consola y renombralo ahí a `main.1.org.ubisoft.premium.POPClassic.obb`
-> (o subilo directamente con ese nombre). Para volver al completo si algo falla: subí
-> `main.1.org.ubisoft.premium.POPClassic.obb` (el de 65 MB) en su lugar.
+> **Convención local de nombres:** La consola SIEMPRE necesita el archivo con el nombre exacto
+> `main.1.org.ubisoft.premium.POPClassic.obb` -- el motor lo busca por ese nombre literal
+> (`nativeSetPaths`/la ruta hardcodeada de Localization).
 
 > [!IMPORTANT]
 > `ux0_data/` está en `.gitignore` (son los assets extraídos del APK/OBB originales, con copyright de

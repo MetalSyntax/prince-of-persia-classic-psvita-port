@@ -41,16 +41,25 @@ void gl_init() {
     if (initialized)
         return;
     initialized = GL_TRUE;
+    // CDRAM threshold 32MB: leave that much CDRAM UNclaimed by vitaGL's
+    // pool so SceAvPlayer's video decoder frame memory can be allocated as
+    // dedicated CDRAM kernel memblocks (source/video.cpp's av_alloc_texture,
+    // replicating OpenFMV's proven allocator). With plain vglInitExtended,
+    // vitaGL claims the whole CDRAM budget and those memblock allocations
+    // have nothing left to come from -- same reason OpenFMV's own init
+    // passes a 32MB CDRAM threshold. Game impact: the texture pool shrinks
+    // by 32MB, which still leaves ample headroom (~70MB of the pool was
+    // free at video-playback time in log_000030, menus included).
 #ifdef EMULATOR_BUILD
     // Under Vita3K, requesting 4x MSAA here has been observed to make vitaGL's
     // internal init retry sceGxmCreateContext a second time (which then fails
     // with SCE_GXM_ERROR_ALREADY_INITIALIZED and crashes, since vitaGL doesn't
     // check that return value). Disabling MSAA avoids the retry.
     vglUseTripleBuffering(GL_FALSE);
-    vglInitExtended(0, 960, 544, 6 * 1024 * 1024, SCE_GXM_MULTISAMPLE_NONE);
+    vglInitWithCustomThreshold(0, 960, 544, 6 * 1024 * 1024, 32 * 1024 * 1024, 0, 0, SCE_GXM_MULTISAMPLE_NONE);
 #else
     vglUseTripleBuffering(GL_FALSE);
-    vglInitExtended(0, 960, 544, 6 * 1024 * 1024, SCE_GXM_MULTISAMPLE_4X);
+    vglInitWithCustomThreshold(0, 960, 544, 6 * 1024 * 1024, 32 * 1024 * 1024, 0, 0, SCE_GXM_MULTISAMPLE_4X);
 #endif
 }
 

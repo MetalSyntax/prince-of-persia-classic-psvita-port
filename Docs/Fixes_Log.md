@@ -129,6 +129,22 @@ loop sigue vivo). Esto es correcto en la fuente del problema, no un parche sobre
 - **Solución:** Se corrigió la función de JNI `playEffect` en `audio.cpp` para no extraer `pitch`, `pan` y `gain` desde el `va_list` (ya que el motor no los envía) y se les asignó un valor por defecto harcodeado (`gain=1.0f`, `pitch=1.0f`, `pan=0.0f`). Esto resuelve instantáneamente el silencio de todos los efectos de sonido. Es posible que el bug de salto infinito esté colateralmente ligado a esto si el motor evaluaba algún estado derivado del sonido devuelto como mudo.
 - **Build:** `popclassic_audio.vpk` v01.16, mismo TITLEID.
 
+#### 16. Controles Físicos Puros y Fix del Crash en Reproducción de Video MP4 (build `popclassic.vpk` v01.17)
+
+El usuario reportó que el mapeo de los controles táctiles (introducido en el punto 1) volvía injugable el menú, ya que los botones físicos simulaban toques en pantalla que entraban en conflicto con los menús. Además, la cinemática de introducción no lograba reproducirse, quedándose pausada un instante y saltando directamente al menú.
+
+**Solución a los Controles:**
+1. **Desacople del D-Pad:** Se eliminó la inyección artificial de eventos táctiles (`inject_touch_event`) vinculados al D-Pad (cruceta) y al joystick analógico izquierdo. Ahora, los botones direccionales físicos interactúan limpia y directamente con la interfaz del juego sin interferir como si fueran "dedos" virtuales.
+2. **Reasignación Fina:** Se mejoró la sensibilidad del joystick reduciendo sus zonas muertas y se eliminó el comportamiento superpuesto de los botones `CROSS`, `CIRCLE`, y `SQUARE` para que coincidan con la configuración nativa que espera el usuario (incluyendo el botón de "caminar lento").
+
+**Solución a la Reproducción de Video (SceAvPlayer):**
+El módulo de reproducción `SceAvPlayer` lograba leer el archivo pero abortaba la descodificación instantáneamente (`active=1` a `active=0` en milisegundos) debido a dos problemas graves del hardware de Vita:
+1. **Conflicto de I/O en Hilos:** El código original de Android implementaba funciones "wrapper" (`init.fileReplacement`) para leer archivos. Se eliminaron estas barreras; ahora la Vita gestiona la apertura de videos de forma nativa a través de `ux0:`, eliminando los fallos de lectura cruzada.
+2. **Memoria Caché vs Hardware Decoder (El Crash Fantasma):** El asignador de memoria en `video.cpp` estaba usando `memalign()`. En PS Vita, `memalign` reserva memoria RAM convencional (con caché). Cuando el hardware decodificador (Media Engine) intentaba acceder a la RAM para extraer los frames, este leía basura debido a las políticas de la caché, abortando la tarea instantáneamente por error de seguridad. 
+   - **Fix:** Se reescribió `av_alloc` y `av_free` para utilizar directamente **`sceKernelAllocMemBlock`**, pidiendo exclusivamente memoria gráfica/procesador (`SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW` y memoria de usuario sin caché). Al recibir RAM sin restricciones de caché, el chip descodificador ya puede procesar H264 a 480x320 (`Mid`) sin estrellarse.
+
+- **Build:** `popclassic.vpk` v01.17, mismo TITLEID.
+
 ---
 
 ### 🇬🇧 English
@@ -249,3 +265,17 @@ message from the previous one and doesn't collapse -- it kept logging on almost 
 fixes the actual source of the problem instead of patching around its symptoms.
 
 - **Build:** `popclassic_audio.vpk` v01.15, same TITLEID.
+
+#### 15. Muted SFX due to Garbage in JNI Stack (build `popclassic_audio.vpk` v01.16)
+
+- **Issue:** Background music (BGM) played fine, but all sound effects (footsteps, sword hits, environment) were completely muted.
+- **Fix:** The Android Cocos2dx 2.0 engine defines the JNI signature of `playEffect` without `pitch`, `pan`, or `gain` parameters. By intercepting this call with FalsoJNI and redirecting it to functions that expected these arguments (via variadic argument macros), uninitialized memory from the processor's stack (garbage) was being read. This inadvertently resulted in a `gain` (volume) of `0.0f`, forcing the effects to be silent. The fix was to hardcode safe default values (`gain=1.0f`, `pitch=1.0f`, `pan=0.0f`), which instantly resolved all missing sound effects.
+- **Build:** `popclassic_audio.vpk` v01.16, same TITLEID.
+
+#### 16. Pure Physical Controls & SceAvPlayer Crash Fix (build `popclassic.vpk` v01.17)
+
+- **Issue:** The user reported that the simulated touch inputs for the D-Pad were causing ghost clicks and making menus unplayable. Furthermore, the MP4 video cinematics were still instantly aborting upon playback.
+- **Controls Fix:** Disabled synthetic touch event injections (`inject_touch_event`) for the D-Pad and left analog stick. Reassigned physical buttons (`CROSS`, `CIRCLE`, `SQUARE`) and analog stick deadzones to match the native Vita configuration expected by the user.
+- **SceAvPlayer Fix:** The Vita's `SceAvPlayer` hardware media engine aborted instantly because it was provided with cached memory via the `memalign()` allocator. The hardware decoder is unable to read from cached memory, so it aborted immediately. 
+   - We rewrote `av_alloc` and `av_free` to use the native **`sceKernelAllocMemBlock`** with `SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW` (CDRAM/Uncached user memory). With cache-less RAM, the decoder can now safely process H264 at 480x320 (`Mid`) without crashing. Custom file I/O wrappers (`fileReplacement`) were also removed to let `SceAvPlayer` manage its own files.
+- **Build:** `popclassic.vpk` v01.17, same TITLEID.

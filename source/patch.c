@@ -26,34 +26,45 @@
 extern so_module so_mod;
 extern so_module cocos2d_mod;
 
-// EXPERIMENTAL (branch experimental/loose-appconfig-localization): disassociate
-// appConfig.txt and Localization/*.loc from original.apk/the .obb.
+// EXPERIMENTAL (branch experimental/loose-appconfig-localization):
+// disassociate ALL file loading from original.apk/the .obb, not just
+// appConfig.txt/Localization.
 //
 // cocos2d::CCFileUtils::getFileData() (so_decompiled/libcocos2d/out_ghidra.c,
-// confirmed against the real bin/libcocos2d.so symbol table) hardcodes exactly
-// two relative-path cases straight into a ZIP read with NO loose-file check
-// ever attempted at this level: a name equal to "appConfig.txt" always reads
-// "assets/appConfig.txt" from original.apk, and any other relative name (incl.
-// "Localization/*.loc") always reads from the .obb. Every other asset type
-// (textures, maps, animations...) reaches the memory card through a
-// completely different path that already goes through this project's own
+// confirmed against the real bin/libcocos2d.so symbol table) sends every
+// relative (non-'/'-prefixed) path straight into a ZIP read with NO
+// loose-file check ever attempted at this level: a name equal to
+// "appConfig.txt" always reads from original.apk, anything else always
+// reads from the .obb. Textures/maps/animations reach the memory card
+// through a DIFFERENT path that already goes through this project's own
 // fopen_soloader()/resolve_data_path() (source/reimpl/io.c), which is why
-// those already work loose today -- these two are the only files stuck
-// depending on the apk/obb no matter what's on the card.
+// those already work loose today -- but this function itself is a second,
+// narrower choke point that other assets go through too, one at a time,
+// as each gets discovered the hard way on real hardware:
+//   - psp2core-1785297093: "Data_960_576/Localization/Spanish/Localizable.loc"
+//     (first attempt only matched a "Localization/" PREFIX; the engine
+//     already bakes the resolution folder into the string for this
+//     request, so it never matched and fell through to the missing .obb)
+//   - psp2core-1785297502: "Data_960_576/Logo/logo.png" (LogoScene::init(),
+//     a totally different asset -- not appConfig.txt, not Localization,
+//     same crash: engine has no graceful handling for getFileData()
+//     returning NULL, it always assumes the read succeeded and crashes
+//     downstream dereferencing/strlen()-ing the NULL buffer, R0=0xFFFFFFF8).
+// Rather than keep special-casing one newly-discovered filename per
+// hardware round-trip, this now tries a loose file for ANY relative path,
+// falling back to the real apk/obb-zip logic only when no loose copy
+// exists -- covering whatever the next surprise turns out to be too.
 //
 // This hooks getFileData() itself (via the existing, previously-unused
 // hook_addr() mechanism) rather than trying to patch every call site: it
 // patches the function's own entry once, so it doesn't matter how many
-// places inside libcocos2d.so/libgame_logic.so call it. For the two known
-// cases, it tries loose files (Data_960_576/<name>, then bare <name> under
-// DATA_PATH, matching what's already laid out on the card); if found, it
-// returns that directly. Anything else -- and a miss on those two cases --
-// falls through UNCHANGED to the real engine function, via a temporary
-// unhook/call/rehook (hook_addr() overwrites the target's own instructions,
-// so calling "through" the hooked address again would just re-enter this
-// hook; so_unhook()/hook_addr() restore/reapply around the real call
-// instead of reimplementing the ZIP path by hand). Not thread-safe against
-// a concurrent call to the same function on another thread -- acceptable
+// places inside libcocos2d.so/libgame_logic.so call it. Falls through
+// UNCHANGED to the real engine function via a temporary unhook/call/rehook
+// (hook_addr() overwrites the target's own instructions, so calling
+// "through" the hooked address again would just re-enter this hook;
+// so_unhook()/hook_addr() restore/reapply around the real call instead of
+// reimplementing the ZIP path by hand). Not thread-safe against a
+// concurrent call to the same function on another thread -- acceptable
 // for this experimental test since asset loading is sequential in every
 // log captured so far, but worth a real hook_addr()-return-value swap
 // (atomic pointer, not unhook/call/rehook) before considering this
@@ -90,22 +101,13 @@ static void *read_loose_file(const char *path, unsigned long *out_size) {
 }
 
 static void *hook_getFileData(const char *filename, const char *mode, unsigned long *size) {
-    // psp2core-1785297093 (real hardware): the engine requested
-    // "Data_960_576/Localization/Spanish/Localizable.loc" -- the resolution
-    // folder is ALREADY part of the string the engine passes for this
-    // request (unlike appConfig.txt, which always arrives bare). A prefix
-    // check for "Localization/" therefore never matched a path that starts
-    // with "Data_960_576/" instead, so this fell through to the real
-    // (obb-only) getFileData, which failed (no .obb in this experiment) and
-    // crashed the engine downstream (strlen() on the NULL buffer it never
-    // checked for -- same failure class as the historical .obb crash, see
-    // [[project-popc-portabilidad]]). Fixed: match "Localization/" as a
-    // substring anywhere in the path, and try the path both as given
-    // (handles a resolution folder already being part of it) and with
-    // Data_960_576/ prepended (handles a bare "Localization/..." request
-    // with no resolution folder, if that ever occurs from elsewhere).
-    if (filename && filename[0] != '/' &&
-        (strcmp(filename, "appConfig.txt") == 0 || strstr(filename, "Localization/") != NULL)) {
+    // Try loose first for ANY relative path (see the file-level comment
+    // above for why this isn't narrowed to specific filenames anymore).
+    // The requested name sometimes already includes its resolution folder
+    // (e.g. "Data_960_576/Logo/logo.png") and sometimes doesn't (e.g. the
+    // bare "appConfig.txt") -- try it as given first, then with
+    // Data_960_576/ prepended as a second guess.
+    if (filename && filename[0] != '/') {
         char path[512];
         snprintf(path, sizeof(path), "%s%s", DATA_PATH, filename);
         void *buf = read_loose_file(path, size);

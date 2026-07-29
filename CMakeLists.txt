@@ -52,7 +52,12 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 set(VITA_APP_NAME "Prince of Persia Classic")
 set(VITA_TITLEID "POPC00001")
 set(VITA_VPKNAME "popclassic")
-set(VITA_VERSION "01.19")
+# EXPERIMENTAL build (branch experimental/loose-appconfig-localization): only
+# adds a loose-file hook for appConfig.txt/Localization/*.loc (see
+# source/patch.c) on top of confirmed v01.19 -- NOT a real numbered release,
+# just bumped so it's visually distinguishable on the Vita's own LiveArea
+# from the real v01.19 (VITA_VERSION must be strict ##.## per vita.cmake).
+set(VITA_VERSION "01.20")
 set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
 
 # Optional: used for "send" and "dump" targets

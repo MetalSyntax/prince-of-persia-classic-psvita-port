@@ -66,17 +66,36 @@ ux0:data/popclassic/
 ├── libcocosdenshion.so
 ├── libcocos2d.so
 ├── libgame_logic.so
-├── original.apk <- copy of original/*.apk (assets/appConfig.txt lives there)
-├── main.1.org.ubisoft.premium.POPClassic.obb <- copy of original/*.obb (with that exact name)
-├── appConfig.txt
-├── assets/
-│ └── appConfig.txt
-├── save/ <- empty folder, the game writes its saves there
-└── Data/
-    ├── Animations/ Audio/ Effects/ Localization/
-    ├── Logo/ Maps/ Particles/ Texture/
-    └── ... (all contents of Data/, ~113 MB)
+├── original.apk                                  <- OPTIONAL since v01.20, see note below
+├── main.1.org.ubisoft.premium.POPClassic.obb     <- OPTIONAL since v01.20, see note below
+├── appConfig.txt                                  <- only needed if original.apk is absent (see note)
+├── save/                                          <- empty folder, the game writes its saves here
+├── Data/
+│   ├── Audio/       <- loose .mp3 files, read directly by source/audio.cpp (sceIo, not through CCFileUtils)
+│   ├── font/         <- loose .ttf files, read directly by get_font() in source/java.c
+│   └── Video/High/   <- loose .mp4 files, read directly by source/video.cpp
+└── Data_960_576/     <- Animations, Effects, Localization, Logo, Maps, Particles, Texture, appConfig.txt
+                          (~97 MB). SIBLING of Data/, does NOT go inside it -- this is the resolution
+                          prefix CCFileUtils::getFileData looks for at runtime, served loose by the
+                          source/patch.c hook (see note below) for ANY file, not just
+                          textures/maps/animations.
 ```
+
+> [!NOTE]
+> **As of v01.20, `original.apk` and the `.obb` are no longer required** as long as the full
+> `Data_960_576/` folder is present (including `Localization/` and `appConfig.txt`) -- confirmed on real
+> hardware. Before v01.20, `cocos2d::CCFileUtils::getFileData()` sent ANY relative file request straight
+> into a ZIP read (the `.apk` for `appConfig.txt`, the `.obb` for everything else, including
+> `Localization/*.loc`), with no loose-file check ever attempted at that point -- unlike
+> textures/maps/animations, which already went through this project's own `fopen_soloader()` and therefore
+> always worked loose. `source/patch.c` now hooks that function (`hook_getFileData`, see Fixes_Log #19) to
+> try a loose file first for ANY relative path, falling back to the `.apk`/`.obb` only if nothing loose
+> exists.
+>
+> You can still use `original.apk`/the `.obb` instead of the full loose folder if you prefer (still
+> supported as a fallback) -- but if you go the fully-loose route, you need the complete `Data_960_576/`
+> folder (including `Localization/` with every language) and a loose `appConfig.txt` either at the root of
+> `ux0:data/popclassic/` or inside `Data_960_576/`.
 
 > [!IMPORTANT]
 > `ux0_data/` is in `.gitignore` (they are the assets extracted from the original APK/OBB, copyrighted by

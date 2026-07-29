@@ -26,9 +26,9 @@
 extern so_module so_mod;
 extern so_module cocos2d_mod;
 
-// EXPERIMENTAL (branch experimental/loose-appconfig-localization):
-// disassociate ALL file loading from original.apk/the .obb, not just
-// appConfig.txt/Localization.
+// original.apk/the .obb are no longer required (see Fixes_Log #19): every
+// relative file request is served loose from the memory card when
+// present, falling back to the apk/obb ZIP only for whatever isn't.
 //
 // cocos2d::CCFileUtils::getFileData() (so_decompiled/libcocos2d/out_ghidra.c,
 // confirmed against the real bin/libcocos2d.so symbol table) sends every
@@ -64,11 +64,10 @@ extern so_module cocos2d_mod;
 // "through" the hooked address again would just re-enter this hook;
 // so_unhook()/hook_addr() restore/reapply around the real call instead of
 // reimplementing the ZIP path by hand). Not thread-safe against a
-// concurrent call to the same function on another thread -- acceptable
-// for this experimental test since asset loading is sequential in every
-// log captured so far, but worth a real hook_addr()-return-value swap
-// (atomic pointer, not unhook/call/rehook) before considering this
-// permanent.
+// concurrent call to the same function on another thread -- asset loading
+// is sequential in every log captured so far, but a real hook_addr()
+// return-value swap (atomic pointer, not unhook/call/rehook) would be
+// worth doing if that ever changes.
 #define GETFILEDATA_SYM "_ZN7cocos2d11CCFileUtils11getFileDataEPKcS2_Pm"
 
 static so_hook gGetFileDataHook;
@@ -132,7 +131,7 @@ static void *hook_getFileData(const char *filename, const char *mode, unsigned l
 void so_patch(void) {
     uintptr_t addr = so_symbol(&cocos2d_mod, GETFILEDATA_SYM);
     if (!addr) {
-        l_warn("so_patch: %s not found, appConfig.txt/Localization loose-file experiment disabled", GETFILEDATA_SYM);
+        l_warn("so_patch: %s not found, apk/obb-less loose-file loading disabled (original.apk/.obb still required)", GETFILEDATA_SYM);
         return;
     }
     real_getFileData = (void *(*)(const char *, const char *, unsigned long *)) addr;

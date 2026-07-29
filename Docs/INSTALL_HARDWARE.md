@@ -66,10 +66,9 @@ ux0:data/popclassic/
 ├── libcocosdenshion.so
 ├── libcocos2d.so
 ├── libgame_logic.so
-├── original.apk                                  <- APK mínimo que contiene únicamente assets/appConfig.txt
-├── main.1.org.ubisoft.premium.POPClassic.obb     <- OBB casi completo: contiene la estructura de carpetas
-│                                                     con el contenido de Data_960_576, los .loc de Data
-│                                                     y el otro Data que tiene el OBB interno.
+├── original.apk                                  <- OPCIONAL desde v01.20, ver nota abajo
+├── main.1.org.ubisoft.premium.POPClassic.obb     <- OPCIONAL desde v01.20, ver nota abajo
+├── appConfig.txt                                  <- necesario SOLO si no hay original.apk (ver nota)
 ├── save/                                          <- carpeta vacía, el juego escribe sus saves ahí
 ├── Data/
 │   ├── Audio/       <- .mp3 sueltos, leídos directo por source/audio.cpp (sceIo, sin pasar por CCFileUtils)
@@ -77,17 +76,25 @@ ux0:data/popclassic/
 │   └── Video/High/   <- .mp4 sueltos, leídos directo por source/video.cpp
 └── Data_960_576/     <- Animations, Effects, Localization, Logo, Maps, Particles, Texture, appConfig.txt
                           (~97 MB). HERMANA de Data/, NO va adentro -- este es el prefijo de resolución que
-                          CCFileUtils::getFileData busca en runtime, con loose-file-first de fábrica (sin
-                          hook nuestro) para texturas/mapas/animaciones.
+                          CCFileUtils::getFileData busca en runtime, servido desde archivo suelto por el
+                          hook de source/patch.c (ver nota abajo) para CUALQUIER archivo, no solo
+                          texturas/mapas/animaciones.
 ```
 
-> [!IMPORTANT]
-> **`main.1.org.ubisoft.premium.POPClassic.obb` NO se puede eliminar por completo**, ni usar un `.obb` totalmente vacío. Se debe utilizar un archivo `.obb` casi completo que contenga la estructura base de directorios, incluyendo `Data_960_576` y `Data/Localization`.
-> El motor arma la ruta al `.obb` directamente (`apkFilePath` + el nombre del `.obb`) y lo abre **sin pasar por el chequeo de "archivo suelto primero"** para ciertos archivos cruciales como `Localization/*.loc`.
+> [!NOTE]
+> **Desde v01.20, `original.apk` y el `.obb` ya NO son obligatorios** si está toda la carpeta `Data_960_576/`
+> presente (incluyendo `Localization/` y `appConfig.txt`) — confirmado en hardware real. Antes de v01.20,
+> `cocos2d::CCFileUtils::getFileData()` mandaba **cualquier** archivo pedido por ruta relativa directo a un
+> ZIP (el `.apk` para `appConfig.txt`, el `.obb` para todo lo demás, incluido `Localization/*.loc`), sin
+> intentar nunca un archivo suelto en ese punto — a diferencia de texturas/mapas/animaciones, que ya pasan
+> por `fopen_soloader()` (nuestro propio código) y por eso siempre funcionaron sueltos. `source/patch.c`
+> ahora interviene esa función (`hook_getFileData`, ver Fixes_Log §19) para probar un archivo suelto
+> primero en CUALQUIER ruta relativa, y solo cae al `.apk`/`.obb` si no encuentra nada suelto.
 >
-> **Convención local de nombres:** La consola SIEMPRE necesita el archivo con el nombre exacto
-> `main.1.org.ubisoft.premium.POPClassic.obb` -- el motor lo busca por ese nombre literal
-> (`nativeSetPaths`/la ruta hardcodeada de Localization).
+> Seguís pudiendo usar `original.apk`/el `.obb` en vez de la carpeta completa suelta si preferís ese camino
+> (sigue soportado como fallback) — pero si vas por la vía 100% suelta, necesitás la carpeta `Data_960_576/`
+> completa (incluyendo `Localization/` con todos los idiomas) y un `appConfig.txt` suelto en la raíz de
+> `ux0:data/popclassic/` o dentro de `Data_960_576/`.
 
 > [!IMPORTANT]
 > `ux0_data/` está en `.gitignore` (son los assets extraídos del APK/OBB originales, con copyright de

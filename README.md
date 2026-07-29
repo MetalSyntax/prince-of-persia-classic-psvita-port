@@ -24,7 +24,7 @@ This is my first PS Vita port and my first homebrew project of this scale — se
 **Prince of Persia Classic** is the intellectual property of Ubisoft Entertainment.
 This repository does **NOT** contain any original code, executables, protected binaries, or game assets. It strictly provides the open-source "wrapper" code. The included LiveArea assets are AI-generated or open-source images, free from copyright restrictions. On-screen text is currently rendered with a bundled open-source font ([DejaVu Serif](https://dejavu-fonts.github.io/), Bitstream Vera license) instead of the game's original typeface — see [Known Issues](#known-issues--current-limitations).
 
-To play the game, you MUST possess a legitimate, legally obtained copy of the Android game. Users must manually extract and provide their own files (`.apk`, `.obb`, and `.so` libraries). None of that copyrighted content is tracked in this repository — see `.gitignore` (`*.so`, `*.apk`, `*.obb`, `*.suprx`, `ux0_data/`, `original/`, `bin/`).
+To play the game, you MUST possess a legitimate, legally obtained copy of the Android game. Users must manually extract and provide their own files (the `.so` libraries, plus the game's data — either as `.apk`/`.obb`, or as the equivalent files extracted loose, see step 5 below). None of that copyrighted content is tracked in this repository — see `.gitignore` (`*.so`, `*.apk`, `*.obb`, `*.suprx`, `ux0_data/`, `original/`, `bin/`).
 
 ---
 
@@ -70,14 +70,15 @@ To install the port on a real PS Vita:
    ```
 3. Install `libshacccg.suprx` (Sony's shader compiler). You can obtain a legitimate copy from your own console using the ShaRKBR33D homebrew — it can never be redistributed, so it is **not** included in this repository (`.gitignore`: `*.suprx`).
 4. Install the generated `.vpk` (see the table above for Debug vs. Play).
-5. Obtain your own legal copy of the Android game (`.apk` + `.obb`). Extract the `.obb` and the `.apk`'s `assets/` folder, and lay them out on the console under `ux0:data/popclassic/` with **exactly** this structure:
+5. Obtain your own legal copy of the Android game. Extract its data and lay it out on the console under `ux0:data/popclassic/` with **exactly** this structure:
    ```
    ux0:data/popclassic/
    ├── libcocos2d.so
    ├── libcocosdenshion.so
    ├── libgame_logic.so
-   ├── original.apk                               <- Minimal APK containing only assets/appConfig.txt
-   ├── main.1.org.ubisoft.premium.POPClassic.obb  <- Near-complete OBB containing Data_960_576, Data/Localization, and internal OBB data structure
+   ├── original.apk                               <- OPTIONAL as of v01.20, see note below
+   ├── main.1.org.ubisoft.premium.POPClassic.obb  <- OPTIONAL as of v01.20, see note below
+   ├── appConfig.txt                              <- only needed if original.apk is absent
    ├── save/                                      <- empty folder, the game writes its saves here
    ├── Data/
    │   ├── Audio/                                 <- all tracks/effects as .mp3 (loose files)
@@ -85,6 +86,7 @@ To install the port on a real PS Vita:
    │   └── Video/High/                            <- cutscenes as .mp4 (loose files)
    └── Data_960_576/                              <- Animations, Effects, Localization, Logo, Maps, Particles, Texture, appConfig.txt
    ```
+   > **As of v01.20, `original.apk`/the `.obb` are no longer mandatory** — confirmed on real hardware — as long as the full `Data_960_576/` folder (including `Localization/` and `appConfig.txt`) is present loose. The engine's own file-loading function used to route *every* file request straight into the `.apk`/`.obb` ZIP with no loose-file check, unlike textures/maps/animations which already worked loose; this port now hooks that function to try a loose file first for anything, falling back to the `.apk`/`.obb` only if nothing loose is found. You can still use `original.apk`/the `.obb` instead if you prefer — both paths are supported. See [`Docs/Fixes_Log.md`](Docs/Fixes_Log.md) #19 for the technical detail.
 6. Extract the three native libraries from the `lib/armeabi/` (or `lib/armeabi-v7a/`) folder of your `.apk` and place them directly under `ux0:data/popclassic/` as shown above:
    * `libcocos2d.so`
    * `libcocosdenshion.so`
@@ -92,7 +94,7 @@ To install the port on a real PS Vita:
 
 For a full step-by-step FTP transfer walkthrough (using VitaShell), see [`Docs/en/INSTALL_HARDWARE.md`](Docs/en/INSTALL_HARDWARE.md).
 
-*(Note: check community forums for patching scripts and tools to prepare your legal APK/OBB files.)*
+*(Note: check community forums for patching scripts and tools to prepare your legal APK/OBB files, or extract the equivalent loose folder structure directly.)*
 
 ## Controls
 

@@ -86,15 +86,13 @@ int main() {
         // Data/* loose assets under DATA_PATH are unaffected either way, since
         // those are read via plain fopen(), not through either of these.
 
-        // EXPERIMENTAL (branch experimental/loose-appconfig-localization):
-        // this boot-time gate exists only because, without original.apk,
-        // the engine's own getFileData() would read assets/appConfig.txt
-        // from a NULL zip handle and crash with a confusing Data abort
-        // instead of this clear message (see the original v01.x history).
-        // source/patch.c's hook_getFileData() now serves "appConfig.txt"
-        // from a loose file (Data_960_576/appConfig.txt or bare
-        // DATA_PATH/appConfig.txt) BEFORE the engine's real zip-based
-        // getFileData ever runs -- so original.apk missing is only a real
+        // original.apk is no longer required (see Fixes_Log #19): without it,
+        // the engine's own getFileData() would read assets/appConfig.txt from
+        // a NULL zip handle and crash with a confusing Data abort instead of
+        // a clear message -- but source/patch.c's hook_getFileData() now
+        // serves "appConfig.txt" from a loose file (Data_960_576/appConfig.txt
+        // or bare DATA_PATH/appConfig.txt) BEFORE the engine's real zip-based
+        // getFileData ever runs, so original.apk missing is only a real
         // problem if NEITHER loose candidate exists either. Check both
         // candidates the same way the hook does, and only fatal_error if
         // there's truly no way to serve appConfig.txt from anywhere.
@@ -105,10 +103,10 @@ int main() {
                         "Either copy the original game's .apk to " DATA_PATH "original.apk "
                         "(see INSTALL_HARDWARE.md step 2.2), or place a loose copy of "
                         "appConfig.txt at " DATA_PATH "Data_960_576/appConfig.txt or "
-                        DATA_PATH "appConfig.txt (this experimental build's hook_getFileData "
-                        "loose-file hook, source/patch.c, will pick it up from either).");
+                        DATA_PATH "appConfig.txt (hook_getFileData in source/patch.c "
+                        "will pick it up from either).");
         } else if (!file_exists(DATA_PATH "original.apk")) {
-            l_info("EXPERIMENTAL: original.apk missing, but a loose appConfig.txt was found -- "
+            l_info("original.apk missing, but a loose appConfig.txt was found -- "
                    "continuing without original.apk (relying on hook_getFileData, source/patch.c).");
         }
         jstring apkFilePathStr = (*jniEnv)->NewStringUTF(jniEnv, DATA_PATH);

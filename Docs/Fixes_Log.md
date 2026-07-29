@@ -168,6 +168,44 @@ Con el fix de memoria de v01.17, el video de las cinemáticas por fin llegó a d
 - **Confirmado por el usuario en consola real** con el build final (NEON + hilo de audio con mutex+poll + fix de `-O3`): mejora sensible de FPS de video y audio de cutscenes correcto.
 - **Build:** `popclassic.vpk` v01.19, mismo TITLEID.
 
+#### 19. `original.apk` y el `.obb` ya no son obligatorios (build `popclassic.vpk` v01.20)
+
+- **Motivación:** el usuario probaba con un `original.apk` mínimo (824 B, solo `assets/appConfig.txt`) y le
+  parecía absurdo tener que mantenerlo — pidió investigar si se podía eliminar del todo, usando solo la
+  carpeta `Data_960_576/` suelta que ya tenía armada.
+- **Causa raíz (confirmada leyendo `so_decompiled/libcocos2d/out_ghidra.c`, ya decompilado de una sesión
+  anterior, sin necesitar volver a correr nada):** `cocos2d::CCFileUtils::getFileData()` manda **cualquier**
+  ruta relativa pedida directo a una lectura de ZIP, sin intentar nunca un archivo suelto en ese punto: un
+  nombre igual a `"appConfig.txt"` siempre lee `"assets/appConfig.txt"` desde `original.apk`; cualquier otro
+  nombre (incluido `Localization/*.loc`, `Logo/logo.png`, etc.) siempre lee del `.obb`. Las
+  texturas/mapas/animaciones ya pasan por un camino totalmente distinto (`fopen_soloader()`/
+  `resolve_data_path()` de `source/reimpl/io.c`, código propio del proyecto), por eso esos siempre
+  funcionaron sueltos — pero esta función es un segundo cuello de botella más angosto por el que pasan otros
+  assets.
+- **Fix:** `source/patch.c` ahora interviene `getFileData()` con el mecanismo `hook_addr()` (ya existía en
+  el proyecto, en `lib/so_util/so_util.c`, pero nunca se había usado — `so_patch()` estaba comentado en
+  `source/utils/init.c`). Prueba un archivo suelto primero para **cualquier** ruta relativa (probando la
+  ruta tal cual viene y con `Data_960_576/` antepuesto, ya que el motor a veces incluye esa carpeta en el
+  string y a veces no), y solo si no encuentra nada cae al comportamiento original (zip del apk/obb) —
+  restaurando la función real con un `so_unhook()`/llamada/`hook_addr()` de nuevo, ya que parchear la
+  función pisa sus propias instrucciones y "llamarla" de nuevo por su dirección reentraría al hook.
+  `source/main.c` también deja de exigir `original.apk` en el arranque si ya hay un `appConfig.txt` suelto
+  disponible (antes crasheaba con un mensaje confuso más adelante si faltaba el apk).
+- **Encontrado y corregido en 3 rondas reales de hardware, cada una con su propio crash real (no
+  adivinado):** (1) el primer intento solo cubría `appConfig.txt`/`Localization/` con un chequeo de prefijo,
+  que nunca matcheaba porque el motor pide `"Data_960_576/Localization/Spanish/Localizable.loc"` (la carpeta
+  de resolución YA viene incluida en el string) — el crash resultante (`strlen()` sobre un buffer NULL,
+  `R0=0xFFFFFFF8`) es la misma familia de crash que el del `.obb` histórico de este proyecto: el motor no
+  tiene ningún manejo de fallo para una lectura de Localization fallida, siempre asume que funcionó. (2)
+  corregido a un chequeo por substring; el boot avanzó más y se topó con un tercer archivo totalmente
+  distinto, `Data_960_576/Logo/logo.png` (confirmado con `addr2line` contra `libgame_logic.so`:
+  `LogoScene::init()`), mismo tipo de crash. (3) en vez de seguir parchando un nombre de archivo por cada
+  sorpresa, se generalizó el hook para probar cualquier ruta relativa.
+- **Confirmado en consola real:** el port arranca y funciona sin `original.apk` ni el `.obb`, usando solo la
+  carpeta `Data/`+`Data_960_576/` suelta. `original.apk`/el `.obb` siguen soportados como alternativa (el
+  hook cae a ellos si no encuentra un archivo suelto), no se eliminó esa vía, solo dejó de ser obligatoria.
+- **Build:** `popclassic.vpk` v01.20, mismo TITLEID.
+
 ---
 
 ### 🇬🇧 English
@@ -325,3 +363,40 @@ With v01.17's memory fix, cutscene video finally decoded and drew real frames fo
 - **Root cause found for why NEON barely helped the first time: every local dev build was silently compiling at `-O0`, not `-O3`.** `CMakeLists.txt` hardcodes `-O3` in `CMAKE_C_FLAGS`, but CMake appends its own per-build-type flags AFTER that on the real compile line, and the compiler honors the LAST `-O` flag it sees. Building with `-DCMAKE_BUILD_TYPE=Debug` (needed so verbose logging compiles into a dev build) injected `CMAKE_CXX_FLAGS_DEBUG="-O0 -g -DDEBUG -D_DEBUG"` at the end, and `-O0` always won, silently (zero warnings). Confirmed by disassembling the freshly-written NEON function: a 1852-byte stack frame with every intermediate value, including NEON vector registers, spilled to the stack and reloaded around each instruction -- textbook `-O0`. **Fix:** `CMakeLists.txt` now overrides `CMAKE_C_FLAGS_DEBUG`/`CMAKE_CXX_FLAGS_DEBUG` to just `"-g -DDEBUG -D_DEBUG"` (no `-O0`), so the project's own `-O3` wins regardless of build type. This bug likely affected the entire video/audio optimization arc since v01.12, since all of it was tested through the same local build recipe; the user's normal build (`build_and_install.sh`, `Release` type) was not affected.
 - **Confirmed by the user on real hardware** with the final build (NEON + mutex+poll audio thread + the `-O3` fix): noticeably better video FPS and correct cutscene audio.
 - **Build:** `popclassic.vpk` v01.19, same TITLEID.
+
+#### 19. `original.apk` and the `.obb` Are No Longer Required (build `popclassic.vpk` v01.20)
+
+- **Motivation:** the user was carrying a minimal `original.apk` (824 B, just `assets/appConfig.txt`) and it
+  felt absurd to have to keep it -- asked whether it could be dropped entirely, using only the loose
+  `Data_960_576/` folder already laid out on the card.
+- **Root cause (confirmed by reading the already-decompiled `so_decompiled/libcocos2d/out_ghidra.c` from an
+  earlier session, no fresh decompile needed):** `cocos2d::CCFileUtils::getFileData()` sends ANY relative
+  path request straight into a ZIP read, with no loose-file check ever attempted at that level: a name equal
+  to `"appConfig.txt"` always reads `"assets/appConfig.txt"` from `original.apk`; anything else (including
+  `Localization/*.loc`, `Logo/logo.png`, etc.) always reads from the `.obb`. Textures/maps/animations
+  already go through a completely different path (`fopen_soloader()`/`resolve_data_path()` in
+  `source/reimpl/io.c`, this project's own code), which is why those always worked loose -- but this
+  function is a second, narrower choke point other assets go through too.
+- **Fix:** `source/patch.c` now hooks `getFileData()` via `hook_addr()` (already present in the project, in
+  `lib/so_util/so_util.c`, but never actually used -- `so_patch()` was commented out in
+  `source/utils/init.c`). It tries a loose file first for ANY relative path (both as given and with
+  `Data_960_576/` prepended, since the engine sometimes bakes that folder into the request string and
+  sometimes doesn't), falling through to the original behavior (apk/obb ZIP) only when nothing loose exists
+  -- restoring the real function via `so_unhook()`/call/`hook_addr()` again, since patching the function
+  overwrites its own instructions and "calling" it again by address would just re-enter the hook.
+  `source/main.c` also no longer requires `original.apk` at boot if a loose `appConfig.txt` is already
+  available (it used to crash later with a confusing message if the apk was missing).
+- **Found and fixed across 3 real hardware rounds, each with a real crash (not guessed):** (1) the first
+  attempt only covered `appConfig.txt`/`Localization/` with a prefix check, which never matched because the
+  engine requests `"Data_960_576/Localization/Spanish/Localizable.loc"` (the resolution folder is ALREADY
+  part of the string) -- the resulting crash (`strlen()` on a NULL buffer, `R0=0xFFFFFFF8`) is the same
+  crash family as this project's historical `.obb` crash: the engine has no failure handling at all for a
+  failed Localization read, it always assumes it succeeded. (2) fixed to a substring check; boot got
+  further and hit a third, unrelated file, `Data_960_576/Logo/logo.png` (confirmed via `addr2line` against
+  `libgame_logic.so`: `LogoScene::init()`), same crash class. (3) rather than keep special-casing one
+  filename per surprise, the hook was generalized to try any relative path.
+- **Confirmed on real hardware:** the port boots and runs with no `original.apk` and no `.obb`, using only
+  the loose `Data/`+`Data_960_576/` folder. `original.apk`/the `.obb` are still supported as an alternative
+  (the hook falls back to them if no loose file is found) -- that path wasn't removed, it just stopped being
+  mandatory.
+- **Build:** `popclassic.vpk` v01.20, same TITLEID.

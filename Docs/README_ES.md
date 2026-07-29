@@ -16,7 +16,7 @@ Este repositorio contiene un **cargador (wrapper)** para la versión de Android 
 **Prince of Persia Classic** es propiedad intelectual de Ubisoft Entertainment.  
 Este repositorio **NO** contiene código original, ejecutables, binarios protegidos ni recursos del juego. Solo se distribuye el código fuente abierto del "wrapper" (cargador). Los recursos visuales de LiveArea incluidos son imágenes generadas por IA u open-source, libres de restricciones de copyright.
 
-Para jugar, es indispensable contar con una copia legítima del juego para Android. El usuario debe extraer y proporcionar sus propios archivos (`.apk`, `.obb` y librerías `.so`).
+Para jugar, es indispensable contar con una copia legítima del juego para Android. El usuario debe extraer y proporcionar sus propias librerías `.so` y los datos del juego (ya sea como `.apk`/`.obb`, o como los archivos equivalentes extraídos sueltos — ver el paso 5 más abajo).
 
 ---
 
@@ -33,13 +33,13 @@ Para realizar la instalación en una PS Vita real:
    ```
 3. Instala `libshacccg.suprx` (puedes usar la app ShaRKBR33D).
 4. Instala el archivo `popclassic_audio.vpk` (build con audio; la antigua `popclassic.vpk` es la build estable sin sonido) en tu consola.
-5. Obtén tu juego legal de Android. Debes usar un **APK modificado mínimo** y un **OBB modificado** (optimizado/extraído) compatible con este port. Copia los archivos del `.obb` extraído y de la carpeta de assets del `.apk` dentro de la carpeta correspondiente en `ux0:app/POPCLASC1/` o `ux0:data/popclassic/`.
+5. Obtén tu juego legal de Android y copiá sus datos a `ux0:data/popclassic/`. **Desde v01.20, `original.apk` y el `.obb` ya no son obligatorios** (confirmado en consola real) siempre que esté la carpeta `Data_960_576/` completa suelta (con `Localization/` y `appConfig.txt` incluidos) — el motor antes mandaba cualquier archivo pedido directo al `.apk`/`.obb` sin intentar nunca un archivo suelto en ese punto puntual; ahora se intenta primero un archivo suelto para cualquier ruta, y solo se cae al `.apk`/`.obb` si no se encuentra nada suelto (ver `Docs/Fixes_Log.md` §19). Si preferís, seguís pudiendo usar un **APK modificado mínimo** + un **OBB modificado** (optimizado/extraído) en vez de la carpeta suelta completa — ambos caminos funcionan.
 6. Extrae las librerías de la carpeta `lib/armeabi/` o `lib/armeabi-v7a/` de tu `.apk` y colócalas junto con los datos del juego:
    * `libcocos2d.so`
    * `libcocosdenshion.so`
    * `libgame_logic.so`
 
-*(Nota: Revisa los foros de la comunidad para encontrar herramientas y scripts de parcheo para preparar tu APK y OBB legalmente).*
+*(Nota: Revisa los foros de la comunidad para encontrar herramientas y scripts de parcheo para preparar tu APK y OBB legalmente, o para extraer directamente la estructura de carpetas equivalente suelta).*
 
 ## Controles
 

@@ -49,14 +49,18 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 #          "-O3" when built with -DCMAKE_BUILD_TYPE=Debug, and the compiler honors the LAST -O flag)
 #          -- CMAKE_C_FLAGS_DEBUG/CMAKE_CXX_FLAGS_DEBUG below now drop the competing -O level so
 #          -O3 always wins. Confirmed on real hardware (see Fixes_Log #18).
+# v01.20 = original.apk and the .obb are no longer required. cocos2d::CCFileUtils::getFileData()
+#          hardcoded EVERY relative file request straight into a ZIP read (apk for appConfig.txt,
+#          obb for everything else) with no loose-file check ever attempted at that level -- unlike
+#          textures/maps/animations, which already went through this project's own fopen_soloader()
+#          and worked loose. source/patch.c now hooks getFileData() itself (via the previously-unused
+#          hook_addr() mechanism) to try a loose file for any relative path first, falling back to
+#          the real apk/obb-zip logic only if nothing loose exists. Confirmed on real hardware across
+#          three rounds of testing (see Fixes_Log #19) -- the .apk/.obb are still supported as a
+#          fallback, just no longer mandatory when the full Data/ tree is present loose.
 set(VITA_APP_NAME "Prince of Persia Classic")
 set(VITA_TITLEID "POPC00001")
 set(VITA_VPKNAME "popclassic")
-# EXPERIMENTAL build (branch experimental/loose-appconfig-localization): only
-# adds a loose-file hook for appConfig.txt/Localization/*.loc (see
-# source/patch.c) on top of confirmed v01.19 -- NOT a real numbered release,
-# just bumped so it's visually distinguishable on the Vita's own LiveArea
-# from the real v01.19 (VITA_VERSION must be strict ##.## per vita.cmake).
 set(VITA_VERSION "01.20")
 set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
 

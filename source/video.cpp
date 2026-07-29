@@ -32,18 +32,37 @@
 #include <psp2/audioout.h>
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/kernel/sysmem.h>
+#include <psp2/kernel/processmgr.h>
 #include <psp2/gxm.h>
 
 #include <vitaGL.h>
 
+#include <arm_neon.h>
 #include <malloc.h>
+#include <pthread.h>
 #include <string.h>
 #include <string>
 
 static bool gModuleLoaded = false;
 static GLuint gVideoTex = 0;
-static unsigned char *gRgbBuf = NULL;
+static unsigned gVideoTexW = 0;
+static unsigned gVideoTexH = 0;
+static unsigned short *gRgbBuf = NULL;
 static unsigned gRgbBufCap = 0;
+static unsigned char *gYuvScratch = NULL;
+static unsigned gYuvScratchCap = 0;
+
+// A GPU-shader NV12->RGB path (upload the raw Y/UV planes, do the color
+// math in a fragment shader instead of on the CPU) was tried here and
+// reverted: it crashed on real hardware on the very first cutscene, with
+// the log cutting off mid-compile (between "video: playing" and "video:
+// loop starting", right where the new shader-compile call sat -- no
+// engine code runs there normally). Root cause not confirmed further, but
+// this project's own porting_tools/translate_shaders.py already carries a
+// warning that vitaGL's on-device GLSL pipeline "isn't reliable enough for
+// this game's shaders" -- taking that at face value rather than retrying
+// blindly. Don't reintroduce a video-specific GLSL program without testing
+// on hardware first.
 
 // --- SceAvPlayer file I/O (restored, with full visibility) ---
 //
@@ -193,10 +212,28 @@ static void *av_alloc_texture(void *arg, uint32_t alignment, uint32_t size) {
     opt.attr = 0x00000004U; // SCE_KERNEL_ALLOC_MEMBLOCK_ATTR_HAS_ALIGNMENT
     opt.alignment = alignment;
     SceUID blk = sceKernelAllocMemBlock("av_tex", SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW, size, &opt);
+    SceUID usedType = SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW;
     if (blk < 0) {
-        l_error("video: texture memblock alloc FAILED 0x%08X (req align=%u size=%u -> size=%u) -- CDRAM budget likely claimed by vitaGL",
-                (unsigned) blk, req_align, req_size, size);
-        return NULL;
+        // log_000046/47 (real hardware, freshly booted, first cutscene of
+        // the session): this CDRAM alloc fails with a genuine
+        // SCE_KERNEL_ERROR_NO_MEMORY (0x80020005) every single time, not
+        // just after heavy menu navigation -- gl_init()'s 32MB CDRAM
+        // threshold (utils/glutil.c) isn't leaving enough room in practice
+        // on this hardware/build. Rather than give up (no cutscene ever
+        // plays), retry once from the PHYCONT partition -- a separate
+        // physical pool from CDRAM, not competing with the same budget --
+        // before failing for real.
+        uint32_t freeCdram = (unsigned) vglMemFree(VGL_MEM_VRAM);
+        SceUID blk2 = sceKernelAllocMemBlock("av_tex_phycont", SCE_KERNEL_MEMBLOCK_TYPE_USER_MAIN_PHYCONT_RW, size, &opt);
+        if (blk2 < 0) {
+            l_error("video: texture memblock alloc FAILED on both CDRAM (0x%08X) and PHYCONT (0x%08X) (req align=%u size=%u -> size=%u) -- free CDRAM (vitaGL pool)=%u bytes, free PHYCONT (vitaGL pool)=%u bytes",
+                    (unsigned) blk, (unsigned) blk2, req_align, req_size, size, freeCdram, (unsigned) vglMemFree(VGL_MEM_SLOW));
+            return NULL;
+        }
+        l_warn("video: CDRAM alloc failed (0x%08X, free CDRAM=%u bytes) -- fell back to PHYCONT for this frame buffer",
+               (unsigned) blk, freeCdram);
+        blk = blk2;
+        usedType = SCE_KERNEL_MEMBLOCK_TYPE_USER_MAIN_PHYCONT_RW;
     }
     void *base = NULL;
     sceKernelGetMemBlockBase(blk, &base);
@@ -210,7 +247,8 @@ static void *av_alloc_texture(void *arg, uint32_t alignment, uint32_t size) {
         gAvTexBlocks[slot].base = base;
         gAvTexBlocks[slot].uid = blk;
     }
-    l_info("video: texture memblock ok (req align=%u size=%u -> size=%u) base=%p uid=0x%08X gxm_map=0x%08X",
+    l_info("video: texture memblock ok (%s) (req align=%u size=%u -> size=%u) base=%p uid=0x%08X gxm_map=0x%08X",
+           usedType == SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW ? "CDRAM" : "PHYCONT",
            req_align, req_size, size, base, (unsigned) blk, (unsigned) map);
     return base;
 }
@@ -260,48 +298,158 @@ static void init_yuv_tables() {
 
 #define CLIP(X) (clip_table[(X) + 256])
 
-static void yuv420p_to_rgba(const unsigned char *src, unsigned w, unsigned h, unsigned char *dst) {
+// Packs straight to RGB565 (2 bytes/pixel) instead of RGBA8888 (4
+// bytes/pixel): half the memory writes here, and half the bytes
+// glTexSubImage2D has to push to the GPU every frame afterwards. This is
+// the safe, fixed-function-only alternative to the GPU-shader NV12 path
+// (see the note above gVideoTex) -- no new GL entry points, just a smaller
+// pixel format on the exact same upload/draw path already proven working
+// on hardware since v01.18.
+//
+// log_000051: even after the RGB565 halving, this conversion was still the
+// single biggest cost in the frame (yuv_convert dominated the profile).
+// The Vita's CPU (Cortex-A9) is a NEON target -- confirmed already in use
+// by this project via the linked `mathneon` library (CMakeLists.txt) -- so
+// the inner loop below is hand-vectorized: 8 chroma pairs (16 luma columns,
+// 2 rows = 32 pixels) processed per iteration instead of one 2x2 block at a
+// time. There's no gather instruction on this CPU, so the fixed-point
+// coefficients (same shift-by-16 constants as CV_R/CU_G/CV_G/CU_B above)
+// are computed directly in NEON registers rather than looked up from the
+// scalar LUT; the per-term shift-then-add order is kept identical to the
+// scalar version so the two paths agree bit-for-bit, not just "close
+// enough". Widths not a multiple of 16 fall back to the original scalar
+// loop for the last few columns.
+static inline void store_rgb565_8(unsigned short *dst, uint8x8_t r, uint8x8_t g, uint8x8_t b) {
+    uint16x8_t rw = vmovl_u8(r);
+    uint16x8_t gw = vmovl_u8(g);
+    uint16x8_t bw = vmovl_u8(b);
+    uint16x8_t rr = vshlq_n_u16(vandq_u16(rw, vdupq_n_u16(0xF8)), 8);
+    uint16x8_t gg = vshlq_n_u16(vandq_u16(gw, vdupq_n_u16(0xFC)), 3);
+    uint16x8_t bb = vshrq_n_u16(bw, 3);
+    vst1q_u16((uint16_t *) dst, vorrq_u16(vorrq_u16(rr, gg), bb));
+}
+
+static void yuv420p_to_rgb565(const unsigned char *src, unsigned w, unsigned h, unsigned short *dst) {
     init_yuv_tables();
     const unsigned char *yp = src;
     const unsigned char *uvp = src + (size_t) w * h;
-    for (unsigned y = 0; y < h; y++) {
-        const unsigned char *yrow = yp + (size_t) y * w;
+    // Each chroma sample is shared by a 2x2 luma block (4:2:0 subsampling),
+    // but an earlier version processed one row at a time -- it looked up
+    // and multiplied the SAME U/V pair twice (once for row y, once for row
+    // y+1, since (y/2) == ((y+1)/2) for even y) before ever using it. This
+    // processes both rows of the block together so each chroma lookup is
+    // done once and applied to all 4 pixels it actually covers.
+    for (unsigned y = 0; y < h; y += 2) {
+        const unsigned char *yrow0 = yp + (size_t) y * w;
+        const unsigned char *yrow1 = yrow0 + w;
         const unsigned char *uvrow = uvp + (size_t) (y / 2) * w;
-        unsigned char *drow = dst + (size_t) y * w * 4;
-        for (unsigned x = 0; x < w; x += 2) {
+        unsigned short *drow0 = dst + (size_t) y * w;
+        unsigned short *drow1 = drow0 + w;
+
+        unsigned x = 0;
+        for (; x + 16 <= w; x += 16) {
+            uint8x8x2_t uv = vld2_u8(uvrow + x); // 8 pairs -> uv.val[0]=U[8], uv.val[1]=V[8]
+            int16x8_t Uc = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(uv.val[0])), vdupq_n_s16(128));
+            int16x8_t Vc = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(uv.val[1])), vdupq_n_s16(128));
+
+            int32x4_t Uc_lo = vmovl_s16(vget_low_s16(Uc));
+            int32x4_t Uc_hi = vmovl_s16(vget_high_s16(Uc));
+            int32x4_t Vc_lo = vmovl_s16(vget_low_s16(Vc));
+            int32x4_t Vc_hi = vmovl_s16(vget_high_s16(Vc));
+
+            int16x4_t r_add_lo = vmovn_s32(vshrq_n_s32(vmulq_n_s32(Vc_lo, 91881), 16));
+            int16x4_t r_add_hi = vmovn_s32(vshrq_n_s32(vmulq_n_s32(Vc_hi, 91881), 16));
+
+            int32x4_t cu_g_lo = vshrq_n_s32(vmulq_n_s32(Uc_lo, 22554), 16);
+            int32x4_t cu_g_hi = vshrq_n_s32(vmulq_n_s32(Uc_hi, 22554), 16);
+            int32x4_t cv_g_lo = vshrq_n_s32(vmulq_n_s32(Vc_lo, 46802), 16);
+            int32x4_t cv_g_hi = vshrq_n_s32(vmulq_n_s32(Vc_hi, 46802), 16);
+            int16x4_t g_add_lo = vneg_s16(vmovn_s32(vaddq_s32(cu_g_lo, cv_g_lo)));
+            int16x4_t g_add_hi = vneg_s16(vmovn_s32(vaddq_s32(cu_g_hi, cv_g_hi)));
+
+            int16x4_t b_add_lo = vmovn_s32(vshrq_n_s32(vmulq_n_s32(Uc_lo, 116130), 16));
+            int16x4_t b_add_hi = vmovn_s32(vshrq_n_s32(vmulq_n_s32(Uc_hi, 116130), 16));
+
+            // One add-term per chroma pair so far (8 lanes); duplicate each
+            // across the 2 luma columns it covers (vzipq of a vector with
+            // itself: lane i appears at 2i and 2i+1 across val[0]/val[1]),
+            // matching the scalar loop's r_add/g_add/b_add reuse for x/x+1.
+            int16x8_t r_add8 = vcombine_s16(r_add_lo, r_add_hi);
+            int16x8_t g_add8 = vcombine_s16(g_add_lo, g_add_hi);
+            int16x8_t b_add8 = vcombine_s16(b_add_lo, b_add_hi);
+            int16x8x2_t r_dup = vzipq_s16(r_add8, r_add8);
+            int16x8x2_t g_dup = vzipq_s16(g_add8, g_add8);
+            int16x8x2_t b_dup = vzipq_s16(b_add8, b_add8);
+
+            for (int half = 0; half < 2; half++) {
+                const unsigned char *yr0 = yrow0 + x + half * 8;
+                const unsigned char *yr1 = yrow1 + x + half * 8;
+                int16x8_t r_add = half == 0 ? r_dup.val[0] : r_dup.val[1];
+                int16x8_t g_add = half == 0 ? g_dup.val[0] : g_dup.val[1];
+                int16x8_t b_add = half == 0 ? b_dup.val[0] : b_dup.val[1];
+
+                int16x8_t Y0 = vreinterpretq_s16_u16(vmovl_u8(vld1_u8(yr0)));
+                int16x8_t Y1 = vreinterpretq_s16_u16(vmovl_u8(vld1_u8(yr1)));
+
+                uint8x8_t r0 = vqmovun_s16(vaddq_s16(Y0, r_add));
+                uint8x8_t g0 = vqmovun_s16(vaddq_s16(Y0, g_add));
+                uint8x8_t b0 = vqmovun_s16(vaddq_s16(Y0, b_add));
+                uint8x8_t r1 = vqmovun_s16(vaddq_s16(Y1, r_add));
+                uint8x8_t g1 = vqmovun_s16(vaddq_s16(Y1, g_add));
+                uint8x8_t b1 = vqmovun_s16(vaddq_s16(Y1, b_add));
+
+                store_rgb565_8(drow0 + x + half * 8, r0, g0, b0);
+                store_rgb565_8(drow1 + x + half * 8, r1, g1, b1);
+            }
+        }
+
+        for (; x < w; x += 2) {
             unsigned char U = uvrow[x + 0];
             unsigned char V = uvrow[x + 1];
-            
+
             int r_add = CV_R[V];
             int g_add = -(CU_G[U] + CV_G[V]);
             int b_add = CU_B[U];
 
-            int Y0 = yrow[x];
-            drow[x*4+0] = CLIP(Y0 + r_add);
-            drow[x*4+1] = CLIP(Y0 + g_add);
-            drow[x*4+2] = CLIP(Y0 + b_add);
-            drow[x*4+3] = 255;
+            int Y00 = yrow0[x];
+            unsigned char r00 = CLIP(Y00 + r_add), g00 = CLIP(Y00 + g_add), b00 = CLIP(Y00 + b_add);
+            drow0[x] = (unsigned short) (((r00 & 0xF8) << 8) | ((g00 & 0xFC) << 3) | (b00 >> 3));
 
-            int Y1 = yrow[x+1];
-            drow[x*4+4] = CLIP(Y1 + r_add);
-            drow[x*4+5] = CLIP(Y1 + g_add);
-            drow[x*4+6] = CLIP(Y1 + b_add);
-            drow[x*4+7] = 255;
+            int Y01 = yrow0[x+1];
+            unsigned char r01 = CLIP(Y01 + r_add), g01 = CLIP(Y01 + g_add), b01 = CLIP(Y01 + b_add);
+            drow0[x+1] = (unsigned short) (((r01 & 0xF8) << 8) | ((g01 & 0xFC) << 3) | (b01 >> 3));
+
+            int Y10 = yrow1[x];
+            unsigned char r10 = CLIP(Y10 + r_add), g10 = CLIP(Y10 + g_add), b10 = CLIP(Y10 + b_add);
+            drow1[x] = (unsigned short) (((r10 & 0xF8) << 8) | ((g10 & 0xFC) << 3) | (b10 >> 3));
+
+            int Y11 = yrow1[x+1];
+            unsigned char r11 = CLIP(Y11 + r_add), g11 = CLIP(Y11 + g_add), b11 = CLIP(Y11 + b_add);
+            drow1[x+1] = (unsigned short) (((r11 & 0xF8) << 8) | ((g11 & 0xFC) << 3) | (b11 >> 3));
         }
     }
 }
 
 // --- fullscreen quad draw ---
 
-static void draw_video_frame(const unsigned char *rgba, unsigned w, unsigned h) {
-    if (!gVideoTex) {
-        glGenTextures(1, &gVideoTex);
+static void draw_video_frame(const unsigned short *rgb565, unsigned w, unsigned h) {
+    // glTexImage2D reallocates the texture's VRAM storage -- calling it
+    // every single frame (as an earlier version did) forces vitaGL to
+    // free and re-request GPU memory ~30 times a second, which is a known,
+    // large source of stalling on this driver. A cutscene's resolution
+    // never changes mid-playback, so allocate the storage once per
+    // (w,h) and just upload new pixels into it afterward.
+    if (!gVideoTex || gVideoTexW != w || gVideoTexH != h) {
+        if (!gVideoTex) glGenTextures(1, &gVideoTex);
         glBindTexture(GL_TEXTURE_2D, gVideoTex);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (GLsizei) w, (GLsizei) h, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
+        gVideoTexW = w;
+        gVideoTexH = h;
     }
     glBindTexture(GL_TEXTURE_2D, gVideoTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei) w, (GLsizei) h, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (GLsizei) w, (GLsizei) h, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, rgb565);
 
     glViewport(0, 0, 960, 544);
     glMatrixMode(GL_PROJECTION);
@@ -347,6 +495,101 @@ static void draw_video_frame(const unsigned char *rgba, unsigned w, unsigned h) 
     vglSwapBuffers(GL_FALSE);
 }
 
+// --- cutscene audio: dedicated output thread ---
+//
+// log_000051: sceAudioOutOutput() alone blocked for 1.13s of a 10.44s
+// cutscene (audio_output_block), all inside the SAME loop that pays for
+// the YUV conversion above -- every frame the two costs queue up back to
+// back on one thread, so a slow video frame delays the next audio block
+// too (and vice versa). The game's own BGM mixer (audio.cpp) already
+// proves the fix for this exact shape of problem: give the blocking
+// sceAudioOut call its own thread. Here the render loop hands a decoded
+// audio block to a small double-buffered producer/consumer pair (same
+// shape as audio.cpp's out[2]/bufId) instead of calling
+// sceAudioOutOutput() directly -- the render loop only waits long enough
+// for the PREVIOUS block in that slot to finish playing, never for the
+// current one, and audio timing is no longer coupled to how long a given
+// frame's conversion took.
+//
+// psp2dmp 1785292479 (real hardware, first Escenas video after this went
+// in): the 'cutscene audio out' thread crashed on its very first wait,
+// PC/LR both landing inside pte_osSemaphoreCancellablePend (confirmed via
+// arm-vita-eabi-nm on libpthread.a: pthread_cond_wait calls exactly that).
+// A first version of this file used a pthread_cond_t alongside the mutex
+// for the producer/consumer handshake -- PTHREAD_COND_INITIALIZER is a
+// static sentinel (`(pthread_cond_t)-1`, see sys/_pthreadtypes.h), and
+// this vitasdk pthread port apparently doesn't lazily turn that into a
+// real semaphore the way it does for a statically-initialized mutex
+// (audio.cpp's gLock uses that same pattern and has never crashed in this
+// project's whole history). Rather than gamble on an explicit
+// pthread_cond_init() fixing an otherwise never-exercised code path on
+// this platform, the handshake below uses ONLY the mutex (proven) plus a
+// short sceKernelDelayThread poll -- the exact same wait style already
+// proven on hardware by this file's own AvPlayer polling loop above.
+static pthread_mutex_t gCutAudioLock = PTHREAD_MUTEX_INITIALIZER;
+static unsigned char *gCutAudioBuf[2] = { NULL, NULL };
+static unsigned gCutAudioBufCap = 0;
+static unsigned gCutAudioLen[2] = { 0, 0 }; // >0 = slot has audio ready to play
+static int gCutAudioWriteSlot = 0;
+static int gCutAudioPort = -1;
+static volatile bool gCutAudioQuit = false;
+
+static int cutscene_audio_thread(SceSize args, void *argp) {
+    (void) args; (void) argp;
+    int slot = 0;
+    for (;;) {
+        pthread_mutex_lock(&gCutAudioLock);
+        unsigned len = gCutAudioLen[slot];
+        bool quit = gCutAudioQuit;
+        pthread_mutex_unlock(&gCutAudioLock);
+
+        if (len == 0) {
+            if (quit)
+                break;
+            sceKernelDelayThread(500); // ~1/40th of a block period (1024 frames @ 48kHz = ~21ms)
+            continue;
+        }
+
+        if (gCutAudioPort >= 0)
+            sceAudioOutOutput(gCutAudioPort, gCutAudioBuf[slot]);
+        pthread_mutex_lock(&gCutAudioLock);
+        gCutAudioLen[slot] = 0;
+        pthread_mutex_unlock(&gCutAudioLock);
+        slot ^= 1;
+    }
+    return 0;
+}
+
+// Called from the render loop with one decoded audio block. Grows the two
+// buffers to fit (reused across frames/cutscenes, same pattern as
+// gRgbBuf/gYuvScratch above); on allocation failure the block is dropped
+// rather than crashing, matching this file's existing failure policy.
+static void cutscene_audio_submit(const void *pData, unsigned bytes) {
+    if (bytes > gCutAudioBufCap) {
+        free(gCutAudioBuf[0]);
+        free(gCutAudioBuf[1]);
+        gCutAudioBuf[0] = (unsigned char *) malloc(bytes);
+        gCutAudioBuf[1] = (unsigned char *) malloc(bytes);
+        gCutAudioBufCap = (gCutAudioBuf[0] && gCutAudioBuf[1]) ? bytes : 0;
+    }
+    if (!gCutAudioBuf[0] || !gCutAudioBuf[1] || gCutAudioBufCap < bytes)
+        return;
+
+    for (;;) {
+        pthread_mutex_lock(&gCutAudioLock);
+        bool free_slot = gCutAudioLen[gCutAudioWriteSlot] == 0;
+        if (free_slot) {
+            memcpy(gCutAudioBuf[gCutAudioWriteSlot], pData, bytes);
+            gCutAudioLen[gCutAudioWriteSlot] = bytes;
+        }
+        pthread_mutex_unlock(&gCutAudioLock);
+        if (free_slot)
+            break;
+        sceKernelDelayThread(500);
+    }
+    gCutAudioWriteSlot ^= 1;
+}
+
 void video_init() {
     int ret = sceSysmoduleLoadModule(SCE_SYSMODULE_AVPLAYER);
     if (ret < 0) {
@@ -364,10 +607,15 @@ void video_shutdown() {
     if (gVideoTex) {
         glDeleteTextures(1, &gVideoTex);
         gVideoTex = 0;
+        gVideoTexW = 0;
+        gVideoTexH = 0;
     }
     free(gRgbBuf);
     gRgbBuf = NULL;
     gRgbBufCap = 0;
+    free(gYuvScratch);
+    gYuvScratch = NULL;
+    gYuvScratchCap = 0;
     if (gModuleLoaded) {
         sceSysmoduleUnloadModule(SCE_SYSMODULE_AVPLAYER);
         gModuleLoaded = false;
@@ -426,6 +674,7 @@ void video_play(const char *raw) {
     }
 
     l_info("video: playing %s", path.c_str());
+
     audio_pause_bgm_for_video();
 
     // Video audio goes through its own dedicated port, opened lazily once we
@@ -435,6 +684,7 @@ void video_play(const char *raw) {
     int audioPort = -1;
     int audioChannels = 0;
     unsigned audioFrameLen = 0; // frames/channel per sceAudioOutOutput() call, derived below
+    SceUID cutAudioThreadUid = -1;
 
     SceCtrlData pad_start;
     sceCtrlPeekBufferPositive(0, &pad_start, 1);
@@ -453,10 +703,19 @@ void video_play(const char *raw) {
     }
     
     l_info("video: loop starting. active=%d, wait_count=%d", sceAvPlayerIsActive(handle), wait_count);
+    uint64_t play_start_time = sceKernelGetProcessTimeWide();
 
     int frame_count = 0;
     int video_frames = 0, audio_frames = 0;
     bool audioOpenAttempted = false;
+
+    // log_000050 (real hardware): avg_fps=9.2, no better than before the
+    // RGB565 change -- video.pData is confirmed (by matching log addresses)
+    // to sit inside the CDRAM memblock av_alloc_texture hands back, and
+    // sceAudioOutOutput() below is a known-blocking call (~21ms/call at
+    // 1024 frames/48000Hz). Either could dominate; measure both instead of
+    // guessing which one to optimize next.
+    uint64_t t_yuv_total = 0, t_draw_total = 0, t_audioout_total = 0, t_cdram_copy_total = 0;
 
     if (!sceAvPlayerIsActive(handle)) {
         l_warn("video: timed out waiting for video decoder to become active (%s)", path.c_str());
@@ -494,15 +753,39 @@ void video_play(const char *raw) {
             unsigned h = video.details.video.height;
             if (++video_frames == 1)
                 l_info("video: first video frame decoded (%ux%u, pData=%p)", w, h, video.pData);
-            unsigned need = w * h * 4;
+            unsigned need = w * h * sizeof(unsigned short);
             if (need > gRgbBufCap) {
                 free(gRgbBuf);
-                gRgbBuf = (unsigned char *) malloc(need);
+                gRgbBuf = (unsigned short *) malloc(need);
                 gRgbBufCap = gRgbBuf ? need : 0;
             }
-            if (gRgbBuf && gRgbBufCap >= need) {
-                yuv420p_to_rgba(video.pData, w, h, gRgbBuf);
+            // log_000051: yuv_convert alone ate 8.36s of a 10.44s cutscene
+            // (video.pData sits in the CDRAM memblock av_alloc_texture
+            // hands back -- confirmed by matching addresses in the log).
+            // CPU reads from CDRAM/VRAM are far slower than RAM on this
+            // hardware; the per-pixel access below (mixed reads +
+            // arithmetic) can't hide that latency. A single sequential
+            // memcpy drains the CDRAM source in one burst-friendly pass,
+            // then all the per-pixel math reads from a normal RAM copy
+            // instead -- measured as its own stage so the next log proves
+            // whether this actually mattered rather than assuming it did.
+            unsigned yuvNeed = w * h + w * h / 2; // NV12: Y plane + half-res interleaved UV
+            if (yuvNeed > gYuvScratchCap) {
+                free(gYuvScratch);
+                gYuvScratch = (unsigned char *) malloc(yuvNeed);
+                gYuvScratchCap = gYuvScratch ? yuvNeed : 0;
+            }
+            if (gRgbBuf && gRgbBufCap >= need && gYuvScratch && gYuvScratchCap >= yuvNeed) {
+                uint64_t t0 = sceKernelGetProcessTimeWide();
+                memcpy(gYuvScratch, video.pData, yuvNeed);
+                uint64_t t1 = sceKernelGetProcessTimeWide();
+                yuv420p_to_rgb565(gYuvScratch, w, h, gRgbBuf);
+                uint64_t t2 = sceKernelGetProcessTimeWide();
                 draw_video_frame(gRgbBuf, w, h);
+                uint64_t t3 = sceKernelGetProcessTimeWide();
+                t_cdram_copy_total += (t1 - t0);
+                t_yuv_total += (t2 - t1);
+                t_draw_total += (t3 - t2);
             }
         }
 
@@ -542,7 +825,7 @@ void video_play(const char *raw) {
                 // with it either.
                 audioPort = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_VOICE, audioFrameLen,
                                                 (int) audio.details.audio.sampleRate, mode);
-                if (audioPort < 0)
+                if (audioPort < 0) {
                     // Retrying this every audio frame (as a prior revision
                     // did) hammers a real, fairly expensive driver call --
                     // confirmed in log_000032 firing 400+ times in one
@@ -551,9 +834,36 @@ void video_play(const char *raw) {
                     // just muted) instead.
                     l_warn("video: sceAudioOutOpenPort for cutscene audio failed (0x%08X) -- cutscene audio disabled",
                            (unsigned) audioPort);
+                } else {
+                    gCutAudioPort = audioPort;
+                    gCutAudioWriteSlot = 0;
+                    gCutAudioLen[0] = 0;
+                    gCutAudioLen[1] = 0;
+                    gCutAudioQuit = false;
+                    cutAudioThreadUid = sceKernelCreateThread("cutscene audio out", cutscene_audio_thread,
+                                                               0x10000100, 0x4000, 0, 0, NULL);
+                    if (cutAudioThreadUid >= 0) {
+                        sceKernelStartThread(cutAudioThreadUid, 0, NULL);
+                    } else {
+                        l_warn("video: cutscene audio thread creation failed (0x%08X) -- cutscene audio disabled",
+                               (unsigned) cutAudioThreadUid);
+                        sceAudioOutReleasePort(audioPort);
+                        audioPort = -1;
+                        gCutAudioPort = -1;
+                    }
+                }
             }
-            if (audioPort >= 0)
-                sceAudioOutOutput(audioPort, audio.pData);
+            if (audioPort >= 0) {
+                // Now just a hand-off to the dedicated output thread above
+                // (memcpy into a free slot) instead of the blocking
+                // sceAudioOutOutput() call itself -- this total should drop
+                // to near-zero in the next log; if it doesn't, the two
+                // threads are contending for CPU and the fix didn't help.
+                uint64_t t0 = sceKernelGetProcessTimeWide();
+                cutscene_audio_submit(audio.pData, (unsigned) audio.details.audio.size);
+                uint64_t t1 = sceKernelGetProcessTimeWide();
+                t_audioout_total += (t1 - t0);
+            }
         }
 
         frame_count++;
@@ -564,8 +874,14 @@ void video_play(const char *raw) {
         sceKernelDelayThread(1000); // avoid a tight spin when neither frame type is ready yet
     }
     
-    l_info("video: loop exited! active=%d, iterations=%d, video_frames=%d, audio_frames=%d",
-           sceAvPlayerIsActive(handle), frame_count, video_frames, audio_frames);
+    uint64_t play_end_time = sceKernelGetProcessTimeWide();
+    double elapsed_sec = (double) (play_end_time - play_start_time) / 1000000.0;
+    double avg_fps = elapsed_sec > 0.0 ? (double) video_frames / elapsed_sec : 0.0;
+    l_info("video: loop exited! active=%d, iterations=%d, video_frames=%d, audio_frames=%d, elapsed=%.2fs, avg_fps=%.1f",
+           sceAvPlayerIsActive(handle), frame_count, video_frames, audio_frames, elapsed_sec, avg_fps);
+    l_info("video: stage totals -- cdram_copy=%.2fs, yuv_convert=%.2fs, gl_upload_draw=%.2fs, audio_output_block=%.2fs (of %.2fs elapsed)",
+           (double) t_cdram_copy_total / 1000000.0, (double) t_yuv_total / 1000000.0,
+           (double) t_draw_total / 1000000.0, (double) t_audioout_total / 1000000.0, elapsed_sec);
 
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
@@ -574,6 +890,15 @@ void video_play(const char *raw) {
     if (savedBlend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
     if (savedDepthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
     glViewport(savedViewport[0], savedViewport[1], savedViewport[2], savedViewport[3]);
+
+    if (cutAudioThreadUid >= 0) {
+        pthread_mutex_lock(&gCutAudioLock);
+        gCutAudioQuit = true;
+        pthread_mutex_unlock(&gCutAudioLock);
+        sceKernelWaitThreadEnd(cutAudioThreadUid, NULL, NULL);
+        sceKernelDeleteThread(cutAudioThreadUid);
+    }
+    gCutAudioPort = -1;
 
     if (audioPort >= 0)
         sceAudioOutReleasePort(audioPort);

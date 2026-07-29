@@ -39,14 +39,24 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 #          pan, or gain. The variadic va_arg was reading garbage uninitialized memory from the stack
 #          for these missing parameters, resulting in a gain of 0.0f, which silenced all sound
 #          effects. They are now hardcoded to 1.0f/0.0f/1.0f (see Fixes_Log #15).
+# v01.19 = Cutscene video performance + audio, and a build-system fix that affects everything else
+#          too: (a) hand-vectorized the YUV(NV12)->RGB565 conversion with NEON; (b) moved cutscene
+#          audio output to its own thread instead of blocking the render loop (a first attempt with
+#          pthread_cond_t crashed real hardware -- this pthread port doesn't lazily initialize a
+#          statically-initialized cond var the way it does a mutex, fixed by using mutex+poll
+#          instead); (c) discovered every local dev build was silently compiling at -O0 instead of
+#          -O3 (CMake appends CMAKE_CXX_FLAGS_DEBUG, which includes "-O0", AFTER this file's own
+#          "-O3" when built with -DCMAKE_BUILD_TYPE=Debug, and the compiler honors the LAST -O flag)
+#          -- CMAKE_C_FLAGS_DEBUG/CMAKE_CXX_FLAGS_DEBUG below now drop the competing -O level so
+#          -O3 always wins. Confirmed on real hardware (see Fixes_Log #18).
 set(VITA_APP_NAME "Prince of Persia Classic")
 set(VITA_TITLEID "POPC00001")
 set(VITA_VPKNAME "popclassic")
-set(VITA_VERSION "01.18")
+set(VITA_VERSION "01.19")
 set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
 
 # Optional: used for "send" and "dump" targets
-set(PSVITAIP "192.168.0.198" CACHE STRING "PSVita IP (for FTP access)")
+set(PSVITAIP "192.168.3.15" CACHE STRING "PSVita IP (for FTP access)")
 set(PARSECOREPATH "$ENV{PARSECOREPATH}" CACHE STRING "vita-parse-core main.py")
 
 # Game-specific definitions
@@ -116,6 +126,24 @@ add_definitions(-D_GNU_SOURCE -D__POSIX_VISIBLE=999999)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=gnu++20 -Wno-write-strings -Wno-psabi")
+
+# CMake appends per-build-type flags (CMAKE_C_FLAGS_DEBUG etc.) AFTER
+# CMAKE_C_FLAGS above on the actual compile command, and the compiler
+# honors the LAST -O flag it sees -- so building with
+# -DCMAKE_BUILD_TYPE=Debug (needed for -g and to carry debug info in
+# ENABLE_VERBOSE_LOG builds) was silently re-adding "-O0 -g -DDEBUG
+# -D_DEBUG" after our own "-O3", and -O0 won. Every local Debug-type build
+# was therefore compiling fully unoptimized while looking like a clean
+# build (no warnings, no errors) -- confirmed 2026-07-28 by disassembling a
+# hand-vectorized NEON function: a 1852-byte stack frame with every single
+# intermediate value, including NEON vector registers, spilled to the
+# stack and reloaded around each statement, textbook -O0 codegen. This
+# project always wants -O3 regardless of build type ("Debug" here is only
+# ever used for -g/-DDEBUG, never actual -O0 debugging), so the Debug
+# config's flags are overridden to drop the competing -O level instead of
+# relying on flag order.
+set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -D_DEBUG")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG -D_DEBUG")
 
 add_executable(${CMAKE_PROJECT_NAME}
                source/main.c

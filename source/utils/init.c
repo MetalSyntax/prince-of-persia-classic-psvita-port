@@ -111,7 +111,7 @@ void soloader_init_all() {
     resolve_imports(&game_mod);
     l_success("SO imports resolved.");
 
-    //so_patch();
+    so_patch();
     l_success("SO patched.");
 
     so_flush_caches(&denshion_mod);

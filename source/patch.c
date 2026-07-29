@@ -90,21 +90,35 @@ static void *read_loose_file(const char *path, unsigned long *out_size) {
 }
 
 static void *hook_getFileData(const char *filename, const char *mode, unsigned long *size) {
+    // psp2core-1785297093 (real hardware): the engine requested
+    // "Data_960_576/Localization/Spanish/Localizable.loc" -- the resolution
+    // folder is ALREADY part of the string the engine passes for this
+    // request (unlike appConfig.txt, which always arrives bare). A prefix
+    // check for "Localization/" therefore never matched a path that starts
+    // with "Data_960_576/" instead, so this fell through to the real
+    // (obb-only) getFileData, which failed (no .obb in this experiment) and
+    // crashed the engine downstream (strlen() on the NULL buffer it never
+    // checked for -- same failure class as the historical .obb crash, see
+    // [[project-popc-portabilidad]]). Fixed: match "Localization/" as a
+    // substring anywhere in the path, and try the path both as given
+    // (handles a resolution folder already being part of it) and with
+    // Data_960_576/ prepended (handles a bare "Localization/..." request
+    // with no resolution folder, if that ever occurs from elsewhere).
     if (filename && filename[0] != '/' &&
-        (strcmp(filename, "appConfig.txt") == 0 || strncmp(filename, "Localization/", 13) == 0)) {
+        (strcmp(filename, "appConfig.txt") == 0 || strstr(filename, "Localization/") != NULL)) {
         char path[512];
-        snprintf(path, sizeof(path), "%sData_960_576/%s", DATA_PATH, filename);
+        snprintf(path, sizeof(path), "%s%s", DATA_PATH, filename);
         void *buf = read_loose_file(path, size);
         if (!buf) {
-            snprintf(path, sizeof(path), "%s%s", DATA_PATH, filename);
+            snprintf(path, sizeof(path), "%sData_960_576/%s", DATA_PATH, filename);
             buf = read_loose_file(path, size);
         }
         if (buf) {
             l_info("hook_getFileData: served \"%s\" loose from %s", filename, path);
             return buf;
         }
-        l_warn("hook_getFileData: \"%s\" not found loose (tried Data_960_576/ and %s), falling back to apk/obb",
-               filename, DATA_PATH);
+        l_warn("hook_getFileData: \"%s\" not found loose (tried %s%s and Data_960_576/), falling back to apk/obb",
+               filename, DATA_PATH, filename);
     }
 
     so_unhook(&gGetFileDataHook);

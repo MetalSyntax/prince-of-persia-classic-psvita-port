@@ -1,3 +1,9 @@
+/**
+ * @file  asset_manager.cpp
+ * @brief Implements the AAssetManager reimplementation, backing AAsset reads
+ *        with plain stdio calls against files under DATA_PATH/assets/.
+ */
+
 #include "reimpl/asset_manager.h"
 #include "utils/logger.h"
 

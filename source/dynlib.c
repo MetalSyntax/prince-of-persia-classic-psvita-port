@@ -10,6 +10,7 @@
 /**
  * @file  dynlib.c
  * @brief Resolving dynamic imports of the .so.
+ *        @note See docs/comments/dynlib.c.md for design rationale.
  */
 
 #include <psp2/kernel/clib.h>
@@ -121,15 +122,7 @@ extern const char *BIONIC_ctype_;
 extern const short *BIONIC_tolower_tab_;
 extern const short *BIONIC_toupper_tab_;
 
-// Fake __sF (bionic's stdin/stdout/stderr array) handed to the game. HUGE on
-// purpose, copying pop2-vita ([0x1000][3]) and deadspace-vita ([0x100][3]):
-// bionic computes stderr as &__sF[2] with ITS OWN struct stride (different
-// from newlib's FILE size), so with a 3-entry array that pointer lands PAST
-// the array and every fprintf(stderr) from the game sprays formatted text
-// over adjacent .data -- that trampled newlib's static FILE pool and caused
-// the whole PC=0x20/_fseeko_r crash family (plan §9.29-9.30). Kept zeroed:
-// the *_soloader print wrappers in reimpl/io.c catch any FILE* pointing in
-// here (whatever the stride) and route it to the logger instead.
+//! @see docs/comments/dynlib.c.md#fake-__sf-array--sizing-and-zero-initialization
 FILE __sF_fake[0x100][3];
 
 void *dlsym_soloader(void * handle, const char * symbol) {
@@ -420,9 +413,7 @@ so_default_dynlib default_dynlib[] = {
         { "stat", (uintptr_t)&stat_soloader },
         { "utime", (uintptr_t)&utime },
 
-        // Escritura via FILE*: SIEMPRE por los wrappers *_soloader, que
-        // detectan el __sF_fake (stderr/stdout del juego) y lo mandan al
-        // logger; para FILEs reales delegan en el runtime de fopen_soloader.
+        //! @see docs/comments/dynlib.c.md#fflush-fputc-fputs-fwrite--routing-through-the-_soloader-wrappers
         { "fflush", (uintptr_t)&fflush_soloader },
         { "fputc", (uintptr_t)&fputc_soloader },
         { "fputs", (uintptr_t)&fputs_soloader },
@@ -454,20 +445,12 @@ so_default_dynlib default_dynlib[] = {
             { "ungetc", (uintptr_t)&ungetc },
         #endif
 
-        // Cuidado: toda funcion que LEA o ESCRIBA a traves de un FILE* del
-        // juego debe ser del MISMO runtime que fopen (SceLibc bajo
-        // USE_SCELIBC_IO). Mezclar runtimes corrompe los FILE del otro lado
-        // en silencio: fdopen/setvbuf de newlib conviviendo con fseek/fclose
-        // de SceLibc pisotearon el pool estatico de FILEs de newlib -- toda
-        // la familia de crashes PC=0x20 / _fseeko_r del 7-jul (Fixes_Log #9,
-        // plan §9.29, confirmado por los 12 core dumps).
+        //! @see docs/comments/dynlib.c.md#fdopen-and-setvbuf--must-match-fopens-runtime-pc0x20-crash-family
         { "fdopen", (uintptr_t)&fdopen_soloader },
         { "setvbuf", (uintptr_t)&setvbuf_soloader },
         { "putc", (uintptr_t)&fputc_soloader }, // putc(c,f) == fputc(c,f)
 
-        // Estas no operan sobre los FILE* que el juego abre con fopen (solo
-        // stdout o wide-chars que nada usa), o no existen en el bridge y no
-        // hay import real en los .so: newlib es seguro aqui.
+        //! @see docs/comments/dynlib.c.md#functions-safe-to-leave-on-newlib
         { "fileno", (uintptr_t)&fileno },
         { "freopen", (uintptr_t)&freopen },
         { "fwide", (uintptr_t)&fwide },
@@ -513,8 +496,7 @@ so_default_dynlib default_dynlib[] = {
         { "printf", (uintptr_t)&sceClibPrintf },
         { "swprintf", (uintptr_t)&swprintf },
 
-        // fprintf/vfprintf pasan por los wrappers: el juego los usa sobre
-        // stderr/stdout (el __sF_fake) ademas de sobre archivos reales.
+        //! @see docs/comments/dynlib.c.md#fprintf-and-vfprintf--routing-through-the-wrappers
         { "fprintf", (uintptr_t)&fprintf_soloader },
         { "vfprintf", (uintptr_t)&vfprintf_soloader },
         #ifdef USE_SCELIBC_IO
@@ -1052,8 +1034,8 @@ so_default_dynlib default_dynlib[] = {
         { "uncompress", (uintptr_t)&uncompress },
 };
 
+/** @brief Resolves all imports listed in default_dynlib[] into mod.
+ *  @note See docs/comments/dynlib.c.md#fake-__sf-array--sizing-and-zero-initialization */
 void resolve_imports(so_module* mod) {
-    // __sF_fake stays zeroed: any game read through it sees a dead FILE and
-    // any write is intercepted by the *_soloader print wrappers (io.c).
     so_resolve(mod, default_dynlib, sizeof(default_dynlib), 0);
 }

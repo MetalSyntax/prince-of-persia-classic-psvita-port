@@ -32,13 +32,11 @@ To play the game, you MUST possess a legitimate, legally obtained copy of the An
 
 This is an early, actively-developed port. Please read this list before reporting a bug — it may already be a known/tracked issue (see [`Docs/Fixes_Log.md`](Docs/Fixes_Log.md) and [`Docs/plan_portabilidad.md`](Docs/plan_portabilidad.md) for the full technical history).
 
-- **Occasional "stuck action" loop:** the Prince can sometimes get stuck repeating a single action (jump, crouch, or walk) in a loop instead of responding to new input. Several contributing causes have already been found and fixed (invalid audio handles, a zero-volume SFX bug), but it can still resurface in some situations.
-- **Cutscenes/videos may not play correctly:** native `.mp4` cutscene playback via Sony's `SceAvPlayer` is implemented, but is **not yet confirmed working on real hardware**. The color conversion assumes planar YUV420 output from the Vita's decoder; if colors look wrong (or the video doesn't render), the codec may actually be outputting NV12 instead.
 - **D-Pad currently only makes the Prince Walk, not Run.** Use the **Left Analog Stick** for full movement speed (walk + run) until this is fixed.
-- **Audio can still sound slightly distorted** under heavy mixing (e.g. music + footsteps + a sword hit at once), even though a soft limiter was added specifically to reduce this.
-- **Occasional FPS drops**, especially on the **Debug** build (see the two VPKs below) since it writes a much more detailed log to the memory card in real time.
-- **Not using the game's official fonts yet.** Since Sony's native font APIs (`ScePvf`/`ScePgf`) aren't implemented on Vita3K and pulling in the original Android font assets raised licensing questions, text is currently rendered with the open-source, freely-licensed **DejaVu Serif** font via `stb_truetype`.
+- **Not using the game's official fonts yet.** Since Sony's native font APIs (`ScePvf`/`ScePgf`) aren't implemented on Vita3K and pulling in the original Android font assets raised licensing questions, text is currently rendered with the open-source, freely-licensed **DejaVu Serif** font via `stb_truetype`. On-screen text would look closer to the original Ubisoft style with the real font.
 - **Not compatible with Vita3K (emulator).** This is a confirmed **bug in Vita3K itself**, not in this port: the menu, text, and audio all work correctly, but starting a real game ("New Game"/"Quick Game") crashes because Vita3K's renderer mishandles non-power-of-2 swizzled textures (confirmed by reading Vita3K's own source, reproducible 3/3 times, and still present on Vita3K's latest `master` at the time of testing). **This port targets real PS Vita hardware.** Technical details in `Docs/plan_portabilidad.md` §9.17.
+
+As of the current build (v01.20), the previously-listed issues around the stuck-action loop, cutscene video/audio playback, and audio mixing distortion have all been fixed and confirmed fluid/correct on real hardware — see [`Docs/CHANGELOG.md`](Docs/CHANGELOG.md) for the version-by-version detail.
 
 Found something not on this list? Please open an issue — see [Beta Testing / Contributing](#beta-testing--contributing).
 
@@ -70,23 +68,22 @@ To install the port on a real PS Vita:
    ```
 3. Install `libshacccg.suprx` (Sony's shader compiler). You can obtain a legitimate copy from your own console using the ShaRKBR33D homebrew — it can never be redistributed, so it is **not** included in this repository (`.gitignore`: `*.suprx`).
 4. Install the generated `.vpk` (see the table above for Debug vs. Play).
-5. Obtain your own legal copy of the Android game. Extract its data and lay it out on the console under `ux0:data/popclassic/` with **exactly** this structure:
+5. Obtain your own legal copy of the Android game. Extract its data and lay it out on the console under `ux0:data/popclassic/` with **exactly** this structure — `original.apk`/the `.obb` are **not needed at all**, just the loose files below:
    ```
    ux0:data/popclassic/
    ├── libcocos2d.so
    ├── libcocosdenshion.so
    ├── libgame_logic.so
-   ├── original.apk                               <- OPTIONAL as of v01.20, see note below
-   ├── main.1.org.ubisoft.premium.POPClassic.obb  <- OPTIONAL as of v01.20, see note below
-   ├── appConfig.txt                              <- only needed if original.apk is absent
-   ├── save/                                      <- empty folder, the game writes its saves here
+   ├── appConfig.txt                 <- required (either here or inside Data_960_576/)
+   ├── save/                         <- empty folder, the game writes its saves here
+   ├── logs/                         <- only used by the Debug build; created automatically if missing
    ├── Data/
-   │   ├── Audio/                                 <- all tracks/effects as .mp3 (loose files)
-   │   ├── font/                                  <- .ttf files (loose files)
-   │   └── Video/High/                            <- cutscenes as .mp4 (loose files)
-   └── Data_960_576/                              <- Animations, Effects, Localization, Logo, Maps, Particles, Texture, appConfig.txt
+   │   ├── Audio/                    <- Ambiance/, Music/, SFX/ (mirrors the game's own folder layout, .mp3 files)
+   │   ├── font/                     <- .ttf files, flat (no subfolders)
+   │   └── Video/Mid/                <- cutscenes as .mp4, flat (no subfolders)
+   └── Data_960_576/                 <- Animations, Effects, Localization, Logo, Maps, Particles, Texture, appConfig.txt
    ```
-   > **As of v01.20, `original.apk`/the `.obb` are no longer mandatory** — confirmed on real hardware — as long as the full `Data_960_576/` folder (including `Localization/` and `appConfig.txt`) is present loose. The engine's own file-loading function used to route *every* file request straight into the `.apk`/`.obb` ZIP with no loose-file check, unlike textures/maps/animations which already worked loose; this port now hooks that function to try a loose file first for anything, falling back to the `.apk`/`.obb` only if nothing loose is found. You can still use `original.apk`/the `.obb` instead if you prefer — both paths are supported. See [`Docs/Fixes_Log.md`](Docs/Fixes_Log.md) #19 for the technical detail.
+   > Everything the game needs is now served loose from the memory card — the engine's own file-loading function used to route *every* relative-path request straight into the `.apk`/`.obb` ZIP with no loose-file check, unlike textures/maps/animations which already worked loose; this port now hooks that function to serve a loose file for anything, so the `.apk`/`.obb` are never consulted as long as `Data_960_576/` (with `Localization/` and `appConfig.txt`) is present. You can still point it at `original.apk`/the `.obb` instead if you'd rather not extract the full loose tree — both paths remain supported, the hook falls back to them automatically if a loose file isn't found. See [`Docs/Fixes_Log.md`](Docs/Fixes_Log.md) #19 for the technical detail.
 6. Extract the three native libraries from the `lib/armeabi/` (or `lib/armeabi-v7a/`) folder of your `.apk` and place them directly under `ux0:data/popclassic/` as shown above:
    * `libcocos2d.so`
    * `libcocosdenshion.so`

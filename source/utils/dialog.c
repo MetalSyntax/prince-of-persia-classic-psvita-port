@@ -7,6 +7,11 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file  dialog.c
+ * @brief IME text-input and message-dialog helpers, plus the fatal-error handler.
+ */
+
 #include "utils/dialog.h"
 
 #include <psp2/ctrl.h>

@@ -37,11 +37,7 @@ int main() {
 
     JNIEnv *jniEnv = &jni;
 
-    // Each loaded .so that exports JNI_OnLoad caches the JavaVM* it's given in
-    // its own internal global for later use (e.g. SimpleAudioEngine in
-    // libcocosdenshion.so attaches a background thread and calls
-    // (*jvm)->GetEnv(...) on it) -- so it must be called on every module that
-    // exports it, not just whichever module happens to export it first.
+    //! @see docs/comments/main.c.md#jni_onload--calling-every-module-that-exports-it
     so_module *jni_onload_mods[] = { &denshion_mod, &cocos2d_mod, &game_mod };
     const char *jni_onload_names[] = { "libcocosdenshion", "libcocos2d", "libgame_logic" };
     for (int i = 0; i < 3; i++) {
@@ -73,29 +69,7 @@ int main() {
 
     // Initialize Cocos2d-x environment
     if (nativeSetPaths) {
-        // Confirmed by testing (two different native codepaths, matching real
-        // Android semantics):
-        // - apkFilePath (arg 1) is treated as the *folder* that would hold the
-        //   real Android /Android/obb/<package>/ directory: the engine appends
-        //   the known obb filename to it directly (e.g. reads
-        //   <apkFilePath>/main.1.org.ubisoft.premium.POPClassic.obb as a zip)
-        //   to pull Data*/ files such as Localization/*.loc.
-        // - apkSourceDir (arg 3) is opened natively (via zlib) *directly* as a
-        //   zip/apk file, to read assets/appConfig.txt -- it must point straight
-        //   at the .apk, not at a folder.
-        // Data/* loose assets under DATA_PATH are unaffected either way, since
-        // those are read via plain fopen(), not through either of these.
-
-        // original.apk is no longer required (see Fixes_Log #19): without it,
-        // the engine's own getFileData() would read assets/appConfig.txt from
-        // a NULL zip handle and crash with a confusing Data abort instead of
-        // a clear message -- but source/patch.c's hook_getFileData() now
-        // serves "appConfig.txt" from a loose file (Data_960_576/appConfig.txt
-        // or bare DATA_PATH/appConfig.txt) BEFORE the engine's real zip-based
-        // getFileData ever runs, so original.apk missing is only a real
-        // problem if NEITHER loose candidate exists either. Check both
-        // candidates the same way the hook does, and only fatal_error if
-        // there's truly no way to serve appConfig.txt from anywhere.
+        //! @see docs/comments/main.c.md#nativesetpaths--argument-semantics-and-originalapk-fallback
         if (!file_exists(DATA_PATH "original.apk") &&
             !file_exists(DATA_PATH "Data_960_576/appConfig.txt") &&
             !file_exists(DATA_PATH "appConfig.txt")) {
@@ -139,14 +113,7 @@ int main() {
     l_success("Entering main loop.");
     int lastX[5] = {-1, -1, -1, -1, -1};
     int lastY[5] = {-1, -1, -1, -1, -1};
-    // Vita hardware touch id currently occupying each slot, -1 = free. This is
-    // NOT the id we hand to the engine -- SceTouchReport::id is an 8-bit
-    // counter that keeps growing for the whole session (not a small 0-4 range
-    // like Android's pointer ids), and nativeTouchesBegin/Move/End index a
-    // fixed-size array with it internally. Passing the raw hardware id writes
-    // out of bounds and corrupts the heap (confirmed via vita-parse-core on
-    // two real crash dumps -- both showed the crash inside/downstream of
-    // nativeTouchesEnd). The slot index (0-4) is what actually gets sent.
+    //! @see docs/comments/main.c.md#touch-slot-registry--hardware-id-vs-engine-slot-index
     int slotHwId[5] = {-1, -1, -1, -1, -1};
     uint32_t oldpad = 0;
     int frame = 0;
@@ -160,14 +127,7 @@ int main() {
 
         SceCtrlData debug_pad;
         sceCtrlPeekBufferPositive(0, &debug_pad, 1);
-        // Edge-triggered: log only when the touch/pad state actually CHANGES
-        // from the previous frame, plus a periodic heartbeat while idle.
-        // The old level-triggered condition (fired every single frame with
-        // any active touch) meant a sustained drag logged 60 identical
-        // lines/sec -- the logger's consecutive-duplicate suppression
-        // (Fixes_Log.md #13) collapsed exact repeats, but any jitter in
-        // reportNum/buttons between frames defeated that, since those are
-        // distinct messages each time, not repeats.
+        //! @see docs/comments/main.c.md#edge-triggered-input-logging
         if ((frame++ % 120) == 0
             || touch.reportNum != last_logged_report_num
             || debug_pad.buttons != last_logged_pad_buttons) {
@@ -181,14 +141,7 @@ int main() {
         sceCtrlPeekBufferPositive(0, &pad, 1);
         uint32_t current_pad = pad.buttons;
 
-        // Build one combined list of "virtual fingers" for this frame: the
-        // real touches plus (if held) synthetic ones for the D-Pad-driven
-        // joystick drag and the combat/action buttons below. They all
-        // compete for the SAME 5 engine touch slots (0-4), never a 6th one:
-        // cocos2d-x's Android touch dispatch is sized for CC_MAX_TOUCHES ==
-        // 5, so id 5 is already one past the end of its internal array --
-        // confirmed the hard way, that exact off-by-one corrupted the heap
-        // on real hardware.
+        //! @see docs/comments/main.c.md#virtual-finger-slots-and-the-cc_max_touches-limit
         int reportHwId[5], reportX[5], reportY[5], reportCount = 0;
         for (int r = 0; r < touch.reportNum && reportCount < 5; r++) {
             reportHwId[reportCount] = touch.report[r].id;
@@ -234,20 +187,7 @@ int main() {
             reportCount++;
         }
 
-        // Jump's on-screen virtual button intentionally does NOT get a
-        // synthetic touch (and so never lights up as "pressed"): Cross also
-        // means "confirm" in menus, and ANY synthetic touch tied to Cross --
-        // even at the real, screenshot-measured button position (904,399),
-        // not a guess -- reproduces the exact same regression as the first
-        // guessed attempt at (815,400): it hijacks list navigation (confirmed
-        // twice now, log_000011 and log_000039, both landing on the wrong
-        // list item on Cross press). Root cause: this file has no signal to
-        // tell "in a menu" from "in gameplay" apart, so a synthetic touch
-        // fires in both, and menus interpret it as a real tap. Needs a real
-        // gameplay/menu state signal (not currently exposed anywhere in this
-        // codebase) before this can be attempted safely again -- do not
-        // re-add without one. Jump itself still works correctly via the
-        // keycodes below; only the virtual pad's visual highlight is missing.
+        //! @see docs/comments/main.c.md#jump-touch-highlight--reverted-twice
 
         // DPAD DOWN is handled via nativeKeyDown to preserve menu scrolling
 
@@ -305,12 +245,7 @@ int main() {
             if ((current_pad & SCE_CTRL_UP) && !(oldpad & SCE_CTRL_UP)) nativeKeyDown(jniEnv, NULL, 19);
             if (!(current_pad & SCE_CTRL_UP) && (oldpad & SCE_CTRL_UP)) nativeKeyUp(jniEnv, NULL, 19);
             
-            // Crouch (keycode 20, DPAD_DOWN) is now shared by two physical
-            // buttons -- Down/left-stick-down AND Circle (see below; keycode
-            // 97/BUTTON_B did nothing in gameplay, confirmed on hardware).
-            // Transition on the COMBINED state, not each button separately:
-            // sending keyUp on Circle's release alone would cancel crouch
-            // even while Down is still physically held.
+            //! @see docs/comments/main.c.md#crouch--shared-keycode-for-down-and-circle
             int wantCrouch = (current_pad & (SCE_CTRL_DOWN | SCE_CTRL_CIRCLE)) != 0;
             int wantedCrouch = (oldpad & (SCE_CTRL_DOWN | SCE_CTRL_CIRCLE)) != 0;
             if (wantCrouch && !wantedCrouch) nativeKeyDown(jniEnv, NULL, 20);

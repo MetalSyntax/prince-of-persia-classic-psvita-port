@@ -54,25 +54,15 @@ NameToMethodID nameToMethodId[] = {
     // Cocos2dxBitmap
     { 50, "createTextBitmap", METHOD_TYPE_VOID },
 
-    // Cocos2dxActivity: animation loop timing, and the online integrations
-    // appConfig.txt already asks to disable (ENABLE_FLURRY/ENABLE_PAPAYA,
-    // see appConfig.txt) -- but nothing in this loader actually calls the
-    // native GetConfig() that would make the engine itself honor those
-    // flags (real Android calls it from Java's Activity.onCreate, which we
-    // don't have), so the engine still tries to reach them regardless. No-op
-    // stubs are the correct behavior here either way, since none of them
-    // should do anything on a Vita port.
+    //! @see docs/comments/java.c.md#cocos2dxactivity--animation-interval-and-online-integrations
     { 60, "setAnimationInterval", METHOD_TYPE_VOID },
     { 61, "startFlurry", METHOD_TYPE_VOID },
     { 62, "initializePapayaFramework", METHOD_TYPE_VOID },
 
-    // Cocos2dxHelper: cross-promotion/rewards currency, tied to the same
-    // disabled online integrations as above -- no rewards system on Vita.
+    //! @see docs/comments/java.c.md#cocos2dxhelper--rewards-coins
     { 63, "getRewardsCoins", METHOD_TYPE_INT },
 
-    // IntroTextLayer plays an FMV cutscene via this static native call --
-    // no video codec/player on this port, so it's a no-op and the game
-    // continues straight past it (matches the void return the caller expects).
+    //! @see docs/comments/java.c.md#introtextlayer--playvideo-no-op
     { 64, "playVideo", METHOD_TYPE_VOID },
 };
 
@@ -97,31 +87,7 @@ void Cocos2dxHelper_showMessageBox(jmethodID id, va_list args) {
     l_debug("Cocos2dxHelper_showMessageBox(%s, %s)\n", title, message);
 }
 
-// Real Android calls back into native (Cocos2dxBitmap_nativeInitBitmapDC,
-// exported by libcocos2d.so) with the pixels of the text actually rasterized
-// via android.graphics.Canvas/Paint. ScePvf and ScePgf (the Vita's two
-// built-in system font APIs) were tried first, but both are entirely
-// UNIMPLEMENTED in Vita3K (confirmed by reading vita3k/modules/ScePvf/ScePgf
-// source: every exported function is a stub) -- no combination of arguments
-// can produce real glyph data under this emulator, though the same code
-// would very likely work on real hardware where the firmware actually
-// implements them. This rasterizes with stb_truetype instead (public domain,
-// vendored at lib/stb/stb_truetype.h), which doesn't depend on any Sony
-// system library and so works the same under Vita3K and on real hardware.
-//
-// The game's createTextBitmap call always names a specific font asset (real
-// strings seen in the decompiled APK/.so: "Extra/font/UbiGameTextLReg.ttf",
-// "Extra/font/UbisoftText.ttf", "Extra/font/msmincho.ttf" for Japanese) --
-// an earlier version of this stub ignored that argument entirely and always
-// rendered with the bundled DejaVuSans.ttf, which is why in-game text never
-// matched the original Ubisoft look. The real files already live on the
-// card at DATA_PATH "Data/font/" (same place the engine's own asset loader
-// reads them from), so createTextBitmap just needs to actually read
-// fontName and load the matching one from there. DejaVuSans.ttf (bundled
-// into the .vpk itself as app0:/DejaVuSans.ttf via CMakeLists.txt's
-// vita_create_vpk FILE list -- see extras/fonts/) is kept only as a
-// last-resort fallback if fontName is empty or names something not on the
-// card, so text never silently disappears over a font-name mismatch.
+//! @see docs/comments/java.c.md#createtextbitmap--stb_truetype-rationale
 #define MAX_FONTS 4
 typedef struct {
     char name[64]; // basename this slot was loaded for, e.g. "UbiGameTextLReg.ttf"
@@ -166,7 +132,7 @@ static const char *font_basename(const char *fontName) {
     return slash ? slash + 1 : fontName;
 }
 
-// Loads (or reuses a cached) stbtt_fontinfo for the font the game requested.
+/** @brief Loads (or reuses a cached) stbtt_fontinfo for the font the game requested. */
 static stbtt_fontinfo *get_font(const char *fontName) {
     const char *base = font_basename(fontName);
     if (!*base) base = "DejaVuSans.ttf";
@@ -213,8 +179,7 @@ static stbtt_fontinfo *get_font(const char *fontName) {
         free(data);
         return NULL;
     }
-    // data is intentionally never freed: stbtt_fontinfo keeps pointers into
-    // it for the lifetime of the process.
+    //! data is intentionally never freed — see docs/comments/java.c.md#font-data-lifetime
     g_fonts[slot].state = 1;
     return &g_fonts[slot].info;
 }
@@ -399,14 +364,14 @@ void Cocos2dxActivity_setAnimationInterval(jmethodID id, va_list args) {
     l_debug("Cocos2dxActivity_setAnimationInterval(%f) (ignored)", (double) interval);
 }
 
+/** @brief No-op analytics stub. @note See docs/comments/java.c.md#startflurry--no-op */
 void Cocos2dxActivity_startFlurry(jmethodID id, va_list args) {
     l_debug("Cocos2dxActivity_startFlurry() (no-op: ENABLE_FLURRY=NO)");
-    // No-op: ENABLE_FLURRY=NO in appConfig.txt, analytics have no place here.
 }
 
+/** @brief No-op ad/social framework stub. @note See docs/comments/java.c.md#initializepapayaframework--no-op */
 void Cocos2dxActivity_initializePapayaFramework(jmethodID id, va_list args) {
     l_debug("Cocos2dxActivity_initializePapayaFramework() (no-op: ENABLE_PAPAYA=NO)");
-    // No-op: ENABLE_PAPAYA=NO in appConfig.txt, no ad framework on Vita.
 }
 
 jint Cocos2dxHelper_getRewardsCoins(jmethodID id, va_list args) {
@@ -414,17 +379,11 @@ jint Cocos2dxHelper_getRewardsCoins(jmethodID id, va_list args) {
     return 0;
 }
 
+/** @brief Plays an FMV cutscene via video_play(), then fires the completion callback.
+ *  @note See docs/comments/java.c.md#ccvideoutilsplayvideo--argument-handling
+ *  @note See docs/comments/java.c.md#video-completion-callback */
 void Cocos2dxActivity_playVideo(jmethodID id, va_list args) {
-    // CCVideoUtils::playVideo(const char *path, bool, bool, ...) forwards
-    // `path` as this call's first argument (confirmed from libgame_logic.so's
-    // mangled symbol, _ZN12CCVideoUtils9playVideoEPKcbbP...). jstring is a
-    // raw char* at runtime in this FalsoJNI (see GetStringUTFChars's
-    // strdup(string) in FalsoJNI.c), matching how audio.cpp already reads
-    // path args directly -- but since we don't fully control what the
-    // compiled game pushes for the other (rarely-exercised) native call
-    // sites into this same method slot, reject anything that isn't a
-    // plausible pointer (guards against misreading e.g. a stray jboolean as
-    // if it were the path) rather than dereferencing blindly.
+    //! @see docs/comments/java.c.md#ccvideoutilsplayvideo--argument-handling
     jstring j_path = va_arg(args, jstring);
     const char *path = (uintptr_t) j_path > 0x1000 ? (const char *) j_path : NULL;
     l_debug("Cocos2dxActivity_playVideo(\"%s\")", path ? path : "(unreadable arg, skipping)");
@@ -433,11 +392,7 @@ void Cocos2dxActivity_playVideo(jmethodID id, va_list args) {
         video_play(path);
     }
 
-    // Video playback (or the decision to skip it above) must always be
-    // followed by firing the completion callback that Android's Java side
-    // would normally call back into native once the video finishes, since
-    // VideoLayer (libgame_logic.so) blocks waiting for it and would
-    // otherwise hang forever instead of continuing past the cutscene.
+    //! @see docs/comments/java.c.md#video-completion-callback
     JNIEnv *jniEnv = &jni;
     void (* onVideoCompleted)(JNIEnv *env, jobject thiz) =
         (void *) so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxVideo_onVideoCompleted");
@@ -487,18 +442,7 @@ MethodsVoid methodsVoid[] = {
     { 24, Cocos2dxSound_resumeEffect },
     { 25, Cocos2dxSound_pauseAllEffects },
     { 26, Cocos2dxSound_resumeAllEffects },
-    // preloadEffect (27) tambien registrado aca ademas de en methodsInt[]:
-    // el juego lo invoca por la ruta CallStaticVoidMethod (confirmado con
-    // logs reales -- "method ID 27 not found!" en cada carga de nivel,
-    // methodVoidCall no lo encontraba porque se habia sacado de esta tabla
-    // por sospecha de que la doble tabla causaba el crash PC=0x20 de SoLoud;
-    // esa hipotesis quedo descartada (la causa real fue el file-hack de
-    // SoLoud, ver Fixes_Log.md #10) y quitarlo de aca solo rompio el
-    // preload real sin arreglar nada. El cast es necesario porque
-    // Cocos2dxSound_preloadEffect devuelve jint pero esta tabla espera
-    // void(*)(...); el valor de retorno simplemente se ignora en la
-    // convencion de llamada de ARM, sin efectos indeseados (mismo patron ya
-    // usado en dynlib.c para varios simbolos).
+    //! @see docs/comments/java.c.md#preloadeffect-double-registration
     { 27, (void (*)(jmethodID, va_list)) Cocos2dxSound_preloadEffect },
     { 28, Cocos2dxSound_unloadEffect },
     { 30, Cocos2dxSound_setEffectsVolume },
@@ -508,13 +452,12 @@ MethodsVoid methodsVoid[] = {
  * JNI Fields
 */
 
-// System-wide constant that applications sometimes request
+//! @see docs/comments/java.c.md#window_service-and-sdk_int-fields
 // https://developer.android.com/reference/android/content/Context.html#WINDOW_SERVICE
 char WINDOW_SERVICE[] = "window";
 
-// System-wide constant that's often used to determine Android version
+//! @see docs/comments/java.c.md#window_service-and-sdk_int-fields
 // https://developer.android.com/reference/android/os/Build.VERSION.html#SDK_INT
-// Possible values: https://developer.android.com/reference/android/os/Build.VERSION_CODES
 const int SDK_INT = 19; // Android 4.4 / KitKat
 
 NameToFieldID nameToFieldId[] = {

@@ -7,6 +7,12 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file  mem.c
+ * @brief Implementations and wrappers for memory-related functions
+ *        (mmap/munmap backed by malloc/free, memory clearing).
+ */
+
 #include "reimpl/mem.h"
 #include "utils/logger.h"
 

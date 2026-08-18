@@ -1,3 +1,9 @@
+/**
+ * @file  video.h
+ * @brief Cutscene video playback interface for the PS Vita so-loader.
+ *        @note See docs/comments/video.h.md for design rationale.
+ */
+
 #ifndef VIDEO_H
 #define VIDEO_H
 
@@ -8,12 +14,10 @@ extern "C" {
 void video_init();
 void video_shutdown();
 
-// Plays the cutscene the game requested (raw is whatever path/string the
-// game's playVideo JNI call carried -- see java.c). Blocks until the video
-// finishes, the player skips it (Cross/Start), or it fails to open/decode.
-// Always returns -- never hangs -- so the caller can unconditionally fire
-// onVideoCompleted() afterwards regardless of outcome (the hang this
-// guards against is the one fixed in plan_portabilidad.md §9.20).
+/** @brief Plays the cutscene the game requested; blocks until it finishes,
+ *         is skipped (Cross/Start), or fails to open/decode -- but always
+ *         returns.
+ *  @note See docs/comments/video.h.md#video_play--guaranteed-return-no-hang-contract */
 void video_play(const char *raw);
 
 #ifdef __cplusplus

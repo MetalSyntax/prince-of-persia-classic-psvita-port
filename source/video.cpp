@@ -1,23 +1,10 @@
-// Cutscene playback via the Vita's native SceAvPlayer, wired into
-// Cocos2dxActivity_playVideo (java.c). The original Android engine has no
-// native video codec on this port, so this fully replaces that path instead
-// of trying to bridge to anything Android-side.
-//
-// Design, matching the discipline established for audio (Docs/Fixes_Log.md
-// #10/#11):
-//  * File I/O stays inside SceAvPlayer (plain path on ux0:) -- no stdio of
-//    ours anywhere near it. An earlier revision wired a
-//    SceAvPlayerFileReplacement over sceIo; dropped as unnecessary for
-//    standalone files.
-//  * Never hangs and never leaves the screen stuck: video_play() always
-//    returns (on natural end, user skip, or any failure to open/init), so
-//    the caller can unconditionally fire onVideoCompleted() afterwards --
-//    that callback is what unblocks VideoLayer (see plan §9.20; the exact
-//    hang this guards against if it's ever skipped).
-//  * Frame data format: confirmed on real hardware to be NV12 (Y plane,
-//    then interleaved U/V, each subsampled 2x2) -- the vitasdk header
-//    doesn't spell this out. An earlier revision assumed fully-planar
-//    I420 (separate U and V planes), which produced a green tint.
+/**
+ * @file  video.cpp
+ * @brief Cutscene playback via the Vita's native SceAvPlayer: YUV->RGB565
+ *        conversion (LUTs + hand-written NEON), GL state save/restore
+ *        around the video draw call, and a dedicated cutscene-audio thread.
+ *        @note See docs/comments/video.cpp.md for design rationale.
+ */
 
 #include "video.h"
 #include "video_path.h"
@@ -52,27 +39,10 @@ static unsigned gRgbBufCap = 0;
 static unsigned char *gYuvScratch = NULL;
 static unsigned gYuvScratchCap = 0;
 
-// A GPU-shader NV12->RGB path (upload the raw Y/UV planes, do the color
-// math in a fragment shader instead of on the CPU) was tried here and
-// reverted: it crashed on real hardware on the very first cutscene, with
-// the log cutting off mid-compile (between "video: playing" and "video:
-// loop starting", right where the new shader-compile call sat -- no
-// engine code runs there normally). Root cause not confirmed further, but
-// this project's own porting_tools/translate_shaders.py already carries a
-// warning that vitaGL's on-device GLSL pipeline "isn't reliable enough for
-// this game's shaders" -- taking that at face value rather than retrying
-// blindly. Don't reintroduce a video-specific GLSL program without testing
-// on hardware first.
+//! @see docs/comments/video.cpp.md#gpu-shader-nv12-rgb-path-reverted
 
 // --- SceAvPlayer file I/O (restored, with full visibility) ---
-//
-// Internal file I/O was in use while the player kept dying with zero
-// decoded frames and no error surfaced anywhere (log_000028) -- with it,
-// the file access is a black box. Routing I/O through sceIo again both
-// bypasses anything odd in the player's internal FIOS2 usage (our process
-// initializes FIOS with its own overlay at boot -- see lib/fios/fios.c)
-// and lets the log show exactly how far the player got into the file
-// before giving up.
+//! @see docs/comments/video.cpp.md#sceavplayer-file-io--restored-with-full-visibility
 struct AvFileCtx {
     SceUID fd;
     uint64_t total_read;
@@ -102,9 +72,7 @@ static int av_file_read(void *p, uint8_t *buffer, uint64_t position, uint32_t le
     AvFileCtx *ctx = (AvFileCtx *) p;
     int n = sceIoPread(ctx->fd, buffer, length, (SceOff) position);
     ctx->read_calls++;
-    // First few reads and any failure tell the story; per-read logging
-    // beyond that is exactly the high-frequency-logging trap from
-    // Fixes_Log.md #12, so it's capped.
+    //! @see docs/comments/video.cpp.md#av_file_read--capped-per-read-logging
     if (ctx->read_calls <= 5 || n < 0)
         l_info("video: file read #%u pos=%llu len=%u -> %d", ctx->read_calls,
                (unsigned long long) position, length, n);
@@ -120,10 +88,7 @@ static uint64_t av_file_size(void *p) {
 }
 
 // --- SceAvPlayer event callback: the player's own diagnostic channel ---
-//
-// Every state transition (and, crucially, warning/error codes) arrives
-// here. Without it, a playback abort is silent -- IsActive just flips to
-// false. This is what finally tells us WHY.
+//! @see docs/comments/video.cpp.md#sceavplayer-event-callback--diagnostic-channel
 static const char *av_event_name(int32_t id) {
     switch (id) {
         case 0x01: return "STATE_STOP";
@@ -148,26 +113,8 @@ static void av_event_cb(void *p, int32_t eventId, int32_t sourceId, void *eventD
     }
 }
 
-// --- SceAvPlayer memory: the pattern proven on real hardware by the
-// so-loader ports that ship working video (gtasa_vita's movie.c and its
-// many descendants). Two DIFFERENT allocators, and the difference matters:
-//
-//  * allocate/deallocate (general): plain memalign/free from the newlib
-//    heap. AvPlayer makes MANY small internal allocations (demuxer state,
-//    stream read buffers, queues) through this pair. A previous revision
-//    of this file backed EVERY one of these with its own
-//    sceKernelAllocMemBlock -- that exhausts the process's memblock limit
-//    within the player's startup burst, at which point an internal
-//    allocation returns NULL and the player silently transitions to
-//    inactive right after activating: exactly the observed
-//    "active=1, then dead within one loop iteration, frames=0".
-//
-//  * allocateTexture/deallocateTexture: the hardware AVC decoder writes
-//    decoded frames here, which requires physically contiguous memory
-//    (PHYCONT), not ordinary heap. vglAlloc(VGL_MEM_SLOW) is vitaGL's
-//    PHYCONT pool. Only a handful of these allocations ever happen (the
-//    numOutputVideoFrameBuffers frame buffers), so pool pressure is not a
-//    concern. 256KB minimum alignment per the same reference ports.
+// --- SceAvPlayer memory: general vs. texture allocators ---
+//! @see docs/comments/video.cpp.md#sceavplayer-memory--general-vs-texture-allocators
 #define AV_FB_ALIGNMENT 0x40000
 #define AV_ALIGN_MEM(x, a) (((x) + ((a) - 1)) & ~((a) - 1))
 
@@ -184,18 +131,8 @@ static void av_free(void *arg, void *ptr) {
     free(ptr);
 }
 
-// Frame-buffer allocations now replicate OpenFMV's gpu_alloc EXACTLY: a
-// DEDICATED kernel memblock per allocation (CDRAM, kernel-guaranteed
-// alignment via SceKernelAllocMemBlockOpt, sceGxmMapMemory'd), not a slice
-// of vitaGL's big pre-mapped pool. This is the last structural difference
-// left standing after log_000029/30: pool-served buffers -- PHYCONT or
-// CDRAM, correctly aligned, every allocation succeeding -- still ended in a
-// silent STATE_STOP with zero frames. The plausible mechanism: the AVC
-// decoder identifies/pins the memblock that OWNS the address it's given
-// (sceKernelFindMemBlockByAddr-style); an address in the middle of vitaGL's
-// giant pool block resolves to a block with the wrong size/owner/flags and
-// gets rejected -- silently, as observed. A dedicated block per allocation
-// is exactly what OpenFMV ships with on real hardware.
+// --- Frame-buffer allocation: dedicated memblock per allocation (OpenFMV pattern) ---
+//! @see docs/comments/video.cpp.md#frame-buffer-allocation--dedicated-memblock-openfmv-pattern
 #define AV_TEX_MAX_BLOCKS 8
 static struct { void *base; SceUID uid; } gAvTexBlocks[AV_TEX_MAX_BLOCKS];
 
@@ -214,15 +151,7 @@ static void *av_alloc_texture(void *arg, uint32_t alignment, uint32_t size) {
     SceUID blk = sceKernelAllocMemBlock("av_tex", SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW, size, &opt);
     SceUID usedType = SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW;
     if (blk < 0) {
-        // log_000046/47 (real hardware, freshly booted, first cutscene of
-        // the session): this CDRAM alloc fails with a genuine
-        // SCE_KERNEL_ERROR_NO_MEMORY (0x80020005) every single time, not
-        // just after heavy menu navigation -- gl_init()'s 32MB CDRAM
-        // threshold (utils/glutil.c) isn't leaving enough room in practice
-        // on this hardware/build. Rather than give up (no cutscene ever
-        // plays), retry once from the PHYCONT partition -- a separate
-        // physical pool from CDRAM, not competing with the same budget --
-        // before failing for real.
+        //! @see docs/comments/video.cpp.md#av_alloc_texture--cdram-failure-and-phycont-fallback
         uint32_t freeCdram = (unsigned) vglMemFree(VGL_MEM_VRAM);
         SceUID blk2 = sceKernelAllocMemBlock("av_tex_phycont", SCE_KERNEL_MEMBLOCK_TYPE_USER_MAIN_PHYCONT_RW, size, &opt);
         if (blk2 < 0) {
@@ -298,27 +227,10 @@ static void init_yuv_tables() {
 
 #define CLIP(X) (clip_table[(X) + 256])
 
-// Packs straight to RGB565 (2 bytes/pixel) instead of RGBA8888 (4
-// bytes/pixel): half the memory writes here, and half the bytes
-// glTexSubImage2D has to push to the GPU every frame afterwards. This is
-// the safe, fixed-function-only alternative to the GPU-shader NV12 path
-// (see the note above gVideoTex) -- no new GL entry points, just a smaller
-// pixel format on the exact same upload/draw path already proven working
-// on hardware since v01.18.
-//
-// log_000051: even after the RGB565 halving, this conversion was still the
-// single biggest cost in the frame (yuv_convert dominated the profile).
-// The Vita's CPU (Cortex-A9) is a NEON target -- confirmed already in use
-// by this project via the linked `mathneon` library (CMakeLists.txt) -- so
-// the inner loop below is hand-vectorized: 8 chroma pairs (16 luma columns,
-// 2 rows = 32 pixels) processed per iteration instead of one 2x2 block at a
-// time. There's no gather instruction on this CPU, so the fixed-point
-// coefficients (same shift-by-16 constants as CV_R/CU_G/CV_G/CU_B above)
-// are computed directly in NEON registers rather than looked up from the
-// scalar LUT; the per-term shift-then-add order is kept identical to the
-// scalar version so the two paths agree bit-for-bit, not just "close
-// enough". Widths not a multiple of 16 fall back to the original scalar
-// loop for the last few columns.
+/** @brief Packs converted pixels straight to RGB565, and backs the
+ *         hand-written NEON vectorization used by yuv420p_to_rgb565() below.
+ *  @note See docs/comments/video.cpp.md#rgb565-packing-and-neon-vectorization-rationale
+ */
 static inline void store_rgb565_8(unsigned short *dst, uint8x8_t r, uint8x8_t g, uint8x8_t b) {
     uint16x8_t rw = vmovl_u8(r);
     uint16x8_t gw = vmovl_u8(g);
@@ -333,12 +245,7 @@ static void yuv420p_to_rgb565(const unsigned char *src, unsigned w, unsigned h, 
     init_yuv_tables();
     const unsigned char *yp = src;
     const unsigned char *uvp = src + (size_t) w * h;
-    // Each chroma sample is shared by a 2x2 luma block (4:2:0 subsampling),
-    // but an earlier version processed one row at a time -- it looked up
-    // and multiplied the SAME U/V pair twice (once for row y, once for row
-    // y+1, since (y/2) == ((y+1)/2) for even y) before ever using it. This
-    // processes both rows of the block together so each chroma lookup is
-    // done once and applied to all 4 pixels it actually covers.
+    //! @see docs/comments/video.cpp.md#yuv420p_to_rgb565--chroma-reuse-across-both-rows
     for (unsigned y = 0; y < h; y += 2) {
         const unsigned char *yrow0 = yp + (size_t) y * w;
         const unsigned char *yrow1 = yrow0 + w;
@@ -433,12 +340,7 @@ static void yuv420p_to_rgb565(const unsigned char *src, unsigned w, unsigned h, 
 // --- fullscreen quad draw ---
 
 static void draw_video_frame(const unsigned short *rgb565, unsigned w, unsigned h) {
-    // glTexImage2D reallocates the texture's VRAM storage -- calling it
-    // every single frame (as an earlier version did) forces vitaGL to
-    // free and re-request GPU memory ~30 times a second, which is a known,
-    // large source of stalling on this driver. A cutscene's resolution
-    // never changes mid-playback, so allocate the storage once per
-    // (w,h) and just upload new pixels into it afterward.
+    //! @see docs/comments/video.cpp.md#draw_video_frame--texture-storage-allocated-once-per-resolution
     if (!gVideoTex || gVideoTexW != w || gVideoTexH != h) {
         if (!gVideoTex) glGenTextures(1, &gVideoTex);
         glBindTexture(GL_TEXTURE_2D, gVideoTex);
@@ -496,36 +398,7 @@ static void draw_video_frame(const unsigned short *rgb565, unsigned w, unsigned 
 }
 
 // --- cutscene audio: dedicated output thread ---
-//
-// log_000051: sceAudioOutOutput() alone blocked for 1.13s of a 10.44s
-// cutscene (audio_output_block), all inside the SAME loop that pays for
-// the YUV conversion above -- every frame the two costs queue up back to
-// back on one thread, so a slow video frame delays the next audio block
-// too (and vice versa). The game's own BGM mixer (audio.cpp) already
-// proves the fix for this exact shape of problem: give the blocking
-// sceAudioOut call its own thread. Here the render loop hands a decoded
-// audio block to a small double-buffered producer/consumer pair (same
-// shape as audio.cpp's out[2]/bufId) instead of calling
-// sceAudioOutOutput() directly -- the render loop only waits long enough
-// for the PREVIOUS block in that slot to finish playing, never for the
-// current one, and audio timing is no longer coupled to how long a given
-// frame's conversion took.
-//
-// psp2dmp 1785292479 (real hardware, first Escenas video after this went
-// in): the 'cutscene audio out' thread crashed on its very first wait,
-// PC/LR both landing inside pte_osSemaphoreCancellablePend (confirmed via
-// arm-vita-eabi-nm on libpthread.a: pthread_cond_wait calls exactly that).
-// A first version of this file used a pthread_cond_t alongside the mutex
-// for the producer/consumer handshake -- PTHREAD_COND_INITIALIZER is a
-// static sentinel (`(pthread_cond_t)-1`, see sys/_pthreadtypes.h), and
-// this vitasdk pthread port apparently doesn't lazily turn that into a
-// real semaphore the way it does for a statically-initialized mutex
-// (audio.cpp's gLock uses that same pattern and has never crashed in this
-// project's whole history). Rather than gamble on an explicit
-// pthread_cond_init() fixing an otherwise never-exercised code path on
-// this platform, the handshake below uses ONLY the mutex (proven) plus a
-// short sceKernelDelayThread poll -- the exact same wait style already
-// proven on hardware by this file's own AvPlayer polling loop above.
+//! @see docs/comments/video.cpp.md#cutscene-audio--dedicated-output-thread
 static pthread_mutex_t gCutAudioLock = PTHREAD_MUTEX_INITIALIZER;
 static unsigned char *gCutAudioBuf[2] = { NULL, NULL };
 static unsigned gCutAudioBufCap = 0;
@@ -560,10 +433,9 @@ static int cutscene_audio_thread(SceSize args, void *argp) {
     return 0;
 }
 
-// Called from the render loop with one decoded audio block. Grows the two
-// buffers to fit (reused across frames/cutscenes, same pattern as
-// gRgbBuf/gYuvScratch above); on allocation failure the block is dropped
-// rather than crashing, matching this file's existing failure policy.
+/** @brief Hands one decoded audio block to the cutscene audio thread via a
+ *         double-buffered slot, growing the buffers on demand; drops the
+ *         block on allocation failure instead of crashing. */
 static void cutscene_audio_submit(const void *pData, unsigned bytes) {
     if (bytes > gCutAudioBufCap) {
         free(gCutAudioBuf[0]);
@@ -648,11 +520,7 @@ void video_play(const char *raw) {
     init.fileReplacement.size = av_file_size;
     init.eventReplacement.objectPointer = NULL;
     init.eventReplacement.eventCallback = av_event_cb;
-    // basePriority 0xA0: the value the known-working reference ports use.
-    // The previous 0x10000100 (SCE_KERNEL_DEFAULT_PRIORITY_USER) is a
-    // special sentinel, and AvPlayer derives its INTERNAL thread priorities
-    // by offsetting from this base -- offsets from the sentinel are not
-    // valid priorities.
+    //! @see docs/comments/video.cpp.md#video_play--basepriority-0xa0
     init.basePriority = 0xA0;
     init.numOutputVideoFrameBuffers = 2;
     init.autoStart = SCE_TRUE;
@@ -677,10 +545,7 @@ void video_play(const char *raw) {
 
     audio_pause_bgm_for_video();
 
-    // Video audio goes through its own dedicated port, opened lazily once we
-    // see the first audio frame (channel count/rate aren't known before
-    // that) -- kept fully separate from the game's own mixer (audio.cpp) so
-    // neither has to know about the other.
+    //! @see docs/comments/video.cpp.md#video_play--dedicated-cutscene-audio-port-design
     int audioPort = -1;
     int audioChannels = 0;
     unsigned audioFrameLen = 0; // frames/channel per sceAudioOutOutput() call, derived below
@@ -709,23 +574,14 @@ void video_play(const char *raw) {
     int video_frames = 0, audio_frames = 0;
     bool audioOpenAttempted = false;
 
-    // log_000050 (real hardware): avg_fps=9.2, no better than before the
-    // RGB565 change -- video.pData is confirmed (by matching log addresses)
-    // to sit inside the CDRAM memblock av_alloc_texture hands back, and
-    // sceAudioOutOutput() below is a known-blocking call (~21ms/call at
-    // 1024 frames/48000Hz). Either could dominate; measure both instead of
-    // guessing which one to optimize next.
+    //! @see docs/comments/video.cpp.md#video_play--per-stage-timing-investigation-log_000050
     uint64_t t_yuv_total = 0, t_draw_total = 0, t_audioout_total = 0, t_cdram_copy_total = 0;
 
     if (!sceAvPlayerIsActive(handle)) {
         l_warn("video: timed out waiting for video decoder to become active (%s)", path.c_str());
     }
 
-    // draw_video_frame() overwrites the projection/modelview matrices and
-    // disables blend/depth-test for its fullscreen quad -- save them here
-    // and restore below so cocos2d's own rendering isn't left corrupted
-    // once the cutscene ends (previously invisible because the decoder
-    // always died before a single frame was ever drawn).
+    //! @see docs/comments/video.cpp.md#video_play--gl-state-saverestore-around-playback
     GLint savedViewport[4];
     glGetIntegerv(GL_VIEWPORT, savedViewport);
     GLboolean savedBlend = glIsEnabled(GL_BLEND);
@@ -759,16 +615,7 @@ void video_play(const char *raw) {
                 gRgbBuf = (unsigned short *) malloc(need);
                 gRgbBufCap = gRgbBuf ? need : 0;
             }
-            // log_000051: yuv_convert alone ate 8.36s of a 10.44s cutscene
-            // (video.pData sits in the CDRAM memblock av_alloc_texture
-            // hands back -- confirmed by matching addresses in the log).
-            // CPU reads from CDRAM/VRAM are far slower than RAM on this
-            // hardware; the per-pixel access below (mixed reads +
-            // arithmetic) can't hide that latency. A single sequential
-            // memcpy drains the CDRAM source in one burst-friendly pass,
-            // then all the per-pixel math reads from a normal RAM copy
-            // instead -- measured as its own stage so the next log proves
-            // whether this actually mattered rather than assuming it did.
+            //! @see docs/comments/video.cpp.md#video_play--cdram-copy-before-yuv-conversion-log_000051
             unsigned yuvNeed = w * h + w * h / 2; // NV12: Y plane + half-res interleaved UV
             if (yuvNeed > gYuvScratchCap) {
                 free(gYuvScratch);
@@ -799,39 +646,15 @@ void video_play(const char *raw) {
                 audioOpenAttempted = true; // one attempt only -- see below
                 audioChannels = audio.details.audio.channelCount;
                 SceAudioOutMode mode = (audioChannels >= 2) ? SCE_AUDIO_OUT_MODE_STEREO : SCE_AUDIO_OUT_MODE_MONO;
-                // sceAudioOutOutput() takes NO length argument -- it always
-                // outputs exactly the port's `len` (frames/channel) from
-                // whatever buffer it's given. A prior revision hardcoded
-                // len=1024 as "the common AvPlayer chunk size"; if the
-                // decoder's actual chunk size differs (details.audio.size is
-                // the REAL per-frame byte size AvPlayer reports), every
-                // single sceAudioOutOutput call over/under-reads audio.pData
-                // by the mismatch -- exactly the "choppy/cut" playback
-                // reported (log_000039), as opposed to an occasional
-                // scheduling hiccup. Derive it from the frame instead of
-                // assuming it.
+                //! @see docs/comments/video.cpp.md#video_play--deriving-audioframelen-from-the-real-frame-size
                 audioFrameLen = audio.details.audio.size / (audioChannels * sizeof(int16_t));
                 l_info("video: cutscene audio port: %u frames/channel (size=%u bytes, ch=%u)",
                        audioFrameLen, (unsigned) audio.details.audio.size, audioChannels);
-                //
-                // Port type is VOICE, not MAIN: the vitasdk header spells out
-                // that MAIN "must be set to 48000 Hz" -- every 44100Hz
-                // cutscene (most of them; only PoP_V1_1 is 48000) was hitting
-                // exactly that with MAIN, confirmed by log_000032/38's
-                // 0x80260008 = SCE_AUDIO_OUT_ERROR_INVALID_SAMPLE_FREQ (not a
-                // port-full/contention error as first assumed). VOICE has no
-                // such restriction and is a different type than our own
-                // mixer's single BGM port (audio.cpp), so it can't collide
-                // with it either.
+                //! @see docs/comments/video.cpp.md#video_play--voice-port-type-vs-main
                 audioPort = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_VOICE, audioFrameLen,
                                                 (int) audio.details.audio.sampleRate, mode);
                 if (audioPort < 0) {
-                    // Retrying this every audio frame (as a prior revision
-                    // did) hammers a real, fairly expensive driver call --
-                    // confirmed in log_000032 firing 400+ times in one
-                    // cutscene and stalling the frame pump (the "video is
-                    // slow" symptom). Fail silent (video keeps playing,
-                    // just muted) instead.
+                    //! @see docs/comments/video.cpp.md#video_play--avoiding-the-sceaudiooutopenport-retry-storm
                     l_warn("video: sceAudioOutOpenPort for cutscene audio failed (0x%08X) -- cutscene audio disabled",
                            (unsigned) audioPort);
                 } else {
@@ -854,11 +677,7 @@ void video_play(const char *raw) {
                 }
             }
             if (audioPort >= 0) {
-                // Now just a hand-off to the dedicated output thread above
-                // (memcpy into a free slot) instead of the blocking
-                // sceAudioOutOutput() call itself -- this total should drop
-                // to near-zero in the next log; if it doesn't, the two
-                // threads are contending for CPU and the fix didn't help.
+                //! @see docs/comments/video.cpp.md#video_play--cutscene-audio-hand-off-timing-note
                 uint64_t t0 = sceKernelGetProcessTimeWide();
                 cutscene_audio_submit(audio.pData, (unsigned) audio.details.audio.size);
                 uint64_t t1 = sceKernelGetProcessTimeWide();

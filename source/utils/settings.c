@@ -6,6 +6,11 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file  settings.c
+ * @brief Loads and saves loader settings to a plain-text config file.
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include "settings.h"

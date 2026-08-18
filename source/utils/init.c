@@ -7,6 +7,12 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file  init.c
+ * @brief Loads and initializes the game's .so modules, FalsoJNI, and OpenGL.
+ *        @note See docs/comments/utils_init.c.md for design rationale.
+ */
+
 #include "utils/init.h"
 
 #include "utils/dialog.h"
@@ -60,9 +66,7 @@ void soloader_init_all() {
 
     if (!module_loaded("kubridge")) {
 #ifdef EMULATOR_BUILD
-        // Vita3K implements kuKernelCpuUnrestrictedMemcpy/kuKernelFlushCaches at the HLE
-        // level without registering a "kubridge" kernel module, so this check always
-        // fails there even though so_util's calls into those functions work fine.
+        //! @see docs/comments/utils_init.c.md#kubridge-check-under-vita3k
         l_warn("kubridge is not loaded (expected under Vita3K / EMULATOR_BUILD).");
 #else
         l_fatal("kubridge is not loaded.");

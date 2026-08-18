@@ -5,6 +5,13 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file  egl.c
+ * @brief EGL function reimplementations backed by vitaGL. Most of these are
+ *        stubs returning Vita-appropriate constant values rather than doing
+ *        real EGL work.
+ */
+
 #include "reimpl/egl.h"
 
 #include "utils/glutil.h"
@@ -271,16 +278,16 @@ EGLBoolean eglChooseConfig(EGLDisplay dpy, const EGLint *attrib_list,
     return EGL_TRUE;
 }
 
+/** @brief Just something that is a valid pointer which can be freed later. */
 EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig config,
                             EGLContext share_context,
                             const EGLint *attrib_list) {
-    // Just something that is a valid pointer which can be freed later
     return strdup("ctx");
 }
 
+/** @brief Just something that is a valid pointer which can be freed later. */
 EGLSurface eglCreateWindowSurface(EGLDisplay dpy, EGLConfig config,
                                   void * win, const EGLint *attrib_list) {
-    // Just something that is a valid pointer which can be freed later
     return strdup("surface");
 }
 

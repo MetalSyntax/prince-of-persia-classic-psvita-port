@@ -1,3 +1,10 @@
+#[[
+  @file  CMakeLists.txt
+  @brief Build configuration for the PS Vita port: compiler flags, target
+         sources, VPK packaging, and the FTP deploy/dump helper targets.
+  @note  See docs/comments/CMakeLists.txt.md for design rationale.
+]]
+
 cmake_minimum_required(VERSION 3.14)
 
 if (NOT DEFINED ENV{VITASDK} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
@@ -10,54 +17,10 @@ project(so_loader C CXX)
 
 include("${VITASDK}/share/vita.cmake" REQUIRED)
 
-# Vita application configuration
+# Vita application configuration.
 # "SND" marker + bumped version identify the audio build against the earlier
 # silent-but-stable one (same TITLEID: installs over it, keeps saves).
-# v01.11 = custom sceAudioOut mixer; SoLoud was removed (see Fixes_Log #10).
-# v01.12 = verbose sequential logging always on, soft-limited audio output,
-#          native SceAvPlayer cutscene playback (see Fixes_Log #11).
-# v01.13 = fixed a v01.12 regression: FALSOJNI_DEBUGLEVEL=0 logged every
-#          primitive JNI call (100s/sec) each paying a full file open+write+
-#          close, tanking the framerate and starving the audio thread of CPU
-#          (see Fixes_Log #12).
-# v01.14 = v01.13 wasn't enough: a pre-existing, always-on FalsoJNI error path
-#          (GetFloatArrayRegion/GetArrayLength on an untracked array, once
-#          per touch-active frame) fired hundreds of times/session once it
-#          started reaching the log file in v01.12. Fixed at the source
-#          (length==0 and NULL-array probes are legitimate JNI no-ops, not
-#          errors) plus consecutive-duplicate suppression in the logger as
-#          defense in depth, plus restored a real missing method
-#          registration (preloadEffect via CallStaticVoidMethod) found along
-#          the way (see Fixes_Log #13).
-# v01.15 = made source/main.c's "input tick" debug log edge-triggered (only
-#          on a touch/pad state CHANGE, not once per frame with any active
-#          touch) -- the logger's duplicate suppression from v01.14 only
-#          collapsed exact repeats, so jitter in touch.reportNum between
-#          frame (see Fixes_Log #14).
-# v01.16 = Fixed zero-volume bug on all SFX (footsteps, hits, environment). The Android Cocos2dx 2.0
-#          JNI signature for playEffect is (Ljava/lang/String;Z)I, meaning it does NOT pass pitch,
-#          pan, or gain. The variadic va_arg was reading garbage uninitialized memory from the stack
-#          for these missing parameters, resulting in a gain of 0.0f, which silenced all sound
-#          effects. They are now hardcoded to 1.0f/0.0f/1.0f (see Fixes_Log #15).
-# v01.19 = Cutscene video performance + audio, and a build-system fix that affects everything else
-#          too: (a) hand-vectorized the YUV(NV12)->RGB565 conversion with NEON; (b) moved cutscene
-#          audio output to its own thread instead of blocking the render loop (a first attempt with
-#          pthread_cond_t crashed real hardware -- this pthread port doesn't lazily initialize a
-#          statically-initialized cond var the way it does a mutex, fixed by using mutex+poll
-#          instead); (c) discovered every local dev build was silently compiling at -O0 instead of
-#          -O3 (CMake appends CMAKE_CXX_FLAGS_DEBUG, which includes "-O0", AFTER this file's own
-#          "-O3" when built with -DCMAKE_BUILD_TYPE=Debug, and the compiler honors the LAST -O flag)
-#          -- CMAKE_C_FLAGS_DEBUG/CMAKE_CXX_FLAGS_DEBUG below now drop the competing -O level so
-#          -O3 always wins. Confirmed on real hardware (see Fixes_Log #18).
-# v01.20 = original.apk and the .obb are no longer required. cocos2d::CCFileUtils::getFileData()
-#          hardcoded EVERY relative file request straight into a ZIP read (apk for appConfig.txt,
-#          obb for everything else) with no loose-file check ever attempted at that level -- unlike
-#          textures/maps/animations, which already went through this project's own fopen_soloader()
-#          and worked loose. source/patch.c now hooks getFileData() itself (via the previously-unused
-#          hook_addr() mechanism) to try a loose file for any relative path first, falling back to
-#          the real apk/obb-zip logic only if nothing loose exists. Confirmed on real hardware across
-#          three rounds of testing (see Fixes_Log #19) -- the .apk/.obb are still supported as a
-#          fallback, just no longer mandatory when the full Data/ tree is present loose.
+# @see docs/comments/CMakeLists.txt.md#version-history-v0111v0120
 set(VITA_APP_NAME "Prince of Persia Classic")
 set(VITA_TITLEID "POPC00001")
 set(VITA_VPKNAME "popclassic")
@@ -103,28 +66,7 @@ if (DUMP_COMPILED_SHADERS)
   endif()
 endif()
 
-# Verbose sequential logging (module load, our own audio/video/scene
-# milestones -- see Docs/Fixes_Log.md #11). This used to be tied to
-# CMAKE_BUILD_TYPE STREQUAL "Debug", but build_and_install.sh always builds
-# Release, so in practice l_debug/l_info/l_success were NEVER compiled in and
-# only l_error/l_fatal ever reached the log file -- exactly the "only shows
-# crashes" complaint. Decoupled from build type: -O3 is hardcoded in
-# CMAKE_C_FLAGS below regardless, so there's no perf reason to tie this to
-# Debug. Turn OFF only if the log file is getting too large to page through.
-#
-# Deliberately does NOT touch FALSOJNI_DEBUGLEVEL (left at its own default,
-# FALSOJNI_DEBUG_INFO): that "ALL" tier logs literally every primitive JNI
-# call (NewStringUTF, FindClass, GetEnv, DeleteLocalRef...) which FIRES
-# CONSTANTLY during normal engine operation. A first attempt at enabling it
-# produced 1600+ log lines in the first few seconds alone, each paying a full
-# sceIoOpen+Write+Close -- this made the game unplayably slow and, by
-# stalling the main thread under the shared log mutex, starved the
-# real-time audio mixer thread of CPU right when it needed its ~46ms window,
-# which is what made the audio sound harder/more distorted too (see
-# Fixes_Log.md #12). None of that per-primitive tracing is needed: every
-# JNI entry point INTO our own code (audio, video, dialogs, bitmaps, etc.)
-# already logs itself directly via l_debug in java.c/audio.cpp/video.cpp,
-# independent of FalsoJNI's internal dispatcher.
+# @see docs/comments/CMakeLists.txt.md#enable_verbose_log-rationale
 option(ENABLE_VERBOSE_LOG "Log the full sequential execution trace (module load, audio/video/scene events) to the log file" OFF)
 if (ENABLE_VERBOSE_LOG)
   add_definitions(-DDEBUG_SOLOADER)
@@ -136,21 +78,7 @@ add_definitions(-D_GNU_SOURCE -D__POSIX_VISIBLE=999999)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=gnu++20 -Wno-write-strings -Wno-psabi")
 
-# CMake appends per-build-type flags (CMAKE_C_FLAGS_DEBUG etc.) AFTER
-# CMAKE_C_FLAGS above on the actual compile command, and the compiler
-# honors the LAST -O flag it sees -- so building with
-# -DCMAKE_BUILD_TYPE=Debug (needed for -g and to carry debug info in
-# ENABLE_VERBOSE_LOG builds) was silently re-adding "-O0 -g -DDEBUG
-# -D_DEBUG" after our own "-O3", and -O0 won. Every local Debug-type build
-# was therefore compiling fully unoptimized while looking like a clean
-# build (no warnings, no errors) -- confirmed 2026-07-28 by disassembling a
-# hand-vectorized NEON function: a 1852-byte stack frame with every single
-# intermediate value, including NEON vector registers, spilled to the
-# stack and reloaded around each statement, textbook -O0 codegen. This
-# project always wants -O3 regardless of build type ("Debug" here is only
-# ever used for -g/-DDEBUG, never actual -O0 debugging), so the Debug
-# config's flags are overridden to drop the competing -O level instead of
-# relying on flag order.
+# @see docs/comments/CMakeLists.txt.md#cmake_c_flags_debug--cmake_cxx_flags_debug--the-silent--o0-bug
 set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -D_DEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG -D_DEBUG")
 

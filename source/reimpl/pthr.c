@@ -8,6 +8,14 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file  pthr.c
+ * @brief Bridges Android bionic's pthread/semaphore ABI (smaller structs,
+ *        lazily-initialized statics) onto vitasdk/newlib's real pthread_t,
+ *        pthread_mutex_t, pthread_cond_t and pthread_attr_t, allocated on
+ *        first use.
+ */
+
 #include "reimpl/pthr.h"
 
 #include <stdlib.h>
@@ -97,7 +105,8 @@ int forgetObject(const void * mut) {
     return 0;
 }
 
-// null check for `attr` must be performed before this
+/** @brief Lazily initializes the bionic pthread_attr_t wrapper on first use.
+ *  @note Caller must NULL-check `attr` before calling this. */
 PTHR_INLINE int _attr_t_static_init(pthread_attr_t_bionic * attr) {
     if (attr->magic != 0x42424242) {
         attr->magic = 0x42424242;
@@ -107,7 +116,10 @@ PTHR_INLINE int _attr_t_static_init(pthread_attr_t_bionic * attr) {
     return 0;
 }
 
-// null check for `mutex` param must be performed before this, `attr` is fine as null
+/** @brief Lazily initializes a bionic pthread_mutex_t wrapper on first use,
+ *         picking the mutex kind from the bionic static initializer value
+ *         (or from `attr` when given).
+ *  @note Caller must NULL-check `mutex`; a NULL `attr` is fine. */
 PTHR_INLINE int _mutex_t_static_init(pthread_mutex_t_bionic * mutex, const pthread_mutexattr_t * attr) {
     int ret = 0, kind = PTHREAD_MUTEX_NORMAL;
 
@@ -143,7 +155,8 @@ PTHR_INLINE int _mutex_t_static_init(pthread_mutex_t_bionic * mutex, const pthre
     return ret;
 }
 
-// null check for `cond` param must be performed before this, `attr` is fine as null
+/** @brief Lazily initializes a bionic pthread_cond_t wrapper on first use.
+ *  @note Caller must NULL-check `cond`; a NULL `attr` is fine. */
 PTHR_INLINE int _cond_t_static_init(pthread_cond_t_bionic * cond, const pthread_condattr_t * attr) {
     int ret = 0;
 

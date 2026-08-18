@@ -1,35 +1,9 @@
-// Cocos2dxMusic / Cocos2dxSound JNI surface implemented on a small
-// self-contained mixer over sceAudioOut, following the reference ports:
-// deadspace-vita drives sceAudioOut from its own output thread
-// (loader/android/EAAudioCore.c) and pop2-vita keeps a single C runtime for
-// everything. SoLoud was dropped after three crash rounds: its vendored
-// WavStream casts SoLoud::File* to FILE* and expects an stb_vorbis compiled
-// with its "file hack" (soloud_file_hack_on.h) -- our tree compiled stb_vorbis
-// raw, so every BGM load ended in newlib fseek/ftell on a fake FILE and a
-// branch into garbage (the whole psp2core family of 2026-07-07, see
-// Docs/Fixes_Log.md #10 and plan §9.30).
-//
-// Hard rules kept from that debugging:
-//  * NO stdio anywhere here: files are read with sceIo, decoding uses only
-//    minimp3's *_buf APIs (memory in, memory/callback out -- no FILE* ever
-//    touches this file).
-//  * No failure path ever executes a pointer: failed loads log + return a
-//    valid dummy handle (never 0 -- Cocos2d-x loops on 0, the "infinite
-//    jump" bug).
-//  * Sample data referenced by the mixer thread is only freed after the
-//    voices using it are silenced under the mixer lock (no use-after-free).
-//
-// Assets are the game's original .mp3 files (mono or stereo, 22050/32000/
-// 44100 Hz, measured), decoded natively with minimp3 -- no offline mp3->ogg
-// transcode step. That transcode used to run every asset through a second
-// lossy encode on top of the source mp3's own compression (already as low as
-// 56kbps/22050Hz), which is what made music/SFX sound noticeably worse than
-// the original Android build. The mixer output runs at 44100 stereo and
-// every voice resamples linearly with step = pitch * (src_rate / 44100);
-// mono sources are upmixed to stereo by duplicating the sample to both
-// channels (same treatment stb_vorbis's forced-stereo mode used to give us
-// for free -- minimp3 decodes exactly the source channel count, so it's done
-// by hand here for BGM streaming and in mix_voice() for one-shot SFX).
+/**
+ * @file  audio.cpp
+ * @brief Cocos2dxMusic / Cocos2dxSound JNI surface backed by a small
+ *        self-contained mixer over sceAudioOut, replacing SoLoud.
+ *        @note See docs/comments/audio.cpp.md for design rationale.
+ */
 
 #include "audio.h"
 #include "audio_path.h"
@@ -53,27 +27,15 @@
 #include <string>
 
 #define MIX_RATE     44100
-// Frames per sceAudioOutOutput block (~46 ms). Matches the buffer size the
-// removed SoLoud vita_homebrew backend used (Soloud::init's AUTO default is
-// 2048) -- doubled from an initial 1024 to give the mixer thread (which does
-// vorbis decode + resample + N-voice mixing, not just a memcpy) more slack
-// before the hardware needs the next block, reducing underrun-driven
-// crackle. See Docs/Fixes_Log.md #11.
+//! @see docs/comments/audio.cpp.md#mix_grain-buffer-size
 #define MIX_GRAIN    2048
 #define MAX_VOICES   12
 #define BGM_WIN      2048 // decoded BGM window, in frames
 
-// Soft-knee limiter onset, as a fraction of full scale. Below this the
-// output is bit-identical to the mixed input (verified via a host-side
-// bit-exact resampling test -- normal single/dual-voice playback never
-// reaches this band). Above it, peaks are compressed smoothly toward but
-// never past full scale instead of hard-clipping, so summing several
-// simultaneously loud voices (BGM + footsteps + a sword hit, say) saturates
-// gracefully instead of producing harsh digital clipping -- the reported
-// "distorted" sound.
+//! @see docs/comments/audio.cpp.md#soft_clip_threshold-limiter
 #define SOFT_CLIP_THRESHOLD 0.92f
 
-// --- engine state (gLock protects everything the mixer thread reads) ---
+//! @see docs/comments/audio.cpp.md#engine-state-section
 
 static pthread_mutex_t gLock = PTHREAD_MUTEX_INITIALIZER;
 static bool gAudioReady = false;
@@ -103,8 +65,8 @@ static Voice gVoices[MAX_VOICES];
 static float gSfxVolume = 1.0f;
 static jint gNextHandle = 1;
 
-// --- BGM: streamed decode from the compressed mp3 kept in RAM ---
-static unsigned char *gBgmMp3Buf = NULL; // malloc'd; must outlive gBgmMp3
+//! @see docs/comments/audio.cpp.md#bgm-streaming-state-section
+static unsigned char *gBgmMp3Buf = NULL; //! @see docs/comments/audio.cpp.md#bgm-state--gbgmmp3buf-lifetime
 static mp3dec_ex_t gBgmMp3;
 static bool gBgmMp3Open = false;
 static int gBgmChannels = 2; // source channel count (1 or 2) of gBgmMp3
@@ -115,7 +77,7 @@ static int gBgmAvail = 0;   // valid frames in gBgmWin
 static bool gBgmPlaying = false, gBgmPaused = false, gBgmLoop = false, gBgmEnded = false;
 static float gBgmVolume = 1.0f;
 
-// --- file loading (sceIo only) ---
+//! @see docs/comments/audio.cpp.md#file-loading--sceio-only
 
 static bool audio_file_exists(const std::string &path) {
     SceIoStat st;
@@ -135,7 +97,7 @@ static std::string resolve_audio_file(const char *raw) {
     return path;
 }
 
-// malloc'd buffer (mp3dec_ex_open_buf/mp3dec_load_buf need it alive while decoding).
+//! @see docs/comments/audio.cpp.md#file-loading--sceio-only
 static unsigned char *read_entire_file(const std::string &path, int *out_len) {
     *out_len = 0;
     SceUID fd = sceIoOpen(path.c_str(), SCE_O_RDONLY, 0);
@@ -171,11 +133,12 @@ static unsigned char *read_entire_file(const std::string &path, int *out_len) {
     return buf;
 }
 
-// --- mixing (mixer thread only, gLock held) ---
+//! @see docs/comments/audio.cpp.md#mixing--mixer-thread-and-glock
 
-// Identity below SOFT_CLIP_THRESHOLD (verified bit-exact against ground
-// truth for normal single/dual-voice playback); above it, compresses
-// smoothly toward but never past full scale instead of hard-clipping.
+/** @brief Soft-knee limiter: identity below SOFT_CLIP_THRESHOLD, compresses
+ *         smoothly toward (but never past) full scale above it.
+ *  @note See docs/comments/audio.cpp.md#soft_clip16--identity-below-threshold
+ */
 static inline short soft_clip16(int v) {
     const float full = 32768.0f;
     float x = (float) v / full;
@@ -194,10 +157,9 @@ static inline short soft_clip16(int v) {
     return (short) outv;
 }
 
-// Reads up to frames_wanted frames (bounded by remaining space in gBgmWin)
-// from gBgmMp3 into gBgmWin at offset gBgmAvail, upmixing mono source to
-// stereo by duplicating each sample to both channels. Returns frames
-// actually appended (0 = decoder has no more samples right now).
+/** @brief Refills gBgmWin from gBgmMp3, upmixing mono source to stereo.
+ *  @note See docs/comments/audio.cpp.md#bgm_refill_from_decoder--mono-upmix
+ */
 static int bgm_refill_from_decoder(int frames_wanted) {
     int space = BGM_WIN - gBgmAvail;
     if (frames_wanted > space) frames_wanted = space;
@@ -220,8 +182,9 @@ static int bgm_refill_from_decoder(int frames_wanted) {
     return (int) got;
 }
 
-// Refill gBgmWin so at least 2 frames are readable from gBgmReadPos.
-// Returns false when the stream is over (and not looping).
+/** @brief Refills gBgmWin so at least 2 frames are readable from gBgmReadPos.
+ *  @note See docs/comments/audio.cpp.md#bgm_ensure_window--stream-refill
+ */
 static bool bgm_ensure_window(void) {
     for (;;) {
         int idx = (int)gBgmReadPos;
@@ -326,7 +289,7 @@ static int mixer_thread(SceSize args, void *argp) {
     return 0;
 }
 
-// --- init / shutdown ---
+//! @see docs/comments/audio.cpp.md#init--shutdown-section
 
 void audio_init() {
     gPort = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_BGM, MIX_GRAIN, MIX_RATE,
@@ -335,18 +298,9 @@ void audio_init() {
         l_error("sceAudioOutOpenPort failed (0x%08X) -- audio disabled, game continues silent", (unsigned)gPort);
         return;
     }
-    // sceAudioOutOpenPort's own docs guarantee the port starts at
-    // SCE_AUDIO_VOLUME_0DB (max) already -- no explicit sceAudioOutSetVolume
-    // call needed. A previous version of this file called it anyway with an
-    // untested channel-flag/array pairing; removed rather than risk it being
-    // the reason output ended up quieter than the source material (verified
-    // bit-exact/0dBFS-peaking via a host-side resampling test -- see
-    // Docs/Fixes_Log.md #11).
+    //! @see docs/comments/audio.cpp.md#audio_init--sceaudiooutopenport-volume-note
 
-    // 128KB stack: the mp3 decoder works on this thread's stack and 64KB
-    // was proven too small (core dump) during the SoLoud bring-up (with
-    // stb_vorbis; kept the same margin switching decoders since minimp3's
-    // own frame buffers are a comparable size).
+    //! @see docs/comments/audio.cpp.md#audio_init--mixer-thread-stack-size
     gThread = sceKernelCreateThread("audio mixer", mixer_thread, 0x10000100, 0x20000, 0, 0, NULL);
     if (gThread < 0) {
         l_error("audio mixer thread creation failed (0x%08X) -- audio disabled", (unsigned)gThread);
@@ -386,10 +340,11 @@ void audio_shutdown() {
     free(gBgmMp3Buf); gBgmMp3Buf = NULL;
 }
 
-// --- Background Music ---
+//! @see docs/comments/audio.cpp.md#background-music-section
 
-// Loads (or reuses) the BGM decoder for `raw`. Returns false on any failure,
-// leaving the previous BGM fully stopped and freed. Never touches stdio.
+/** @brief Loads (or reuses) the BGM decoder for `raw`; never touches stdio.
+ *  @note See docs/comments/audio.cpp.md#bgm_prepare--load--reuse-bgm-decoder
+ */
 static bool bgm_prepare(const char *raw) {
     std::string path = resolve_audio_file(raw);
     if (path.empty())
@@ -531,7 +486,7 @@ void Cocos2dxMusic_preloadBackgroundMusic(jmethodID id, va_list args) {
     bgm_prepare((const char *)j_path); // decoder ready so play starts without a hitch
 }
 
-// --- Sound Effects ---
+//! @see docs/comments/audio.cpp.md#sound-effects-section
 
 static SfxSample *sfx_get(const char *raw) {
     std::string path = resolve_audio_file(raw);
@@ -578,10 +533,7 @@ static SfxSample *sfx_get(const char *raw) {
 jint Cocos2dxSound_playEffect(jmethodID id, va_list args) {
     jstring j_path = va_arg(args, jstring);
     jboolean isLoop = (jboolean)va_arg(args, int);
-    // In older Cocos2d-x versions (like the one used in PoP Classic), the playEffect
-    // JNI signature is (Ljava/lang/String;Z)I, meaning it ONLY passes path and loop.
-    // If we read pitch, pan, and gain using va_arg, it reads uninitialized stack memory,
-    // which results in gain=0.0f and completely mutes all sound effects.
+    //! @see docs/comments/audio.cpp.md#cocos2dxsound_playeffect--jni-signature-warning
     jfloat pitch = 1.0f;
     jfloat pan = 0.0f;
     jfloat gain = 1.0f;
@@ -715,7 +667,7 @@ void Cocos2dxSound_unloadEffect(jmethodID id, va_list args) {
     pthread_mutex_lock(&gLock);
     for (int i = 0; i < MAX_VOICES; i++) {
         if (gVoices[i].smp == s)
-            gVoices[i].smp = NULL; // silence before free: the mixer may be reading it
+            gVoices[i].smp = NULL; //! @see docs/comments/audio.cpp.md#cocos2dxsound_unloadeffect--silence-before-free
     }
     gSfxCache.erase(it);
     pthread_mutex_unlock(&gLock);
@@ -733,5 +685,5 @@ void Cocos2dxSound_setEffectsVolume(jmethodID id, va_list args) {
     l_debug("setEffectsVolume: volume=%f", (double)volume);
     if (volume < 0.0f) volume = 0.0f;
     if (volume > 1.0f) volume = 1.0f;
-    gSfxVolume = volume; // applies to effects started from now on
+    gSfxVolume = volume; //! @see docs/comments/audio.cpp.md#cocos2dxsound_seteffectsvolume--gsfxvolume-scope
 }

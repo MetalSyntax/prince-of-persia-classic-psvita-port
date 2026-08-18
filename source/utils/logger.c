@@ -5,6 +5,13 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file  logger.c
+ * @brief Colored, mutex-guarded logging to the console and to a per-run file
+ *        on the memory card.
+ *        @note See docs/comments/utils_logger.c.md for design rationale.
+ */
+
 #include "utils/logger.h"
 
 #include <psp2/kernel/clib.h>
@@ -37,26 +44,11 @@ static char buffer_b[2048];
 // lifetime (see the file-writing section below).
 static int log_fd = -1;
 
-// Consecutive-duplicate suppression: some call sites (a pre-existing FalsoJNI
-// condition surfaced once its error/warn tiers started reaching this file --
-// see Docs/Fixes_Log.md #13) can fire the SAME message hundreds of times in
-// a row during normal gameplay (once per touch/frame). Printing/writing each
-// occurrence was cheap on its own but added up to real, measurable overhead
-// on the shared thread doing it, at a high enough rate to visibly slow the
-// game down. Collapsing immediate repeats keeps every DISTINCT message
-// (nothing is silently dropped forever) while cutting the dominant cost:
-// spamming the exact same line every single frame.
+//! @see docs/comments/utils_logger.c.md#consecutive-duplicate-suppression
 static char last_msg[2048] = {0};
 static unsigned int repeat_count = 0;
 
-// Picks the next free log_<N>_.txt index by scanning the logs/ directory,
-// instead of stamping the filename with time(NULL): consoles without a
-// battery-backed RTC (or one that's just never been set) don't advance their
-// clock across power cycles, so every run computed the exact same "unique"
-// timestamp and kept re-appending to one stale file forever -- looked like
-// logging had stopped working. A sequential index has no clock dependency,
-// so every run is guaranteed a fresh file no matter what the RTC thinks the
-// date is. Zero-padded so lexicographic and numeric filename order agree.
+//! @see docs/comments/utils_logger.c.md#log-file-naming-without-a-reliable-clock
 static unsigned int next_log_index(const char *dir) {
     unsigned int max_idx = 0;
     SceUID d = sceIoDopen(dir);
@@ -139,10 +131,7 @@ void _log_print(int t, const char* fmt, ...) {
     va_end(list);
 
 #ifdef DATA_PATH
-    // Opened once and kept open for the process lifetime: re-opening a file
-    // on every single log line (the previous behavior) meant every call
-    // here paid a full sceIoOpen+Close on top of the write, which is real
-    // filesystem work on a memory card, not a cheap syscall.
+    //! @see docs/comments/utils_logger.c.md#log-file-kept-open-for-the-process-lifetime
     if (log_fd < 0) {
         sceIoMkdir(DATA_PATH "logs", 0777);
         unsigned int idx = next_log_index(DATA_PATH "logs");

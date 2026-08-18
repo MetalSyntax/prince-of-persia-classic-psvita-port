@@ -1,12 +1,17 @@
+/**
+ * @file  video_path.h
+ * @brief Path-translation helper for cutscene video playback, mirroring
+ *        audio_path.h. The game requests Android asset paths for
+ *        cutscenes, e.g.:
+ *            Extra/Video/High/PoP_V1_1.mp4
+ *            assets/Extra/Video/High/PoP_end.mp4
+ *        while the unpacked assets on the memory card live under
+ *            ux0:data/popclassic/Data/Video/High/...
+ *        @note See docs/comments/video_path.h.md for design rationale.
+ */
+
 #ifndef VIDEO_PATH_H
 #define VIDEO_PATH_H
-
-// Pure path-translation helper for video playback, mirroring audio_path.h.
-// The game requests Android asset paths for cutscenes, e.g.:
-//     Extra/Video/High/PoP_V1_1.mp4
-//     assets/Extra/Video/High/PoP_end.mp4
-// while the unpacked assets on the memory card live under
-//     ux0:data/popclassic/Data/Video/High/...
 
 #include <string>
 
@@ -14,10 +19,12 @@
 #define DATA_PATH "ux0:data/popclassic/"
 #endif
 
-// Maps any path the game may request to the real file under DATA_PATH
-// "Data/Video/High/". Anchors on the "Video/" component so it tolerates
-// "Extra/", "assets/Extra/", leading slashes, or an already-translated
-// "Data/Video/High/..." input -- same convention as sanitize_audio_path.
+/** @brief Maps any path the game may request to the real file under
+ *         DATA_PATH "Data/Video/High/".
+ *  @note  Anchors on the "Video/" component so it tolerates "Extra/",
+ *         "assets/Extra/", leading slashes, or an already-translated
+ *         "Data/Video/High/..." input -- same convention as
+ *         sanitize_audio_path. */
 static inline std::string sanitize_video_path(const char *raw) {
     std::string p = raw ? raw : "";
 
@@ -38,10 +45,7 @@ static inline std::string sanitize_video_path(const char *raw) {
         }
     }
 
-    // Requests may come in without the "High/" resolution folder or with a
-    // bare filename (e.g. just "PoP_V1_1.mp4") if the enum->path mapping the
-    // game does internally doesn't preserve the full Android asset path --
-    // normalize to always land under Video/Mid/.
+    //! @see docs/comments/video_path.h.md#sanitize_video_path--normalizing-missing-resolution-folder-requests
     size_t lastSlash = rel.find_last_of('/');
     std::string filename = (lastSlash == std::string::npos) ? rel : rel.substr(lastSlash + 1);
     rel = "Video/Mid/" + filename;

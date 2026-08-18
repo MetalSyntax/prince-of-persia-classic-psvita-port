@@ -7,6 +7,12 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file  sys.c
+ * @brief Implementations and wrappers for misc. system functions (clocks,
+ *        signals, system properties, atomics, environment, page size).
+ */
+
 #include "reimpl/sys.h"
 
 #include <sys/errno.h>

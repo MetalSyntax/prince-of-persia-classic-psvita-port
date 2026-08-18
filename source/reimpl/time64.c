@@ -26,6 +26,14 @@ THE SOFTWARE.
 
 */
 
+/**
+ * @file  time64.c
+ * @brief 64-bit-safe reimplementations of gmtime/localtime/mktime/asctime
+ *        and friends, vendored from Michael G Schwern's public-domain
+ *        time64 library to work around the 32-bit time_t / year-2038
+ *        problem on LP32 targets.
+ */
+
 /* See http://code.google.com/p/y2038 for this code's origin */
 
 #if defined(__LP64__)

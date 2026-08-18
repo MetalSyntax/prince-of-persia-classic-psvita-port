@@ -5,6 +5,12 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file  errno.c
+ * @brief Error code translation table and lookup functions between newlib
+ *        (Vita) and bionic (Android) errno values and their descriptions.
+ */
+
 #include "reimpl/errno.h"
 
 #include <sys/errno.h>

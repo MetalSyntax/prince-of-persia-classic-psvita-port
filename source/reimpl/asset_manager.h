@@ -1,3 +1,9 @@
+/**
+ * @file  asset_manager.h
+ * @brief Reimplementation of the Android NDK's AAssetManager API for reading
+ *        raw application assets from disk.
+ */
+
 #ifndef ANDROID_ASSET_MANAGER_H
 #define ANDROID_ASSET_MANAGER_H
 

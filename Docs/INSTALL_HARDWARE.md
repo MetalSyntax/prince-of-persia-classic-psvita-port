@@ -71,10 +71,11 @@ ux0:data/popclassic/
 ├── main.1.org.ubisoft.premium.POPClassic.obb     <- OPCIONAL desde v01.20, ver nota abajo
 ├── appConfig.txt                                  <- necesario SOLO si no hay original.apk (ver nota)
 ├── save/                                          <- carpeta vacía, el juego escribe sus saves ahí
+├── logs/                                          <- solo build Debug; se crea sola si no existe
 ├── Data/
 │   ├── Audio/       <- .mp3 sueltos, leídos directo por source/audio.cpp (sceIo, sin pasar por CCFileUtils)
 │   ├── font/         <- .ttf sueltos, leídos directo por get_font() en source/java.c
-│   └── Video/High/   <- .mp4 sueltos, leídos directo por source/video.cpp
+│   └── Video/Mid/    <- .mp4 sueltos, leídos directo por source/video.cpp
 └── Data_960_576/     <- Animations, Effects, Localization, Logo, Maps, Particles, Texture, appConfig.txt
                           (~97 MB). HERMANA de Data/, NO va adentro -- este es el prefijo de resolución que
                           CCFileUtils::getFileData busca en runtime, servido desde archivo suelto por el

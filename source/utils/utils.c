@@ -6,6 +6,11 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file  utils.c
+ * @brief Common helper utilities (file I/O, string manipulation, SHA1).
+ */
+
 #include "utils/utils.h"
 #include "utils/logger.h"
 

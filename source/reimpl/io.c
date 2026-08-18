@@ -7,6 +7,13 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file io.c
+ * @brief Android I/O syscall reimplementations for the PS Vita so-loader.
+ *        Handles path resolution, fd/FILE runtime bridging, and fake-stdio
+ *        routing.  @note See docs/comments/reimpl_io.c.md for design rationale.
+ */
+
 #include "reimpl/io.h"
 
 #include <string.h>
@@ -32,20 +39,7 @@
 // void stat_newlib_to_bionic(struct stat * src, stat64_bionic * dst);
 #include "reimpl/bits/_struct_converters.c"
 
-// The game reads some files (e.g. Data_960_576/Localization/*.loc) via plain
-// relative paths with no device prefix, the same way Android resolves paths
-// relative to the app's data directory. There's no real per-process cwd here
-// (chdir()/getcwd() are just passed through to newlib, unrelated to how
-// sceIo resolves paths), so relative paths must be rewritten to DATA_PATH by
-// hand before reaching fopen()/open()/stat()/opendir().
-//
-// Save data (profile, per-mode progress, etc.) is read/written against
-// Android's app-private storage path (/data/data/<package>/pop_save_*,
-// tempBuffer.txt, etc. -- baked into libgame_logic.so). That device doesn't
-// exist here ("Cannot find device for path"), and critically the game does
-// NOT handle a failed save-file open gracefully: it goes on to dereference
-// the (never-populated) profile data, which crashes with a null function
-// pointer call. So this must be redirected, not merely tolerated as missing.
+//! @see docs/comments/reimpl_io.c.md#path-resolution-and-save-data-redirection
 #define ANDROID_DATA_PREFIX "/data/data/org.ubisoft.premium.POPClassic/"
 
 static const char * resolve_data_path(const char * path, char * buf, size_t buf_size) {
@@ -60,14 +54,7 @@ static const char * resolve_data_path(const char * path, char * buf, size_t buf_
     return path;
 }
 
-// fd -> resolved-path registry, filled by open_soloader(). Exists so that
-// fdopen_soloader() can hand the game a FILE from the SAME C runtime
-// (SceLibc) it uses for every other stdio call. Before this, fdopen was
-// newlib while fseek/fread/fclose were SceLibc: each runtime wrote into the
-// other's FILE layout, silently trampling newlib's static FILE pool -- that
-// was the real cause of the "PC=0x20"/fseek crash family (Fixes_Log #8/#9,
-// plan §9.28/§9.29). Small linear table: the game holds only a handful of
-// fds at a time.
+//! @see docs/comments/reimpl_io.c.md#fd-to-path-registry-and-the-pc0x20-crash-family
 #define FD_PATH_SLOTS 32
 static struct {
     int fd; // 0 = free slot (open() can't return 0 here: stdin exists)
@@ -204,14 +191,10 @@ int close_soloader(int fd) {
     return ret;
 }
 
+/** @brief Converts a low-level fd to a SceLibc FILE for the game's stdio calls.
+ *  @note See docs/comments/reimpl_io.c.md#fdopen_soloader--scelibc-file-reopen */
 FILE * fdopen_soloader(int fd, const char * mode) {
 #ifdef USE_SCELIBC_IO
-    // The FILE returned here will be fed back into sceLibcBridge_fseek/fread/
-    // fclose by the game, so it MUST be a SceLibc FILE. newlib's fdopen would
-    // return a newlib FILE whose innards SceLibc then corrupts (see the
-    // fd_path_registry comment above). Reopen by path instead and mirror the
-    // fd's current offset; fdopen semantics say the fd is owned by the FILE
-    // afterwards, so the newlib fd is closed once the reopen succeeds.
     const char *path = fd_path_lookup(fd);
     if (path) {
         FILE *f = sceLibcBridge_fopen(path, mode);
@@ -234,24 +217,15 @@ FILE * fdopen_soloader(int fd, const char * mode) {
     return f;
 }
 
+/** @brief Accepts and ignores a buffering hint to avoid cross-runtime FILE corruption.
+ *  @note See docs/comments/reimpl_io.c.md#setvbuf_soloader--pure-buffering-hint--cross-runtime-corruption */
 int setvbuf_soloader(FILE * f, char * buf, int mode, size_t size) {
-    // Pure buffering hint. Implementing it would mean writing into a FILE
-    // that belongs to the other C runtime (game FILEs are SceLibc, this
-    // symbol used to be newlib's) -- the exact cross-runtime corruption
-    // documented in Fixes_Log #9. Safe to accept and ignore.
     l_debug("setvbuf(%p, mode=%i, size=%u): ignored", f, mode, (unsigned) size);
     return 0;
 }
 
 // --- game printing (stdout/stderr) ---
-//
-// The game's stderr/stdout are entries of the fake __sF array in dynlib.c,
-// and bionic computes &__sF[2] with its own struct stride -- so the pointer
-// can land anywhere inside that array. Every function below first checks
-// whether the FILE* points into the fake array (any stride) and, if so,
-// routes the text to the logger instead of letting either C runtime
-// interpret a fake FILE (SceLibc treating one as its own sprayed formatted
-// text over so_loader's .data -- see plan §9.30).
+//! @see docs/comments/reimpl_io.c.md#game-printing--stdoutstderr-section
 
 extern FILE __sF_fake[0x100][3]; // dynlib.c
 

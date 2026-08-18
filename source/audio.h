@@ -1,3 +1,9 @@
+/**
+ * @file  audio.h
+ * @brief Public interface for the sceAudioOut-based Cocos2dxMusic /
+ *        Cocos2dxSound mixer and its BGM pause/resume hooks for video.
+ */
+
 #ifndef AUDIO_H
 #define AUDIO_H
 
@@ -11,9 +17,13 @@ extern "C" {
 void audio_init();
 void audio_shutdown();
 
-// Used by video.cpp: cutscenes have their own audio track, so the game's own
-// BGM is paused (not stopped -- resumed exactly where it left off) for the
-// duration of video playback instead of fighting it for the same output.
+/**
+ * @brief Pause/resume the game's BGM around cutscene playback.
+ * @note  Used by video.cpp: cutscenes have their own audio track, so the
+ *        game's own BGM is paused (not stopped -- resumed exactly where it
+ *        left off) for the duration of video playback instead of fighting
+ *        it for the same output.
+ */
 void audio_pause_bgm_for_video();
 void audio_resume_bgm_after_video();
 

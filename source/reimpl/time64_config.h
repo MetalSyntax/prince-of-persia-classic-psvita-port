@@ -1,3 +1,11 @@
+/**
+ * @file  time64_config.h
+ * @brief Compile-time configuration for the vendored time64 library:
+ *        integer type sizes, availability of system time functions, and
+ *        which time ranges may fall back to the platform's own
+ *        gmtime()/localtime().
+ */
+
 /* Debugging
    TIME_64_DEBUG
    Define if you want debugging messages

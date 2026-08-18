@@ -7,6 +7,12 @@
  * of the MIT license. See the LICENSE file for details.
  */
 
+/**
+ * @file  log.c
+ * @brief Implementations for different Android logging functions, routed
+ *        through the port's own logger.
+ */
+
 #include "reimpl/log.h"
 #include "utils/logger.h"
 #include <psp2/kernel/clib.h>

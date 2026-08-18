@@ -1,0 +1,16 @@
+{
+  "game_name": "Prince of Persia Classic",
+  "slug": "popclassic",
+  "project_name": "popclassic",
+  "titleid": "POPC00001",
+  "vita_ip": "192.168.3.15",
+  "vita_port": 1337,
+  "apk_basename": "",
+  "build_dir": "build",
+  "vita_downloads_dir": "/ux0:/downloads",
+  "vita_data_dir": "/ux0:/data",
+  "vita_logs_dir": "/ux0:/data/popclassic/logs",
+  "vita_cg_dir": "ux0:/data/popclassic/cg",
+  "vita_glsl_dir": "ux0:/data/popclassic/glsl",
+  "vita_game_data_dir": "/ux0:/data/popclassic"
+}

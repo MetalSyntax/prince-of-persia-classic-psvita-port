@@ -25,6 +25,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
+
+/**
+ * @file  time64.h
+ * @brief Public declarations for the vendored time64 library: 64-bit-safe
+ *        replacements (asctime64/ctime64/gmtime64/localtime64/mktime64/
+ *        timegm64/timelocal64) for the standard C time functions on LP32
+ *        targets where time_t is only 32-bit.
+ */
 #ifndef TIME64_H
 #define TIME64_H
 

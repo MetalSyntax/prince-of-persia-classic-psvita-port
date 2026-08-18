@@ -51,7 +51,8 @@ logs
 log_*.txt
 apk_decompiled
 build*
-so_*/
+/so_*/
+!lib/so_util/
 porting_tools/
 psvita-port-toolkit/
 extracted_toolkit/

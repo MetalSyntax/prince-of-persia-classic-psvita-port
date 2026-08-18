@@ -121,15 +121,12 @@ Development workflow used for this port:
 
 1. **Set up the toolchain.** Install `vitasdk` (softfp) and export `VITASDK` to point to it.
 2. **Clone this repo** and, to run it on your own hardware, rebuild the `ux0_data/popclassic/` asset tree from your own legal APK/OBB (see [Installation Instructions](#installation-instructions) — this folder is gitignored and never shipped).
-3. **Build.** Either run CMake directly:
+3. **Build.**
    ```bash
    cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release -DENABLE_VERBOSE_LOG=OFF
    cmake --build build
    ```
-   or use the interactive helper script, which also offers to install straight to Vita3K for a quick smoke test of menus/UI (see [Known Issues](#known-issues--current-limitations) regarding real gameplay on Vita3K):
-   ```bash
-   ./build_and_install.sh
-   ```
+   This generates `build/popclassic_audio.vpk`. See [Known Issues](#known-issues--current-limitations) regarding real gameplay on Vita3K.
 4. **Deploy to real hardware over FTP with VitaShell** and iterate on just the `eboot.bin` (no full reinstall needed per change) — full walkthrough in [`Docs/en/INSTALL_HARDWARE.md`](Docs/en/INSTALL_HARDWARE.md).
 5. **Debug.** Build with `-DENABLE_VERBOSE_LOG=ON` for a detailed trace log on the memory card; if the game crashes with no dialog, use the `dump` CMake target (`make dump`) to pull a core dump over FTP and symbolize it against `build/so_loader.elf` with `vita-parse-core`.
 6. Check [`Docs/CHANGELOG.md`](Docs/CHANGELOG.md) and [`Docs/Fixes_Log.md`](Docs/Fixes_Log.md) before starting work on a bug — there's a good chance it's already been investigated.

@@ -1,8 +1,9 @@
 # Install Prince of Persia Classic on a real PS Vita (via FTP)
 
 This guide assumes that you have already compiled `popclassic_audio.vpk` (see `portabilityplan.md` §8, or run
-`./build_and_install.sh` to compile it — generates `build/popclassic_audio.vpk`; the older silent build
-was `build/popclassic.vpk` and remains useful as a rollback). Covers everything you need to
+`cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build` to compile it — generates
+`build/popclassic_audio.vpk`; the older silent build was `build/popclassic.vpk` and remains useful
+as a rollback). Covers everything you need to
 transfer it to a real Vita via FTP with VitaShell, without needing a separate SD card/reader.
 
 ## 0. Requirements in the console

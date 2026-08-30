@@ -67,6 +67,10 @@ int main() {
     void (* nativeKeyDown)(JNIEnv *env, jobject obj, jint keyCode) = (void *)so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxRenderer_nativeKeyDown");
     void (* nativeKeyUp)(JNIEnv *env, jobject obj, jint keyCode) = (void *)so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxRenderer_nativeKeyUp");
 
+    //! @see docs/comments/main.c.md#controls-visibility-toggle--select-start-combo
+    void *(* ControlsLayer_sharedControlsLayer)(void) = (void *)so_symbol(&game_mod, "_ZN13ControlsLayer19sharedControlsLayerEv");
+    void (* ControlsLayer_setControlsVisible)(void *self, int visible) = (void *)so_symbol(&game_mod, "_ZN13ControlsLayer18setControlsVisibleEb");
+
     // Initialize Cocos2d-x environment
     if (nativeSetPaths) {
         //! @see docs/comments/main.c.md#nativesetpaths--argument-semantics-and-originalapk-fallback
@@ -119,6 +123,9 @@ int main() {
     int frame = 0;
     int last_logged_report_num = -1;
     uint32_t last_logged_pad_buttons = 0;
+    int controlsVisible = 1;
+    //! @see docs/comments/main.c.md#jump-plus-walk-diagnostic-log
+    int last_logged_cross_combo = -1;
 
 
     while (1) {
@@ -270,8 +277,32 @@ int main() {
             
             if ((current_pad & SCE_CTRL_R1) && !(oldpad & SCE_CTRL_R1)) nativeKeyDown(jniEnv, NULL, 103); // R1
             if (!(current_pad & SCE_CTRL_R1) && (oldpad & SCE_CTRL_R1)) nativeKeyUp(jniEnv, NULL, 103);
+
+            //! @see docs/comments/main.c.md#controls-visibility-toggle--select-start-combo
+            uint32_t comboMask = SCE_CTRL_SELECT | SCE_CTRL_START;
+            int comboHeldNow = (current_pad & comboMask) == comboMask;
+            int comboHeldBefore = (oldpad & comboMask) == comboMask;
+            if (comboHeldNow && !comboHeldBefore
+                && ControlsLayer_sharedControlsLayer && ControlsLayer_setControlsVisible) {
+                controlsVisible = !controlsVisible;
+                void *controlsLayer = ControlsLayer_sharedControlsLayer();
+                if (controlsLayer) {
+                    ControlsLayer_setControlsVisible(controlsLayer, controlsVisible);
+                    l_debug("controls visibility toggled: %s", controlsVisible ? "visible" : "hidden");
+                }
+            }
         }
         oldpad = current_pad;
+
+        //! @see docs/comments/main.c.md#jump-plus-walk-diagnostic-log
+        int cross_combo = ((current_pad & SCE_CTRL_CROSS) != 0) << 2
+                         | ((current_pad & SCE_CTRL_LEFT) != 0) << 1
+                         | ((current_pad & SCE_CTRL_RIGHT) != 0);
+        if ((current_pad & SCE_CTRL_CROSS) && cross_combo != last_logged_cross_combo) {
+            l_debug("cross+dpad tick: cross=1 left=%i right=%i",
+                    (current_pad & SCE_CTRL_LEFT) != 0, (current_pad & SCE_CTRL_RIGHT) != 0);
+        }
+        last_logged_cross_combo = cross_combo;
 
         if (nativeRender) {
             nativeRender(jniEnv, NULL);

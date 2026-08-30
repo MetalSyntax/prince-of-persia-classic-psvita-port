@@ -206,6 +206,43 @@ Con el fix de memoria de v01.17, el video de las cinemáticas por fin llegó a d
   hook cae a ellos si no encuentra un archivo suelto), no se eliminó esa vía, solo dejó de ser obligatoria.
 - **Build:** `popclassic.vpk` v01.20, mismo TITLEID.
 
+#### 20. Toggle para ocultar el HUD táctil, y diagnóstico para "no puedo saltar y caminar a la vez" (build `popclassic.vpk` v01.21)
+- **Reporte del usuario:** con el control físico de la PS Vita no se puede saltar (Cruz) y caminar (D-Pad)
+  al mismo tiempo, y los botones táctiles en pantalla quedan siempre visibles aunque se esté jugando con el
+  control físico.
+- **Fix (botones siempre visibles):** se agregó un toggle con **Select+Start** (mantenidos juntos, detección
+  por flanco igual que el resto de los combos de este archivo) que oculta/muestra el HUD completo de botones
+  virtuales. Se investigó primero la API nativa `SetControlInVisible`/`SetControlVisible`
+  (`Java_org_cocos2dx_lib_Cocos2dxActivity_*`, ya llamada una vez al boot en `source/main.c`) pero un análisis
+  del binario decompilado (`libcocos2d.so`) confirmó que solo escribe un byte en el singleton de `CCDirector`
+  (`*(iVar1 + 0xac) = 1/0`) que **nada** en `libcocos2d.so` ni `libgame_logic.so` vuelve a leer — código
+  muerto de un modo Android TV/teclado-físico que nunca llegó a usarse en el juego real. La función real que
+  sí tiene efecto es `ControlsLayer::setControlsVisible(bool)` (símbolo mangled
+  `_ZN13ControlsLayer18setControlsVisibleEb`, confirmado exportado con `nm -D` en `bin/libgame_logic.so`,
+  resuelto vía `so_symbol()` sobre el singleton `ControlsLayer::sharedControlsLayer()`) — es la misma función
+  que el juego original ya usa para ocultar los botones al pausar (`ControlsLayer::pausePressed` →
+  `setControlsVisible(false)`) y volver a mostrarlos al reanudar.
+- **Investigación (salto+caminar):** se rastreó el camino completo de ambos inputs en el motor decompilado:
+  Cruz dispara `nativeKeyDown(23)` → `CCKeypadDispatcher::dispatchKeypadMSG` → `ControlsLayer::keyXClicked()`
+  → `AddEvent(JUMP)`; el D-Pad mueve un toque sintético que cae en el mismo `ControlsLayer` singleton →
+  `SetDirection()`. El despachador de estados de Prince (función sin nombre recuperado, `FUN_000c6aa2` en el
+  volcado de Ghidra) revisa el bit de salto en `ControlsLayer::GetEvent()` en **todos** los estados de
+  movimiento salvo los ya-en-el-aire (excluye solo estados 7, 8, 0xd, 0x26, 0x24), y la función que
+  efectivamente dispara el salto (`FUN_000c78f0`) lee `ControlsLayer::GetDirection()` en ese mismo instante
+  para producir un salto **con dirección/carrera** — es decir, el motor está explícitamente diseñado para
+  saltar mientras se camina. Tampoco se encontró que soltar Cruz (`ControlsLayer::keyRemoveX`) toque el
+  estado de dirección, ni que iniciar el toque sintético del D-Pad limpie el evento de salto. No se encontró
+  ningún punto del código (ni en `source/main.c` ni en el motor) que bloquee la combinación.
+- **No confirmado ni descartado:** el análisis estático no puede probar la ausencia total de un bug — puede
+  haber un caso no cubierto en esta lectura, o el problema puede no ser de lógica de disparo sino de otra
+  capa. En vez de aplicar un fix a ciegas sin evidencia real (la lección repetida de este mismo archivo: un
+  hallazgo sin log real termina siendo una regresión, ver §17/§18 sobre el resaltado de Salto), se agregó un
+  log de diagnóstico *edge-triggered* en `source/main.c` (activo solo con `ENABLE_VERBOSE_LOG=ON`, igual que
+  el resto de los logs de este proyecto) que imprime el estado exacto de Cruz+D-Pad-Izquierda/Derecha cada
+  vez que cambia. La próxima sesión con un log real de consola reproduciendo el combo fallido debería poder
+  confirmar si el input físico realmente llega combinado al motor o no.
+- **Build:** `popclassic.vpk` v01.21, mismo TITLEID.
+
 ---
 
 ### 🇬🇧 English
@@ -400,3 +437,40 @@ With v01.17's memory fix, cutscene video finally decoded and drew real frames fo
   (the hook falls back to them if no loose file is found) -- that path wasn't removed, it just stopped being
   mandatory.
 - **Build:** `popclassic.vpk` v01.20, same TITLEID.
+
+#### 20. Toggle to Hide the Touch HUD, and Diagnostics for "Can't Jump and Walk at the Same Time" (build `popclassic.vpk` v01.21)
+- **User report:** using the physical PS Vita controller, the character can't jump (Cross) and walk (D-Pad)
+  at the same time, and the on-screen touch buttons stay visible at all times even when playing with the
+  physical controller.
+- **Fix (buttons always visible):** added a **Select+Start** hold toggle (edge-detected, same pattern as
+  every other combo in this file) that hides/shows the whole on-screen virtual button HUD. The native
+  `SetControlInVisible`/`SetControlVisible` API (`Java_org_cocos2dx_lib_Cocos2dxActivity_*`, already called
+  once at boot in `source/main.c`) was investigated first, but decompiled-binary analysis (`libcocos2d.so`)
+  confirmed it only writes a single byte on `CCDirector`'s singleton (`*(iVar1 + 0xac) = 1/0`) that
+  **nothing** in either `libcocos2d.so` or `libgame_logic.so` ever reads back -- dead code from an Android
+  TV/hardware-keyboard mode that never actually shipped. The real function with a confirmed effect is
+  `ControlsLayer::setControlsVisible(bool)` (mangled symbol `_ZN13ControlsLayer18setControlsVisibleEb`,
+  confirmed exported via `nm -D` on `bin/libgame_logic.so`, resolved through `so_symbol()` on the
+  `ControlsLayer::sharedControlsLayer()` singleton) -- the same function the original game already calls to
+  hide the buttons on pause (`ControlsLayer::pausePressed` -> `setControlsVisible(false)`) and show them
+  again on resume.
+- **Investigation (jump+walk):** traced both inputs' full path through the decompiled engine: Cross
+  dispatches `nativeKeyDown(23)` -> `CCKeypadDispatcher::dispatchKeypadMSG` -> `ControlsLayer::keyXClicked()`
+  -> `AddEvent(JUMP)`; the D-Pad drives a synthetic touch that lands on the same `ControlsLayer` singleton ->
+  `SetDirection()`. Prince's per-frame state dispatcher (an unnamed function, `FUN_000c6aa2` in the Ghidra
+  dump) checks the jump bit via `ControlsLayer::GetEvent()` in **every** movement state except the
+  already-airborne ones (only states 7, 8, 0xd, 0x26, 0x24 are excluded), and the function that actually
+  triggers the jump (`FUN_000c78f0`) reads `ControlsLayer::GetDirection()` at that exact moment to produce a
+  **directional/running** jump -- i.e. the engine is explicitly designed to let you jump while walking.
+  Releasing Cross (`ControlsLayer::keyRemoveX`) was also confirmed not to touch the direction state, and
+  starting the D-Pad's synthetic touch doesn't clear the jump event either. No point in the code (neither
+  `source/main.c` nor the engine) was found blocking the combination.
+- **Not confirmed or ruled out:** static analysis alone can't prove the total absence of a bug -- there may
+  be a case this pass didn't cover, or the problem may not be in the trigger logic at all. Rather than ship a
+  blind fix with no real evidence (this project's own repeated lesson: an unconfirmed change turns into a
+  regression, see #17/#18 on the Jump highlight), an edge-triggered diagnostic log was added to
+  `source/main.c` instead (only active with `ENABLE_VERBOSE_LOG=ON`, same as every other log in this
+  project) that prints the exact Cross+D-Pad-Left/Right state whenever it changes. The next session with a
+  real console log reproducing the failing combo should be able to confirm whether the physical input
+  actually reaches the engine combined or not.
+- **Build:** `popclassic.vpk` v01.21, same TITLEID.

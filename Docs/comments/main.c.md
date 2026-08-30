@@ -13,6 +13,8 @@ Migrated from inline comments in [`source/main.c`](../../source/main.c).
 5. [Virtual Finger Slots and the CC_MAX_TOUCHES Limit](#virtual-finger-slots-and-the-cc_max_touches-limit)
 6. [Jump Touch-Highlight – Reverted Twice](#jump-touch-highlight--reverted-twice)
 7. [Crouch – Shared Keycode for Down and Circle](#crouch--shared-keycode-for-down-and-circle)
+8. [Controls Visibility Toggle – Select+Start Combo](#controls-visibility-toggle--select-start-combo)
+9. [Jump-Plus-Walk Diagnostic Log](#jump-plus-walk-diagnostic-log)
 
 ---
 
@@ -84,3 +86,25 @@ Root cause: this file has no signal to tell "in a menu" apart from "in gameplay,
 **Location:** Comment above the combined Down/Circle crouch handling in the main loop.
 
 Crouch (keycode 20, `DPAD_DOWN`) is shared by two physical inputs: Down/left-stick-down and Circle (keycode 97/`BUTTON_B`, tried for Circle first, did nothing in gameplay — confirmed on hardware). The press/release transition is computed on the **combined** (OR'd) state of both inputs, not on each button separately: sending `keyUp` on Circle's release alone would cancel crouch even while Down is still physically held.
+
+---
+
+## Controls Visibility Toggle – Select+Start Combo
+
+**Location:** Comment above the combo-detection block right after the R1 keycode dispatch, and above the `ControlsLayer_sharedControlsLayer`/`ControlsLayer_setControlsVisible` symbol resolution near the top of `main()`.
+
+Holding **Select+Start** together toggles the on-screen virtual control buttons on/off, for players using the physical controller who don't want the touch HUD cluttering the screen. This does **not** reuse `Cocos2dxActivity_SetControlInVisible`/`SetControlVisible` (already called once at boot, further up in `main()`) — those write a single byte on `CCDirector`'s singleton (confirmed via `nm`/Ghidra: `*(iVar1 + 0xac) = 1/0`) that nothing in either `libcocos2d.so` or `libgame_logic.so` ever reads back; it's dead code left over from an Android-TV/hardware-keyboard code path that never shipped, and calling it has no visible effect.
+
+The real, working mechanism is `ControlsLayer::setControlsVisible(bool)` (mangled `_ZN13ControlsLayer18setControlsVisibleEb`, resolved via `so_symbol(&game_mod, ...)` on the `ControlsLayer::sharedControlsLayer()` singleton, mangled `_ZN13ControlsLayer19sharedControlsLayerEv`) — both confirmed present and exported in `bin/libgame_logic.so` via `nm -D`. This is the actual function the original game itself calls to hide/show the whole on-screen control HUD when the game is paused/resumed (`ControlsLayer::pausePressed` → `setControlsVisible(false)`, `CCDirector::resume` sites → `setControlsVisible(true)`), so it's known to affect the real button sprites, not a vestigial flag.
+
+`comboMask`/edge-detection follows the same held-then-released pattern used elsewhere in this file (e.g. the Select+Start combo only fires once per press, not every frame while held). Select and Start keep their individual existing bindings (Menu/Back) — holding both together is just an additional simultaneous-press check layered on top, not a replacement.
+
+---
+
+## Jump-Plus-Walk Diagnostic Log
+
+**Location:** Comment above the `cross_combo` block right after `oldpad = current_pad;` in the main loop.
+
+Added while investigating a report that the character can't jump (Cross) and walk (D-Pad Left/Right) at the same time using the physical controller, even though the equivalent two-finger touch gesture works on the touchscreen. A deep pass through the decompiled `libgame_logic.so`/`libcocos2d.so` (Prince's per-frame state dispatcher, `ControlsLayer::AddEvent`/`GetEvent`/`GetDirection`/`SetDirection`, the jump-trigger function that reads `GetDirection()` to produce a directional/running jump, `keyXClicked`/`keyRemoveX`) found **no code-level gate** preventing this combination — jump is dispatched via keycode 23 (`DPAD_CENTER` → `ControlsLayer::keyXClicked` → `AddEvent(JUMP)`), movement via synthetic touch into the same `ControlsLayer` singleton (→ `SetDirection`), and the jump-trigger explicitly reads the *current* movement direction to allow a running jump. Nothing found clears movement state on Cross press/release or vice versa.
+
+Since this couldn't be confirmed or refuted by static analysis alone, this log is edge-triggered (fires once per state change, not every frame) and prints the exact Cross/Left/Right bitmask whenever Cross is held, so the next real hardware log capture of the failing combo can pinpoint whether the physical/touch dispatch itself sees the expected combined state — rather than guessing another blind fix. Follows this project's established methodology: one hypothesis at a time, confirmed by a real log, never guess-fix blindly.

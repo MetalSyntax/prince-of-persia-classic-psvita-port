@@ -301,6 +301,23 @@ Con el fix de memoria de v01.17, el video de las cinemáticas por fin llegó a d
 - **Build:** `popclassic.vpk` v01.23, mismo TITLEID. Compilada con `ENABLE_VERBOSE_LOG=ON` (como v01.22) para
   que tanto el archivo como el UDP tengan contenido real que revisar.
 
+#### 23. Crash real en v01.23 al iniciar el logger de red: faltaba cargar el módulo SceNet (build `popclassic.vpk` v01.24)
+- **Reporte del usuario:** crash inmediato en v01.23, con `.psp2dmp` adjunto
+  (`popclassic-psp2core-1788126577-0x0002c72f1b-eboot.bin.psp2dmp`).
+- **Diagnóstico (vía `psvita-toolkit analyze` + `arm-vita-eabi-addr2line`, no adivinado):** `Prefetch abort`
+  con `PC=0x0` — la firma clásica de una llamada a través de un puntero de función no resuelto/en cero — con
+  `LR` apuntando exactamente a `debugnet_init()` en `source/utils/logger.c:63`, la línea de `sceNetCtlInit()`
+  agregada en v01.23. Causa raíz: en PS Vita, `SceNet`/`SceNetCtl` no son módulos residentes por defecto —
+  hace falta `sceSysmoduleLoadModule(SCE_SYSMODULE_NET)` antes de llamar a cualquier función de red (el mismo
+  patrón que este proyecto ya usa para `SCE_SYSMODULE_AVPLAYER` en `source/video.cpp`), y esa llamada se
+  omitió por completo al escribir `debugnet_init()`.
+- **Fix:** `debugnet_init()` ahora llama `sceSysmoduleLoadModule(SCE_SYSMODULE_NET)` primero, y aborta
+  (retorna sin tocar `sceNetInit`/`sceNetCtlInit`/el socket) si eso falla — mismo criterio de degradación
+  silenciosa que ya tenía el resto de la función. También se revisa el valor de retorno de `sceNetInit()` por
+  la misma razón (antes se ignoraba).
+- **Build:** `popclassic.vpk` v01.24, mismo TITLEID. No confirmado aún en consola real — pendiente que el
+  usuario reintente jugar con esta build y confirme que ya no crashea al arrancar el logger de red.
+
 ---
 
 ### 🇬🇧 English
@@ -588,3 +605,20 @@ With v01.17's memory fix, cutscene video finally decoded and drew real frames fo
   already show the live log without waiting to pull any file over FTP.
 - **Build:** `popclassic.vpk` v01.23, same TITLEID. Built with `ENABLE_VERBOSE_LOG=ON` (like v01.22) so both
   the file and the UDP feed actually have real content to check.
+
+#### 23. Real Crash in v01.23 Starting the Network Logger: Missing SceNet Module Load (build `popclassic.vpk` v01.24)
+- **User report:** immediate crash in v01.23, with a `.psp2dmp` attached
+  (`popclassic-psp2core-1788126577-0x0002c72f1b-eboot.bin.psp2dmp`).
+- **Diagnosis (via `psvita-toolkit analyze` + `arm-vita-eabi-addr2line`, not guessed):** `Prefetch abort` with
+  `PC=0x0` -- the classic signature of a call through an unresolved/zero function pointer -- with `LR`
+  pointing exactly at `debugnet_init()` in `source/utils/logger.c:63`, the `sceNetCtlInit()` line added in
+  v01.23. Root cause: on PS Vita, `SceNet`/`SceNetCtl` aren't resident modules by default -- calling any
+  networking function first requires `sceSysmoduleLoadModule(SCE_SYSMODULE_NET)` (the same pattern this
+  project already uses for `SCE_SYSMODULE_AVPLAYER` in `source/video.cpp`), and that call was missed entirely
+  when `debugnet_init()` was written.
+- **Fix:** `debugnet_init()` now calls `sceSysmoduleLoadModule(SCE_SYSMODULE_NET)` first and bails out
+  (returns without touching `sceNetInit`/`sceNetCtlInit`/the socket) if that fails -- the same silent-degrade
+  posture the rest of the function already had. `sceNetInit()`'s return value is now checked too, for the
+  same reason (previously ignored).
+- **Build:** `popclassic.vpk` v01.24, same TITLEID. Not yet confirmed on real hardware -- still pending the
+  user retesting with this build and confirming the network logger no longer crashes on startup.

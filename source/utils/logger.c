@@ -21,6 +21,7 @@
 #include <psp2/io/dirent.h>
 #include <psp2/net/net.h>
 #include <psp2/net/netctl.h>
+#include <psp2/sysmodule.h>
 
 #include <string.h>
 #include <stdbool.h>
@@ -55,11 +56,14 @@ static SceNetSockaddrIn debugnet_addr;
 static char net_buffer[2048];
 
 static void debugnet_init(void) {
+    //! @see docs/comments/utils_logger.c.md#debugnet-udp-live-log-broadcast
+    if (sceSysmoduleLoadModule(SCE_SYSMODULE_NET) < 0) return;
+
     SceNetInitParam net_init_param;
     net_init_param.memory = net_pool;
     net_init_param.size = sizeof(net_pool);
     net_init_param.flags = 0;
-    sceNetInit(&net_init_param);
+    if (sceNetInit(&net_init_param) < 0) return;
     sceNetCtlInit();
 
     debugnet_sock = sceNetSocket("debugnet", SCE_NET_AF_INET, SCE_NET_SOCK_DGRAM, 0);

@@ -67,7 +67,7 @@ int main() {
     void (* nativeKeyDown)(JNIEnv *env, jobject obj, jint keyCode) = (void *)so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxRenderer_nativeKeyDown");
     void (* nativeKeyUp)(JNIEnv *env, jobject obj, jint keyCode) = (void *)so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxRenderer_nativeKeyUp");
 
-    //! @see docs/comments/main.c.md#controls-visibility-toggle--select-start-combo
+    //! @see docs/comments/main.c.md#controls-visibility-toggle--l1r1-combo
     void *(* ControlsLayer_sharedControlsLayer)(void) = (void *)so_symbol(&game_mod, "_ZN13ControlsLayer19sharedControlsLayerEv");
     void (* ControlsLayer_setControlsVisible)(void *self, int visible) = (void *)so_symbol(&game_mod, "_ZN13ControlsLayer18setControlsVisibleEb");
 
@@ -278,8 +278,8 @@ int main() {
             if ((current_pad & SCE_CTRL_R1) && !(oldpad & SCE_CTRL_R1)) nativeKeyDown(jniEnv, NULL, 103); // R1
             if (!(current_pad & SCE_CTRL_R1) && (oldpad & SCE_CTRL_R1)) nativeKeyUp(jniEnv, NULL, 103);
 
-            //! @see docs/comments/main.c.md#controls-visibility-toggle--select-start-combo
-            uint32_t comboMask = SCE_CTRL_SELECT | SCE_CTRL_START;
+            //! @see docs/comments/main.c.md#controls-visibility-toggle--l1r1-combo
+            uint32_t comboMask = SCE_CTRL_LTRIGGER | SCE_CTRL_RTRIGGER;
             int comboHeldNow = (current_pad & comboMask) == comboMask;
             int comboHeldBefore = (oldpad & comboMask) == comboMask;
             if (comboHeldNow && !comboHeldBefore

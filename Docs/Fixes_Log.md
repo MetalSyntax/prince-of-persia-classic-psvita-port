@@ -243,6 +243,33 @@ Con el fix de memoria de v01.17, el video de las cinemáticas por fin llegó a d
   confirmar si el input físico realmente llega combinado al motor o no.
 - **Build:** `popclassic.vpk` v01.21, mismo TITLEID.
 
+#### 21. El combo Select+Start abría la pausa y congelaba el movimiento; cambiado a L1+R1 (build `popclassic.vpk` v01.22)
+- **Reporte del usuario tras probar v01.21 en consola real:** el toggle de Select+Start para ocultar los
+  botones funciona, pero si ambos botones no se presionan en el mismo instante, uno de los dos abre el menú
+  de pausa del juego. Además, después de ocultar los botones, los direccionales (D-Pad y joystick) dejan de
+  responder por completo.
+- **Causa raíz real (confirmada por disassembly, no adivinada):** Select y Start ya tenían asignados
+  individualmente los keycodes 82 (`MENU`) y 4 (`BACK`) — los mismos que abren el menú de pausa del juego
+  original. Al presionarlos a destiempo, el primero en registrarse dispara esa acción antes de que el combo
+  de dos botones llegue a evaluarse. Una vez que el juego entra (aunque sea brevemente) en ese flujo,
+  `arm-vita-eabi-objdump` sobre `bin/libgame_logic.so` confirmó que `ControlsLayer::tick(float)` — la función
+  que procesa el D-Pad/joystick en cada frame — arranca con
+  `if (CCDirector::sharedDirector()[0xad] != 0) return;`, saltándose casi toda la función. Ese byte (0xad) es
+  un offset distinto del `0xac` "muerto" que ya se había identificado en la investigación de v01.21 (confirmado
+  con `nm`/objdump, no es el mismo campo) y todo apunta a que es el `m_bPaused` propio de cocos2d-x, puesto en
+  `true` por el flujo real de pausa del juego — **no** por `ControlsLayer::setControlsVisible()`, que se
+  confirmó (releyendo su disassembly) que nunca escribe ese byte. Es decir: el freeze de movimiento no era un
+  bug de nuestro mecanismo de ocultar/mostrar, sino un efecto colateral de haber empujado al juego a su propio
+  estado de pausa por el choque de keycodes.
+- **Fix:** el combo se cambió de Select+Start a **L1+R1** (keycodes 102/103, sin ninguna asociación con pausa
+  ni con ningún otro menú), eliminando el choque de raíz. `ControlsLayer::setControlsVisible()` se mantiene
+  sin cambios — no era la función responsable del freeze.
+- **Salto+caminar:** sin novedades — el log de consola enviado por el usuario para este reporte resultó ser
+  una sesión de solo menú (EXTRAS→ESCENAS→OPCIONES→salir), sin una sola entrada real a un nivel jugable, así
+  que el log de diagnóstico de v01.21 no tenía ninguna combinación Cruz+D-Pad de gameplay real que capturar.
+  Sigue pendiente una prueba real: entrar a un nivel, correr y saltar, y mandar el log de esa sesión.
+- **Build:** `popclassic.vpk` v01.22, mismo TITLEID.
+
 ---
 
 ### 🇬🇧 English
@@ -474,3 +501,29 @@ With v01.17's memory fix, cutscene video finally decoded and drew real frames fo
   real console log reproducing the failing combo should be able to confirm whether the physical input
   actually reaches the engine combined or not.
 - **Build:** `popclassic.vpk` v01.21, same TITLEID.
+
+#### 21. Select+Start Opened the Pause Menu and Froze Movement; Switched to L1+R1 (build `popclassic.vpk` v01.22)
+- **User report after testing v01.21 on real hardware:** the Select+Start hide-controls toggle works, but if
+  both buttons aren't pressed at the exact same instant, one of them opens the game's pause menu instead.
+  Worse, after hiding the buttons, the D-Pad and analog stick stop responding entirely.
+- **Real root cause (confirmed by disassembly, not guessed):** Select and Start already had their own
+  individual keycodes (82 `MENU`, 4 `BACK`) bound -- the same ones that open the original game's pause menu.
+  Pressed even slightly out of sync, whichever registers first fires that action before the two-button combo
+  ever gets evaluated. Once the game enters (even briefly) that flow, `arm-vita-eabi-objdump` on
+  `bin/libgame_logic.so` confirmed `ControlsLayer::tick(float)` -- the function that drives D-Pad/analog
+  stick handling every frame -- opens with
+  `if (CCDirector::sharedDirector()[0xad] != 0) return;`, skipping almost the entire function. That byte
+  (`0xad`) is a different offset from the "dead" `0xac` byte already identified during the v01.21
+  investigation (confirmed via `nm`/objdump -- not the same field), and everything points to it being
+  cocos2d-x's own `m_bPaused`, set true by the game's real pause flow -- **not** by
+  `ControlsLayer::setControlsVisible()`, which re-reading its disassembly confirmed never touches that byte.
+  In other words: the movement freeze wasn't a bug in the hide/show mechanism itself, it was a side effect of
+  accidentally nudging the game into its own pause state via the keycode collision.
+- **Fix:** the combo was changed from Select+Start to **L1+R1** (keycodes 102/103, with no association to
+  pause or any other menu), removing the collision at its root. `ControlsLayer::setControlsVisible()` is
+  unchanged -- it was never the function responsible for the freeze.
+- **Jump+walk:** no update -- the console log the user sent for this report turned out to be a menu-only
+  session (EXTRAS->SCENES->OPTIONS->quit), with not a single real level entered, so v01.21's diagnostic log
+  had no real Cross+D-Pad gameplay combination to capture. Still pending a real test: enter a level, run and
+  jump, and send that session's log.
+- **Build:** `popclassic.vpk` v01.22, same TITLEID.

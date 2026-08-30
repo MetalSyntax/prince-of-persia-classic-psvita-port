@@ -13,7 +13,7 @@ Migrated from inline comments in [`source/main.c`](../../source/main.c).
 5. [Virtual Finger Slots and the CC_MAX_TOUCHES Limit](#virtual-finger-slots-and-the-cc_max_touches-limit)
 6. [Jump Touch-Highlight – Reverted Twice](#jump-touch-highlight--reverted-twice)
 7. [Crouch – Shared Keycode for Down and Circle](#crouch--shared-keycode-for-down-and-circle)
-8. [Controls Visibility Toggle – Select+Start Combo](#controls-visibility-toggle--select-start-combo)
+8. [Controls Visibility Toggle – L1+R1 Combo](#controls-visibility-toggle--l1r1-combo)
 9. [Jump-Plus-Walk Diagnostic Log](#jump-plus-walk-diagnostic-log)
 
 ---
@@ -89,15 +89,17 @@ Crouch (keycode 20, `DPAD_DOWN`) is shared by two physical inputs: Down/left-sti
 
 ---
 
-## Controls Visibility Toggle – Select+Start Combo
+## Controls Visibility Toggle – L1+R1 Combo
 
 **Location:** Comment above the combo-detection block right after the R1 keycode dispatch, and above the `ControlsLayer_sharedControlsLayer`/`ControlsLayer_setControlsVisible` symbol resolution near the top of `main()`.
 
-Holding **Select+Start** together toggles the on-screen virtual control buttons on/off, for players using the physical controller who don't want the touch HUD cluttering the screen. This does **not** reuse `Cocos2dxActivity_SetControlInVisible`/`SetControlVisible` (already called once at boot, further up in `main()`) — those write a single byte on `CCDirector`'s singleton (confirmed via `nm`/Ghidra: `*(iVar1 + 0xac) = 1/0`) that nothing in either `libcocos2d.so` or `libgame_logic.so` ever reads back; it's dead code left over from an Android-TV/hardware-keyboard code path that never shipped, and calling it has no visible effect.
+Holding **L1+R1** together toggles the on-screen virtual control buttons on/off, for players using the physical controller who don't want the touch HUD cluttering the screen. This does **not** reuse `Cocos2dxActivity_SetControlInVisible`/`SetControlVisible` (already called once at boot, further up in `main()`) — those write a single byte on `CCDirector`'s singleton (confirmed via `nm`/Ghidra: `*(iVar1 + 0xac) = 1/0`) that nothing in either `libcocos2d.so` or `libgame_logic.so` ever reads back; it's dead code left over from an Android-TV/hardware-keyboard code path that never shipped, and calling it has no visible effect.
 
 The real, working mechanism is `ControlsLayer::setControlsVisible(bool)` (mangled `_ZN13ControlsLayer18setControlsVisibleEb`, resolved via `so_symbol(&game_mod, ...)` on the `ControlsLayer::sharedControlsLayer()` singleton, mangled `_ZN13ControlsLayer19sharedControlsLayerEv`) — both confirmed present and exported in `bin/libgame_logic.so` via `nm -D`. This is the actual function the original game itself calls to hide/show the whole on-screen control HUD when the game is paused/resumed (`ControlsLayer::pausePressed` → `setControlsVisible(false)`, `CCDirector::resume` sites → `setControlsVisible(true)`), so it's known to affect the real button sprites, not a vestigial flag.
 
-`comboMask`/edge-detection follows the same held-then-released pattern used elsewhere in this file (e.g. the Select+Start combo only fires once per press, not every frame while held). Select and Start keep their individual existing bindings (Menu/Back) — holding both together is just an additional simultaneous-press check layered on top, not a replacement.
+**v01.21 originally used Select+Start for this combo — replaced in v01.22 after real hardware testing surfaced two problems, both traced to the same root cause, not to `setControlsVisible` itself.** Select and Start each *individually* keep their existing bindings (keycode 82 `MENU` / keycode 4 `BACK`, further up in this file), and the game's own pause-menu flow opens off either one alone. Pressing the combo even slightly out of sync let one half register first and open the pause menu — exactly as reported ("si se hace a destiempo te lleva al menú de pausa"). Worse, once the pause menu had been touched this way, physical movement stopped responding even after hiding/showing again: confirmed via `arm-vita-eabi-objdump` that `ControlsLayer::tick(float)` (the function that drives all joystick/D-Pad direction handling every frame) opens with `if (CCDirector::sharedDirector()[0xad] != 0) return-early` — almost the entire function is skipped whenever that byte is set. That offset is one byte away from (and unrelated to) the dead `0xac` byte above; all evidence points to it being cocos2d-x's own `CCDirector::m_bPaused`, set by the game's real pause flow, not by anything this port's code writes. `ControlsLayer::setControlsVisible()` itself was confirmed to never touch this byte — the freeze was a side effect of accidentally nudging the game into (or partway into) its own pause state, not of hiding the buttons. Switching the toggle to **L1+R1** (keycodes 102/103, with no pause association at all) removes the collision entirely without touching `setControlsVisible`.
+
+`comboMask`/edge-detection follows the same held-then-released pattern used elsewhere in this file (e.g. the combo only fires once per press, not every frame while held).
 
 ---
 

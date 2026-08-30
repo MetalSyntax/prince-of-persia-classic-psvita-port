@@ -318,6 +318,40 @@ Con el fix de memoria de v01.17, el video de las cinemáticas por fin llegó a d
 - **Build:** `popclassic.vpk` v01.24, mismo TITLEID. No confirmado aún en consola real — pendiente que el
   usuario reintente jugar con esta build y confirme que ya no crashea al arrancar el logger de red.
 
+#### 24. Ocultar los botones también deshabilitaba caminar (confirmado con log en vivo); arreglado con opacidad en vez de visibilidad (build `popclassic.vpk` v01.25)
+- **Reporte del usuario, con `live_session_20260830_183102.log` real (por fin logging en vivo funcionando):**
+  probó saltar+caminar y caminar con los botones ocultos/mostrados dentro de un nivel real.
+- **Salto+caminar: confirmado que el input SÍ llega combinado correctamente.** El log muestra
+  `pad.buttons=0x00004020` (Cruz+Derecha, bits crudos de hardware) sostenido por más de un segundo, seguido
+  de `jump.mp3` y `70_land small.mp3`. A nivel de captura/despacho de input esto funciona — si en pantalla se
+  ve distinto a un salto con carrera, es un detalle visual/de animación que un log no puede diagnosticar por
+  sí solo (pendiente que el usuario describa qué ve exactamente en pantalla).
+- **Caminar con los botones ocultos: confirmado roto con evidencia real, y encontrada la causa exacta.**
+  Comparando los efectos de sonido `Footstep`, suenan constantemente mientras los botones están visibles, no
+  suenan NI UNA VEZ durante los ~13 segundos que estuvieron ocultos (con `pad.buttons` confirmando que la
+  dirección seguía presionada todo ese tiempo), y vuelven a sonar de inmediato al mostrarlos de nuevo. Salto
+  no se ve afectado (el `jump.mp3` sigue sonando estando oculto).
+- **Causa raíz (confirmada leyendo el disassembly real de `ControlsLayer::init()`, no adivinada):**
+  `ControlsLayer::setControlsVisible(bool)` (usado desde v01.22 para el toggle) llama
+  `CCNode::setIsVisible(bool)` (slot 29 de la vtabla, confirmado decodificando a mano los bytes crudos de
+  `_ZTVN7cocos2d6CCNodeE`) sobre los seis punteros `CCMenuItemImage` en `this+0x174..0x188` — los seis
+  confirmados construidos vía `CCMenuItemImage::itemFromFramesImage(...)` en `ControlsLayer::init()`. Y
+  `ControlsLayer::tick()` sondea esos mismos seis punteros cada frame para decidir si dispara
+  `control1Clicked()`/`control2Clicked()` (los manejadores de D-Pad izquierda/derecha) — el motor original
+  literalmente no distingue "botón invisible" de "botón no presionable". El salto nunca toca este arreglo
+  (usa el camino de keycode → `AddEvent(JUMP)` documentado en v01.21), por eso seguía funcionando oculto.
+- **Fix:** se dejó de llamar `setControlsVisible()` para este toggle. Ahora se leen esos mismos seis
+  punteros directamente desde el singleton de `ControlsLayer` (offsets `0x174`/`0x178`/`0x17c`/`0x180`/
+  `0x184`/`0x188`) y se llama `CCMenuItemSprite::setOpacity(item, 0 o 255)` (símbolo real
+  `_ZN7cocos2d16CCMenuItemSprite10setOpacityEh` en `libcocos2d.so`, confirmado exportado; su propio
+  disassembly muestra que solo desvanece recursivamente las imágenes normal/seleccionada del botón vía
+  `CCRGBAProtocol`, sin ningún otro efecto) sobre cada uno. Opacidad 0 se ve igual de oculto en pantalla sin
+  tocar `isVisible`, así que `tick()` sigue viendo los botones como "presionables" y el D-Pad sigue
+  funcionando con los botones ocultos. Como efecto secundario (intencional): ya no se llama a
+  `HudLayer::setItemsVisible()` ni se toca el otro arreglo de seis sprites que `setControlsVisible` siempre
+  ocultaba sin condición — el pedido original era ocultar los botones táctiles, no otro elemento del HUD.
+- **Build:** `popclassic.vpk` v01.25, mismo TITLEID. No confirmado aún en consola real.
+
 ---
 
 ### 🇬🇧 English
@@ -622,3 +656,36 @@ With v01.17's memory fix, cutscene video finally decoded and drew real frames fo
   same reason (previously ignored).
 - **Build:** `popclassic.vpk` v01.24, same TITLEID. Not yet confirmed on real hardware -- still pending the
   user retesting with this build and confirming the network logger no longer crashes on startup.
+
+#### 24. Hiding the Buttons Also Disabled Walking (Confirmed via Live Log); Fixed with Opacity Instead of Visibility (build `popclassic.vpk` v01.25)
+- **User report, with a real `live_session_20260830_183102.log` (live logging finally working):** tested
+  jump+walk and walking with the buttons hidden/shown inside a real level.
+- **Jump+walk: confirmed the input really does arrive combined correctly.** The log shows
+  `pad.buttons=0x00004020` (Cross+Right, raw hardware bits) held for over a second, followed by `jump.mp3`
+  and `70_land small.mp3`. At the input-capture/dispatch level this works -- if it looks different on screen
+  from a proper running jump, that's a visual/animation detail a log can't diagnose on its own (still pending
+  the user describing exactly what they see on screen).
+- **Walking with controls hidden: confirmed broken with real evidence, and the exact cause found.** Comparing
+  `Footstep` sound effects, they play constantly while the buttons are visible, don't play a single time
+  during the ~13 seconds they were hidden (with `pad.buttons` confirming the direction stayed held the whole
+  time), and resume immediately once shown again. Jump is unaffected (`jump.mp3` still plays while hidden).
+- **Root cause (confirmed by reading the real disassembly of `ControlsLayer::init()`, not guessed):**
+  `ControlsLayer::setControlsVisible(bool)` (used for the toggle since v01.22) calls `CCNode::setIsVisible(bool)`
+  (vtable slot 29, confirmed by hand-decoding the raw bytes of `_ZTVN7cocos2d6CCNodeE`) on the six
+  `CCMenuItemImage` pointers at `this+0x174..0x188` -- all six confirmed built via
+  `CCMenuItemImage::itemFromFramesImage(...)` in `ControlsLayer::init()`. And `ControlsLayer::tick()` polls
+  those same six pointers every frame to decide whether to fire `control1Clicked()`/`control2Clicked()` (the
+  D-Pad left/right handlers) -- the original engine literally doesn't distinguish "invisible button" from
+  "unpressable button". Jump never touches this array at all (it uses the keycode -> `AddEvent(JUMP)` path
+  documented in v01.21), which is why it kept working hidden.
+- **Fix:** stopped calling `setControlsVisible()` for this toggle. Now reads those same six pointers directly
+  off the `ControlsLayer` singleton (offsets `0x174`/`0x178`/`0x17c`/`0x180`/`0x184`/`0x188`) and calls
+  `CCMenuItemSprite::setOpacity(item, 0 or 255)` (real symbol
+  `_ZN7cocos2d16CCMenuItemSprite10setOpacityEh` in `libcocos2d.so`, confirmed exported; its own disassembly
+  shows it just recursively fades the button's normal/selected child images via `CCRGBAProtocol`, nothing
+  else) on each. Opacity 0 looks equally hidden on screen without touching `isVisible`, so `tick()` keeps
+  seeing the buttons as "pressable" and the D-Pad keeps working while hidden. Side effect (intentional):
+  `HudLayer::setItemsVisible()` is no longer called, and the other six-sprite array `setControlsVisible`
+  always force-hid unconditionally is no longer touched either -- the original ask was to hide the touch
+  buttons, not any other HUD element.
+- **Build:** `popclassic.vpk` v01.25, same TITLEID. Not yet confirmed on real hardware.

@@ -24,7 +24,7 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 set(VITA_APP_NAME "Prince of Persia Classic")
 set(VITA_TITLEID "POPC00001")
 set(VITA_VPKNAME "popclassic")
-set(VITA_VERSION "01.24")
+set(VITA_VERSION "01.25")
 set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
 
 # Optional: used for "send" and "dump" targets

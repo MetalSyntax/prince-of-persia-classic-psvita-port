@@ -69,7 +69,7 @@ int main() {
 
     //! @see docs/comments/main.c.md#controls-visibility-toggle--l1r1-combo
     void *(* ControlsLayer_sharedControlsLayer)(void) = (void *)so_symbol(&game_mod, "_ZN13ControlsLayer19sharedControlsLayerEv");
-    void (* ControlsLayer_setControlsVisible)(void *self, int visible) = (void *)so_symbol(&game_mod, "_ZN13ControlsLayer18setControlsVisibleEb");
+    void (* CCMenuItemSprite_setOpacity)(void *self, unsigned char opacity) = (void *)so_symbol(&cocos2d_mod, "_ZN7cocos2d16CCMenuItemSprite10setOpacityEh");
 
     // Initialize Cocos2d-x environment
     if (nativeSetPaths) {
@@ -283,11 +283,16 @@ int main() {
             int comboHeldNow = (current_pad & comboMask) == comboMask;
             int comboHeldBefore = (oldpad & comboMask) == comboMask;
             if (comboHeldNow && !comboHeldBefore
-                && ControlsLayer_sharedControlsLayer && ControlsLayer_setControlsVisible) {
+                && ControlsLayer_sharedControlsLayer && CCMenuItemSprite_setOpacity) {
                 controlsVisible = !controlsVisible;
                 void *controlsLayer = ControlsLayer_sharedControlsLayer();
                 if (controlsLayer) {
-                    ControlsLayer_setControlsVisible(controlsLayer, controlsVisible);
+                    unsigned char opacity = controlsVisible ? 255 : 0;
+                    static const int kButtonOffsets[6] = {0x174, 0x178, 0x17c, 0x180, 0x184, 0x188};
+                    for (int b = 0; b < 6; b++) {
+                        void *item = *(void **)((char *)controlsLayer + kButtonOffsets[b]);
+                        if (item) CCMenuItemSprite_setOpacity(item, opacity);
+                    }
                     l_debug("controls visibility toggled: %s", controlsVisible ? "visible" : "hidden");
                 }
             }

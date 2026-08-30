@@ -352,6 +352,44 @@ Con el fix de memoria de v01.17, el video de las cinemáticas por fin llegó a d
   ocultaba sin condición — el pedido original era ocultar los botones táctiles, no otro elemento del HUD.
 - **Build:** `popclassic.vpk` v01.25, mismo TITLEID. No confirmado aún en consola real.
 
+#### 25. Cruz nunca mandó el evento real de salto — la investigación de v01.21 tenía las direcciones equivocadas (build `popclassic.vpk` v01.26)
+- **Reporte del usuario, muy preciso:** caminando/corriendo con el D-Pad o joystick físico y presionando X
+  (Cruz), el personaje NUNCA salta, sigue caminando nomás — a menos que esté detenido, ahí sí salta. Con los
+  botones táctiles/virtuales (como en el log anterior) sí funciona bien la combinación.
+- **Descubrimiento: la investigación de v01.21 (§20) tenía las direcciones de función equivocadas.**
+  Reconstruyendo a mano (no adivinado) la tabla de despacho real de `nativeKeyDown` — resolviendo el
+  `table_base` desde los bytes crudos y verificando que el índice de keycode 4 (BACK) da exactamente
+  `kTypeBackClicked`, confirmando el método — se encontró que **el keycode 96 (BUTTON_A) no hace absolutamente
+  nada** (cae en el "no-op" por defecto de la tabla; nunca hizo nada desde el primer commit del proyecto) y
+  que **el keycode 23 (DPAD_CENTER) despacha `CCKeypadDispatcher` msgType 8, que llama al `keyXClicked()` de
+  lo que sea que esté activo en ese momento** — un método virtual de `cocos2d::CCKeypadDelegate` sobrescrito
+  no solo por `ControlsLayer` (gameplay) sino también por `SingleClickMenu`, `LevelSelectLayer`,
+  `CutSceneSelectLayer`, etc. (confirmado con `nm -D`) — es decir, "X" es un callback genérico de "se apretó
+  Cruz" por escena, no algo específico de salto.
+- **`ControlsLayer::keyXClicked()` fue disassemblado completo: manda `AddEvent(4)` o `AddEvent(16)` según una
+  bandera interna — NUNCA `AddEvent(8)`.** El evento 4 es EXACTAMENTE el mismo que manda
+  `ControlsLayer::control2Clicked()` (el botón táctil de AGACHARSE), y el evento 16 es el mismo que
+  `control4Clicked()` (el botón de ATAQUE, `control_combat_attack`). El evento 8 — confirmado que es lo que
+  manda `ControlsLayer::control1Clicked()` — es el salto real, y corresponde al botón `control_platform_jump`
+  (uno de los seis `CCMenuItemImage` de `this+0x174..0x188` documentados en §24; resolviendo su nombre de
+  sprite con la misma técnica se confirma que `0x178` es exactamente `"control_platform_jump"`). Las
+  direcciones `FUN_000c6aa2`/`FUN_000c78f0` que la investigación de §20 llamó "despachador de estados" y
+  "función que dispara el salto" resultaron estar, verificado de nuevo, dentro de
+  `SpecialItemsManager::PlaceHealthPotionAt`/`PickSpecialItemsNearBy` — código de recolección de ítems,
+  totalmente ajeno al salto.
+- **Conclusión:** Cruz, con el mapeo de keycodes de este port (heredado del commit inicial del proyecto),
+  **nunca mandó el evento real de salto**. Lo que parecía "saltar" al estar parado era en realidad la
+  animación de agacharse/atacar en reposo, no un salto genuino — el salto de verdad (el que sí combina bien
+  con caminar, confirmado por el usuario con toques reales) siempre pasó por `control1Clicked()`.
+- **Fix:** se deja intacto el despacho de keycode 23/96 (sigue haciendo falta para "confirmar" en menús y
+  para lo que sea que agachar/atacar ya hacían), y se agrega una llamada DIRECTA a
+  `ControlsLayer::control1Clicked()` (resuelta por símbolo, con el singleton de `ControlsLayer` como `this`)
+  en el flanco de subida de Cruz. Esto no es una repetición del resaltado táctil de Salto revertido dos veces
+  — no inyecta ningún toque en una coordenada de pantalla, así que no puede caer sobre un ítem de menú y
+  secuestrar la selección; solo cambia el bitmask interno de eventos de `ControlsLayer`, que no hace nada
+  mientras la escena activa sea un menú (no `ControlsLayer`) en vez de gameplay.
+- **Build:** `popclassic.vpk` v01.26, mismo TITLEID. No confirmado aún en consola real.
+
 ---
 
 ### 🇬🇧 English
@@ -689,3 +727,37 @@ With v01.17's memory fix, cutscene video finally decoded and drew real frames fo
   always force-hid unconditionally is no longer touched either -- the original ask was to hide the touch
   buttons, not any other HUD element.
 - **Build:** `popclassic.vpk` v01.25, same TITLEID. Not yet confirmed on real hardware.
+
+#### 25. Cross Never Sent the Real Jump Event -- v01.21's Investigation Had the Wrong Addresses (build `popclassic.vpk` v01.26)
+- **Very precise user report:** walking/running with the physical D-Pad or analog stick and pressing X
+  (Cross), the character NEVER jumps, it just keeps walking -- unless it's standing still, in which case X
+  does jump. With the touch/virtual buttons (as in the earlier log) the combination works fine.
+- **Discovery: v01.21's investigation (#20) had the wrong function addresses.** Reconstructing
+  `nativeKeyDown`'s real dispatch table by hand (not guessed) -- resolving `table_base` from the raw bytes
+  and verifying keycode 4 (BACK) indexes to exactly `kTypeBackClicked`, confirming the method -- found that
+  **keycode 96 (`BUTTON_A`) does absolutely nothing** (falls into the table's default no-op; it has never
+  done anything since the project's first commit) and that **keycode 23 (`DPAD_CENTER`) dispatches
+  `CCKeypadDispatcher` msgType 8, which calls whatever is currently active's own `keyXClicked()`** -- a
+  virtual method on `cocos2d::CCKeypadDelegate` overridden not just by `ControlsLayer` (gameplay) but also by
+  `SingleClickMenu`, `LevelSelectLayer`, `CutSceneSelectLayer`, and others (confirmed via `nm -D`) -- i.e.
+  "X" is a generic per-scene "Cross was pressed" callback, not jump-specific.
+- **`ControlsLayer::keyXClicked()` was fully disassembled: it sends `AddEvent(4)` or `AddEvent(16)` depending
+  on an internal flag -- never `AddEvent(8)`.** Event 4 is the exact same event `ControlsLayer::control2Clicked()`
+  sends (the on-screen **crouch** button), and event 16 is the same as `control4Clicked()` (the **attack**
+  button, `control_combat_attack`). Event 8 -- confirmed to be what `ControlsLayer::control1Clicked()` sends
+  -- is the real jump, matching the `control_platform_jump` button (one of the six `CCMenuItemImage`s at
+  `this+0x174..0x188` documented in #24; resolving its sprite name with the same technique confirms `0x178`
+  is exactly `"control_platform_jump"`). The `FUN_000c6aa2`/`FUN_000c78f0` addresses #20 called "the state
+  dispatcher" and "the jump-trigger function" turned out, re-verified from scratch, to be inside
+  `SpecialItemsManager::PlaceHealthPotionAt`/`PickSpecialItemsNearBy` -- item pickup code, unrelated to jump.
+- **Conclusion:** Cross, via this port's keycode mapping (inherited from the project's very first commit),
+  **has never sent the real jump event**. What looked like "jumping" while standing still was actually the
+  idle-state crouch/attack animation, not a genuine jump -- the real jump (the one that does combine
+  correctly with walking, as the user confirmed via real touch) always went through `control1Clicked()`.
+- **Fix:** keycode 23/96 dispatch is left untouched (still needed for menu confirm and whatever
+  crouch/attack behavior already existed), and a **direct call to `ControlsLayer::control1Clicked()`**
+  (resolved by symbol, with the `ControlsLayer` singleton as `this`) is added on Cross's rising edge. This
+  isn't a repeat of the twice-reverted synthetic-touch Jump highlight -- it never injects a touch at a screen
+  coordinate, so it can't land on a menu item and hijack selection; it only flips `ControlsLayer`'s own
+  internal event bitmask, which does nothing while the active scene is a menu rather than gameplay.
+- **Build:** `popclassic.vpk` v01.26, same TITLEID. Not yet confirmed on real hardware.

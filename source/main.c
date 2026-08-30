@@ -70,6 +70,8 @@ int main() {
     //! @see docs/comments/main.c.md#controls-visibility-toggle--l1r1-combo
     void *(* ControlsLayer_sharedControlsLayer)(void) = (void *)so_symbol(&game_mod, "_ZN13ControlsLayer19sharedControlsLayerEv");
     void (* CCMenuItemSprite_setOpacity)(void *self, unsigned char opacity) = (void *)so_symbol(&cocos2d_mod, "_ZN7cocos2d16CCMenuItemSprite10setOpacityEh");
+    //! @see docs/comments/main.c.md#cross-real-jump-via-control1clicked
+    void (* ControlsLayer_control1Clicked)(void *self) = (void *)so_symbol(&game_mod, "_ZN13ControlsLayer15control1ClickedEv");
 
     // Initialize Cocos2d-x environment
     if (nativeSetPaths) {
@@ -261,8 +263,13 @@ int main() {
             // ACTIONS - Keyboard simulated actions
             // Face buttons
             if ((current_pad & SCE_CTRL_CROSS) && !(oldpad & SCE_CTRL_CROSS)) {
-                nativeKeyDown(jniEnv, NULL, 23); // DPAD CENTER (Menu Select / Attack)
-                nativeKeyDown(jniEnv, NULL, 96); // BUTTON_A (Jump in Android TV)
+                nativeKeyDown(jniEnv, NULL, 23); // DPAD CENTER (Menu Select / Crouch-Attack in gameplay)
+                nativeKeyDown(jniEnv, NULL, 96); // BUTTON_A (unbound in this engine's keypad table, kept for parity)
+                //! @see docs/comments/main.c.md#cross-real-jump-via-control1clicked
+                if (ControlsLayer_sharedControlsLayer && ControlsLayer_control1Clicked) {
+                    void *controlsLayer = ControlsLayer_sharedControlsLayer();
+                    if (controlsLayer) ControlsLayer_control1Clicked(controlsLayer);
+                }
             }
             if (!(current_pad & SCE_CTRL_CROSS) && (oldpad & SCE_CTRL_CROSS)) {
                 nativeKeyUp(jniEnv, NULL, 23);

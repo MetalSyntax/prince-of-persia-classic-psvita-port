@@ -270,6 +270,37 @@ Con el fix de memoria de v01.17, el video de las cinemáticas por fin llegó a d
   Sigue pendiente una prueba real: entrar a un nivel, correr y saltar, y mandar el log de esa sesión.
 - **Build:** `popclassic.vpk` v01.22, mismo TITLEID.
 
+#### 22. Servidor de logs en vivo por UDP (debugnet), para no depender del archivo en sesiones largas (build `popclassic.vpk` v01.23)
+- **Reporte del usuario:** jugó varios minutos, pero esa sesión no quedó registrada en el archivo de log —
+  pidió configurar el envío de logs por red (UDP debugnet) en vez de depender solo del archivo en la tarjeta.
+- **Causa probable del archivo incompleto:** `source/utils/logger.c` abre el archivo de log una sola vez y
+  hace `sceIoWrite` por línea, pero nunca lo cierra ni fuerza un sync explícito durante la sesión — si el
+  juego termina por un crash o un hard-reset en vez de una salida limpia, los metadatos del sistema de
+  archivos de la tarjeta pueden no reflejar todavía lo escrito, perdiendo la cola de la sesión. Un log de red
+  en vivo no depende de que el archivo sobreviva al final de la sesión.
+- **Fix:** se agregó un emisor UDP "debugnet" en `source/utils/logger.c` (`debugnet_init`/`debugnet_send`),
+  activado por el mismo lazy-init que ya crea el mutex del logger. Cada línea que ya se imprime/escribe
+  también se manda por broadcast UDP a `255.255.255.255:9999` — la dirección de broadcast limitado, no una
+  IP fija configurada a mano, así no hace falta saber la IP de la PC del desarrollador ni tocar
+  `.psvita-toolkit.json`; solo hace falta que la Vita y la PC compartan la misma red Wi-Fi, que ya es el caso
+  para el FTP existente. El puerto (9999) y el formato (una línea de texto plano UTF-8 por datagrama, sin
+  framing binario, con una etiqueta `[DEBUG]`/`[INFO]`/`[WARN]`/`[ERROR]`/`[FATAL]` al principio) coinciden
+  exactamente con lo que ya espera `psvita-toolkit logs-live` (puerto por defecto 9999, coloreado por regex
+  de esa misma etiqueta) — no hace falta ningún flag extra al correrlo. El payload se re-renderiza desde el
+  `fmt`/`...` original (un segundo `va_start`/`va_end`) en vez de reusar `buffer_b`, porque ese buffer ya
+  tiene los códigos ANSI de color y el prefijo de viñeta pensados para la consola/archivo local, que se
+  verían como ruido de escape codes en un visor de texto plano.
+- **Robustez:** cualquier fallo de red (sin Wi-Fi conectado, `sceNetInit`/`sceNetSocket` fallando, etc.) se
+  tolera en silencio — `debugnet_sock` queda en `-1` y el envío se vuelve un no-op — así que el logging por
+  archivo/consola sigue funcionando exactamente igual que antes en una Vita sin red. Todo el mecanismo queda
+  detrás del mismo gate `DEBUG_SOLOADER`/`ENABLE_VERBOSE_LOG` que el resto del logging, sin costo en un build
+  normal. Nuevas dependencias: `SceNet_stub`/`SceNetCtl_stub` agregadas a `target_link_libraries` en
+  `CMakeLists.txt`.
+- **Cómo usarlo:** con esta build corriendo, `psvita-toolkit logs-live` (sin flags, puerto 9999 por defecto)
+  ya debería mostrar el log en vivo sin esperar a bajar ningún archivo por FTP.
+- **Build:** `popclassic.vpk` v01.23, mismo TITLEID. Compilada con `ENABLE_VERBOSE_LOG=ON` (como v01.22) para
+  que tanto el archivo como el UDP tengan contenido real que revisar.
+
 ---
 
 ### 🇬🇧 English
@@ -527,3 +558,33 @@ With v01.17's memory fix, cutscene video finally decoded and drew real frames fo
   had no real Cross+D-Pad gameplay combination to capture. Still pending a real test: enter a level, run and
   jump, and send that session's log.
 - **Build:** `popclassic.vpk` v01.22, same TITLEID.
+
+#### 22. Live UDP (debugnet) Log Server, So Long Sessions Don't Depend on the File (build `popclassic.vpk` v01.23)
+- **User report:** played for several real minutes, but that session never showed up in the log file --
+  asked for the logs to also go out over the network (UDP debugnet) instead of relying only on the file on
+  the memory card.
+- **Likely cause of the missing file content:** `source/utils/logger.c` opens the log file once and does a
+  per-line `sceIoWrite`, but never closes it or forces an explicit sync during the session -- if the game
+  ends via a crash or a hard reset instead of a clean exit, the card's own filesystem metadata can still lag
+  behind what was actually written, losing the session's tail. A live network feed doesn't depend on the
+  file surviving past the end of the session at all.
+- **Fix:** added a "debugnet" UDP sender in `source/utils/logger.c` (`debugnet_init`/`debugnet_send`),
+  brought up by the same lazy-init that already creates the logger's mutex. Every line already
+  printed/written is also broadcast over UDP to `255.255.255.255:9999` -- the limited-broadcast address, not
+  a hand-configured fixed IP, so no dev-machine IP needs to be known or added to `.psvita-toolkit.json`;
+  the Vita and the PC just need to share the same Wi-Fi network, already true for the existing FTP setup. The
+  port (9999) and wire format (one plain UTF-8 text line per datagram, no binary framing, prefixed with a
+  `[DEBUG]`/`[INFO]`/`[WARN]`/`[ERROR]`/`[FATAL]` tag) match exactly what `psvita-toolkit logs-live` already
+  expects (default port 9999, regex-colored on that same tag) -- no extra flag needed to run it. The payload
+  is re-rendered from the original `fmt`/`...` (a second `va_start`/`va_end` pass) rather than reusing
+  `buffer_b`, since that buffer already has this file's own ANSI color codes and bullet-symbol prefix baked
+  in for the local console/file, which would just show up as escape-code noise in a plain-text UDP viewer.
+- **Robustness:** any network failure (no Wi-Fi connected, `sceNetInit`/`sceNetSocket` failing, etc.) is
+  silently tolerated -- `debugnet_sock` stays `-1` and sending becomes a no-op -- so file/console logging
+  keeps working exactly as before on a Vita with no network. The whole mechanism sits behind the same
+  `DEBUG_SOLOADER`/`ENABLE_VERBOSE_LOG` gate as the rest of the logging, at no cost in a normal build. New
+  dependencies: `SceNet_stub`/`SceNetCtl_stub` added to `target_link_libraries` in `CMakeLists.txt`.
+- **How to use it:** with this build running, `psvita-toolkit logs-live` (no flags, default port 9999) should
+  already show the live log without waiting to pull any file over FTP.
+- **Build:** `popclassic.vpk` v01.23, same TITLEID. Built with `ENABLE_VERBOSE_LOG=ON` (like v01.22) so both
+  the file and the UDP feed actually have real content to check.

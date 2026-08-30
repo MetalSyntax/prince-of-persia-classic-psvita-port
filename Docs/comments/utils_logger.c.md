@@ -9,6 +9,7 @@ Migrated from inline comments in [`source/utils/logger.c`](../../source/utils/lo
 1. [Consecutive-Duplicate Suppression](#consecutive-duplicate-suppression)
 2. [Log File Naming Without a Reliable Clock](#log-file-naming-without-a-reliable-clock)
 3. [Log File Kept Open for the Process Lifetime](#log-file-kept-open-for-the-process-lifetime)
+4. [Debugnet UDP Live Log Broadcast](#debugnet-udp-live-log-broadcast)
 
 ---
 
@@ -37,3 +38,15 @@ A sequential index has no clock dependency, so every run is guaranteed a fresh f
 **Location:** inside `_log_print()`, in the `#ifdef DATA_PATH` block that lazily opens `log_fd`.
 
 The log file is opened once and kept open for the process lifetime. Re-opening the file on every single log line (the previous behavior) meant every call here paid a full `sceIoOpen` + `sceIoClose` on top of the write, which is real filesystem work on a memory card, not a cheap syscall (see `Docs/Fixes_Log.md` item 12, where this was the fix for a game-wide slowdown and audio underruns caused by verbose per-call logging). `sceIoWrite` still lands on disk immediately, so crash durability is unchanged from the old per-line-open behavior; only the repeated open/close cost was removed.
+
+---
+
+## Debugnet UDP Live Log Broadcast
+
+**Location:** `debugnet_init()`/`debugnet_send()`/`level_tag()`, above `_log_print()`; called from inside `_log_print()`'s lazy mutex-init block and from its print/write branch, plus from `flush_repeat_notice()`.
+
+Added because the file-based log (above) can lose its tail on a long play session that ends in a crash or hard reset instead of a clean exit — `sceIoWrite` lands each line on disk, but nothing here ever `sceIoClose()`s or explicitly syncs the file, and a card's own filesystem metadata can still lag behind what's been written when the console dies mid-session (confirmed by report: several real minutes of gameplay produced a log file with none of it in it). A live network feed doesn't depend on the file surviving a crash at all.
+
+Every line this file already prints/writes also gets broadcast as a UDP datagram to `255.255.255.255:9999` — the limited-broadcast address, not a specific configured host, so this needs no PC IP to be set anywhere and keeps working across whatever network the Vita and the dev machine happen to share, matching how `psvita-toolkit logs-live`'s listener (`0.0.0.0:9999`, same default port) already expects to receive it: one plain UTF-8 text line per datagram, no binary framing, with a bracketed `[DEBUG]`/`[INFO]`/`[WARN]`/`[ERROR]`/`[FATAL]` severity tag prefix that its regex-based color coding looks for (`LT_SUCCESS`/`LT_WAIT`, which have no bracket-tag equivalent on the listener side, are sent as `[INFO]` rather than dropped or left untagged). The payload is the plain user message re-rendered from a second `va_start`/`va_end` pass over the same `fmt`/`...`, not `buffer_b`, since `buffer_b` has this file's own ANSI color codes and bullet-symbol prefix baked in for the local console/file, which would just show up as escape-code noise in a plain-text UDP viewer.
+
+`sceNetInit`/`sceNetSocket`/`sceNetSetsockopt(..., SCE_NET_SO_BROADCAST, ...)` run once, lazily, alongside the existing mutex creation. Every failure path here (`sceNetInit` error, socket creation failure) is silently tolerated — `debugnet_sock` simply stays `-1` and `debugnet_send()` becomes a no-op — so a Vita with no Wi-Fi connected, or any other network-layer failure, degrades to exactly today's file+console-only logging instead of blocking or crashing the game. This whole feature only compiles in behind the same `DEBUG_SOLOADER`/`ENABLE_VERBOSE_LOG` gate as every other log call in this project (`logger.h`), so it costs nothing in a normal release build.

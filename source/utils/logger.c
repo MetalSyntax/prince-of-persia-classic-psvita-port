@@ -19,7 +19,10 @@
 #include <psp2/io/fcntl.h>
 #include <psp2/io/stat.h>
 #include <psp2/io/dirent.h>
+#include <psp2/net/net.h>
+#include <psp2/net/netctl.h>
 
+#include <string.h>
 #include <stdbool.h>
 #include <stdatomic.h>
 
@@ -43,6 +46,43 @@ static char buffer_b[2048];
 // Log file descriptor, opened once lazily and kept open for the process
 // lifetime (see the file-writing section below).
 static int log_fd = -1;
+
+//! @see docs/comments/utils_logger.c.md#debugnet-udp-live-log-broadcast
+#define DEBUGNET_UDP_PORT 9999
+static char net_pool[128 * 1024];
+static int debugnet_sock = -1;
+static SceNetSockaddrIn debugnet_addr;
+static char net_buffer[2048];
+
+static void debugnet_init(void) {
+    SceNetInitParam net_init_param;
+    net_init_param.memory = net_pool;
+    net_init_param.size = sizeof(net_pool);
+    net_init_param.flags = 0;
+    sceNetInit(&net_init_param);
+    sceNetCtlInit();
+
+    debugnet_sock = sceNetSocket("debugnet", SCE_NET_AF_INET, SCE_NET_SOCK_DGRAM, 0);
+    if (debugnet_sock < 0) return;
+
+    int enable_broadcast = 1;
+    sceNetSetsockopt(debugnet_sock, SCE_NET_SOL_SOCKET, SCE_NET_SO_BROADCAST,
+                      &enable_broadcast, sizeof(enable_broadcast));
+
+    memset(&debugnet_addr, 0, sizeof(debugnet_addr));
+    debugnet_addr.sin_family = SCE_NET_AF_INET;
+    debugnet_addr.sin_port = sceNetHtons(DEBUGNET_UDP_PORT);
+    sceNetInetPton(SCE_NET_AF_INET, "255.255.255.255", &debugnet_addr.sin_addr);
+}
+
+static void debugnet_send(const char *tag, const char *text) {
+    if (debugnet_sock < 0) return;
+    int len = sceClibSnprintf(net_buffer, sizeof(net_buffer), "%s %s", tag, text);
+    if (len > 0) {
+        sceNetSendto(debugnet_sock, net_buffer, (unsigned int) len, 0,
+                     (SceNetSockaddr *) &debugnet_addr, sizeof(debugnet_addr));
+    }
+}
 
 //! @see docs/comments/utils_logger.c.md#consecutive-duplicate-suppression
 static char last_msg[2048] = {0};
@@ -82,7 +122,22 @@ static void flush_repeat_notice(void) {
     sceClibPrintf(notice);
     if (log_fd >= 0)
         sceIoWrite(log_fd, notice, (SceSize) len);
+    debugnet_send("[INFO]", notice);
     repeat_count = 0;
+}
+
+//! @see docs/comments/utils_logger.c.md#debugnet-udp-live-log-broadcast
+static const char *level_tag(int t) {
+    switch (t) {
+        case LT_DEBUG:   return "[DEBUG]";
+        case LT_INFO:    return "[INFO]";
+        case LT_WARN:    return "[WARN]";
+        case LT_ERROR:   return "[ERROR]";
+        case LT_FATAL:   return "[FATAL]";
+        case LT_SUCCESS: return "[INFO]";
+        case LT_WAIT:    return "[INFO]";
+        default:         return "[INFO]";
+    }
 }
 
 void _log_print(int t, const char* fmt, ...) {
@@ -92,6 +147,7 @@ void _log_print(int t, const char* fmt, ...) {
             sceClibPrintf("Error: failed to create log mutex: 0x%x\n", ret);
             return;
         }
+        debugnet_init();
         atomic_store_explicit(&_log_mutex_ready, true, memory_order_relaxed);
     }
     sceKernelLockLwMutex(&_log_mutex, 1, NULL);
@@ -154,6 +210,13 @@ void _log_print(int t, const char* fmt, ...) {
             sceIoWrite(log_fd, buffer_b, sceClibStrnlen(buffer_b, sizeof(buffer_b)));
         }
 #endif
+        //! @see docs/comments/utils_logger.c.md#debugnet-udp-live-log-broadcast
+        char plain_msg[2048];
+        va_list list2;
+        va_start(list2, fmt);
+        sceClibVsnprintf(plain_msg, sizeof(plain_msg), fmt, list2);
+        va_end(list2);
+        debugnet_send(level_tag(t), plain_msg);
     }
 
     if (atomic_load_explicit(&_log_mutex_ready, memory_order_relaxed)) {

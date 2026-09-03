@@ -68,9 +68,7 @@ int main() {
     void (* nativeKeyUp)(JNIEnv *env, jobject obj, jint keyCode) = (void *)so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxRenderer_nativeKeyUp");
 
     //! @see docs/comments/main.c.md#controls-visibility-toggle--l1r1-combo
-    void *(* ControlsLayer_sharedControlsLayer)(void) = (void *)so_symbol(&game_mod, "_ZN13ControlsLayer19sharedControlsLayerEv");
-    void (* CCMenuItemSprite_setOpacity)(void *self, unsigned char opacity) = (void *)so_symbol(&cocos2d_mod, "_ZN7cocos2d16CCMenuItemSprite10setOpacityEh");
-    void (* CCSprite_setOpacity)(void *self, unsigned char opacity) = (void *)so_symbol(&cocos2d_mod, "_ZN7cocos2d8CCSprite10setOpacityEh");
+    void (* SetControlVisible)(JNIEnv *env, jobject obj) = (void *)so_symbol(&cocos2d_mod, "Java_org_cocos2dx_lib_Cocos2dxActivity_SetControlVisible");
 
     // Initialize Cocos2d-x environment
     if (nativeSetPaths) {
@@ -90,9 +88,13 @@ int main() {
         }
         jstring apkFilePathStr = (*jniEnv)->NewStringUTF(jniEnv, DATA_PATH);
         jstring apkSourceDirStr = (*jniEnv)->NewStringUTF(jniEnv, DATA_PATH "original.apk");
-        jstring deviceStr = (*jniEnv)->NewStringUTF(jniEnv, "PSVita");
+        //! @see docs/comments/main.c.md#native-xperia-play-control-path
+        // The device name is used for exactly one thing: strcmp(device, "R800i")
+        // sets CCDirector+0xad (IsXperia). "R800i" is the Xperia PLAY's model number,
+        // and it unlocks the game's own physical-gamepad code path.
+        jstring deviceStr = (*jniEnv)->NewStringUTF(jniEnv, "R800i");
         nativeSetPaths(jniEnv, NULL, apkFilePathStr, apkSourceDirStr, deviceStr);
-        l_success("nativeSetPaths(%s, %soriginal.apk, PSVita) done.", DATA_PATH, DATA_PATH);
+        l_success("nativeSetPaths(%s, %soriginal.apk, R800i) done -- IsXperia set.", DATA_PATH, DATA_PATH);
     }
 
     if (nativeSetPackageName) {
@@ -124,7 +126,13 @@ int main() {
     int frame = 0;
     int last_logged_report_num = -1;
     uint32_t last_logged_pad_buttons = 0;
-    int controlsVisible = 1;
+    // main() calls SetControlInVisible() above, so the on-screen controls start hidden.
+    int controlsVisible = 0;
+    //! @see docs/comments/main.c.md#native-xperia-play-control-path
+    // Per-direction hold tracking for the walk -> run promotion. Index 0 = Left, 1 = Right.
+    const uint64_t RUN_PROMOTE_US = 250000; // matches CCDelayTime(0.25f) in ControlsLayer::tick
+    uint64_t dirHeldSince[2] = {0, 0};
+    int dirRunSent[2] = {0, 0};
     //! @see docs/comments/main.c.md#jump-plus-walk-diagnostic-log
     int last_logged_cross_combo = -1;
 
@@ -164,40 +172,11 @@ int main() {
         if (pad.ly < 90) current_pad |= SCE_CTRL_UP;
         if (pad.ly > 165) current_pad |= SCE_CTRL_DOWN;
 
-        int dpadWantLeft = (current_pad & SCE_CTRL_LEFT) != 0;
-        int dpadWantRight = (current_pad & SCE_CTRL_RIGHT) != 0;
-
-        int wantWalk = (current_pad & SCE_CTRL_SQUARE) != 0;
-
-        const int ARROW_Y = 400;
-        const int WALK_X_LEFT = 95, RUN_X_LEFT = 30;
-        const int WALK_X_RIGHT = 155, RUN_X_RIGHT = 220;
-        
-        // Square is walk toggle button.
-        if (wantWalk && reportCount < 5) {
-            reportHwId[reportCount] = -7;
-            reportX[reportCount] = 780; // Virtual Walk button
-            reportY[reportCount] = 450;
-            reportCount++;
-        }
-
-        if (dpadWantLeft && reportCount < 5) {
-            reportHwId[reportCount] = -2; // Virtual ID for Left Arrow
-            reportX[reportCount] = wantWalk ? WALK_X_LEFT : RUN_X_LEFT;
-            reportY[reportCount] = ARROW_Y;
-            reportCount++;
-        }
-
-        if (dpadWantRight && reportCount < 5) {
-            reportHwId[reportCount] = -3; // Virtual ID for Right Arrow
-            reportX[reportCount] = wantWalk ? WALK_X_RIGHT : RUN_X_RIGHT;
-            reportY[reportCount] = ARROW_Y;
-            reportCount++;
-        }
-
-        //! @see docs/comments/main.c.md#jump-touch-highlight--reverted-twice
-
-        // DPAD DOWN is handled via nativeKeyDown to preserve menu scrolling
+        //! @see docs/comments/main.c.md#native-xperia-play-control-path
+        // Movement no longer injects synthetic touches at guessed screen coordinates.
+        // Left/Right go through keycodes 21/22 -> ControlsLayer::keyLeft/keyRightClicked,
+        // which is the same entry point the on-screen arrows use, so the touch report
+        // below is real fingers only.
 
         int seenThisFrame[5] = {0, 0, 0, 0, 0};
 
@@ -239,11 +218,6 @@ int main() {
             }
         }
 
-        void *controlsLayer = NULL;
-        if (ControlsLayer_sharedControlsLayer) {
-            controlsLayer = ControlsLayer_sharedControlsLayer();
-        }
-
         if (nativeKeyDown && nativeKeyUp) {
             // MAP KEYS (Based on analysis)
             // START/SELECT -> KEYCODE_BACK (4) / KEYCODE_MENU (82)
@@ -253,11 +227,35 @@ int main() {
             if ((current_pad & SCE_CTRL_SELECT) && !(oldpad & SCE_CTRL_SELECT)) nativeKeyDown(jniEnv, NULL, 82);
             if (!(current_pad & SCE_CTRL_SELECT) && (oldpad & SCE_CTRL_SELECT)) nativeKeyUp(jniEnv, NULL, 82);
 
-            // DPAD UP and DOWN keep their keycodes to allow proper menu scrolling. 
-            // Left and Right must remain exclusively touch-based to prevent forced walking.
+            // DPAD UP and DOWN keep their keycodes to allow proper menu scrolling.
             if ((current_pad & SCE_CTRL_UP) && !(oldpad & SCE_CTRL_UP)) nativeKeyDown(jniEnv, NULL, 19);
             if (!(current_pad & SCE_CTRL_UP) && (oldpad & SCE_CTRL_UP)) nativeKeyUp(jniEnv, NULL, 19);
-            
+
+            //! @see docs/comments/main.c.md#native-xperia-play-control-path
+            // Left/Right: keycodes 21/22 reach ControlsLayer::keyLeft/keyRightClicked, which
+            // promote walk (event 1) to run (event 2) the *second* time they are called while
+            // the first event is still set. The on-screen arrows get that second call from a
+            // CCSequence(CCDelayTime(0.25f), CCCallFunc(setPrinceRun)) started on first touch,
+            // so the same 250 ms threshold is replayed here: tap for one careful step, hold to
+            // run. keyRemoveLeft/Right on release clear both events and the run flag.
+            const uint64_t nowUs = sceKernelGetProcessTimeWide();
+            for (int d = 0; d < 2; d++) {
+                const uint32_t mask = d == 0 ? SCE_CTRL_LEFT : SCE_CTRL_RIGHT;
+                const int keycode = d == 0 ? 21 : 22;
+                if ((current_pad & mask) && !(oldpad & mask)) {
+                    nativeKeyDown(jniEnv, NULL, keycode); // first call -> AddEvent(WALK)
+                    dirHeldSince[d] = nowUs;
+                    dirRunSent[d] = 0;
+                } else if ((current_pad & mask) && !dirRunSent[d]
+                           && nowUs - dirHeldSince[d] >= RUN_PROMOTE_US) {
+                    nativeKeyDown(jniEnv, NULL, keycode); // second call -> AddEvent(RUN)
+                    dirRunSent[d] = 1;
+                } else if (!(current_pad & mask) && (oldpad & mask)) {
+                    nativeKeyUp(jniEnv, NULL, keycode);
+                    dirRunSent[d] = 0;
+                }
+            }
+
             //! @see docs/comments/main.c.md#crouch--shared-keycode-for-down-and-circle
             int wantCrouch = (current_pad & (SCE_CTRL_DOWN | SCE_CTRL_CIRCLE)) != 0;
             int wantedCrouch = (oldpad & (SCE_CTRL_DOWN | SCE_CTRL_CIRCLE)) != 0;
@@ -274,43 +272,31 @@ int main() {
                 nativeKeyUp(jniEnv, NULL, 23);   // -> ControlsLayer::keyRemoveX
             }
             
-            if ((current_pad & SCE_CTRL_TRIANGLE) && !(oldpad & SCE_CTRL_TRIANGLE)) nativeKeyDown(jniEnv, NULL, 100); // BUTTON_Y
+            // Square -> keySqrClicked: crouch in platform mode, defend in combat.
+            if ((current_pad & SCE_CTRL_SQUARE) && !(oldpad & SCE_CTRL_SQUARE)) nativeKeyDown(jniEnv, NULL, 99); // BUTTON_C
+            if (!(current_pad & SCE_CTRL_SQUARE) && (oldpad & SCE_CTRL_SQUARE)) nativeKeyUp(jniEnv, NULL, 99);
+
+            // Triangle -> keyTriClicked: interact in platform mode, sheath in combat.
+            if ((current_pad & SCE_CTRL_TRIANGLE) && !(oldpad & SCE_CTRL_TRIANGLE)) nativeKeyDown(jniEnv, NULL, 100); // BUTTON_Z
             if (!(current_pad & SCE_CTRL_TRIANGLE) && (oldpad & SCE_CTRL_TRIANGLE)) nativeKeyUp(jniEnv, NULL, 100);
-            
-            if ((current_pad & SCE_CTRL_L1) && !(oldpad & SCE_CTRL_L1)) nativeKeyDown(jniEnv, NULL, 102); // L1
-            if (!(current_pad & SCE_CTRL_L1) && (oldpad & SCE_CTRL_L1)) nativeKeyUp(jniEnv, NULL, 102);
-            
-            if ((current_pad & SCE_CTRL_R1) && !(oldpad & SCE_CTRL_R1)) nativeKeyDown(jniEnv, NULL, 103); // R1
-            if (!(current_pad & SCE_CTRL_R1) && (oldpad & SCE_CTRL_R1)) nativeKeyUp(jniEnv, NULL, 103);
+
+            // Keycodes 102/103 are deliberately not sent: keyLeftKeyClicked has an empty body
+            // and keyRightKeyClicked only duplicates Triangle's interact flag. The physical
+            // shoulders are SCE_CTRL_LTRIGGER/RTRIGGER on a handheld Vita anyway (SCE_CTRL_L1/R1
+            // are PSTV/DualShock only), and they are used for the toggle below.
 
             //! @see docs/comments/main.c.md#controls-visibility-toggle--l1r1-combo
             uint32_t comboMask = SCE_CTRL_LTRIGGER | SCE_CTRL_RTRIGGER;
             int comboHeldNow = (current_pad & comboMask) == comboMask;
             int comboHeldBefore = (oldpad & comboMask) == comboMask;
-            if (comboHeldNow && !comboHeldBefore
-                && controlsLayer && CCMenuItemSprite_setOpacity) {
+            if (comboHeldNow && !comboHeldBefore && SetControlVisible && SetControlInVisible) {
+                //! @see docs/comments/main.c.md#native-xperia-play-control-path
+                // Both stubs just write CCDirector+0xac; ControlsLayer::tick() compares that
+                // byte against its cached m_ControlsXVisible next frame and applies the change
+                // through the game's own show/hide code. No member offsets, no opacity trick.
                 controlsVisible = !controlsVisible;
-                unsigned char opacity = controlsVisible ? 255 : 0;
-                //! @see docs/comments/main.c.md#controlslayer-member-layout--sprites-vs-menu-items
-                // 0x158-0x164 are cocos2d::CCSprite (move_slider_base, move_slider,
-                // joystick_base, joystick).
-                if (CCSprite_setOpacity) {
-                    static const int kSpriteOffsets[4] = {0x158, 0x15c, 0x160, 0x164};
-                    for (int b = 0; b < 4; b++) {
-                        void *sprite = *(void **)((char *)controlsLayer + kSpriteOffsets[b]);
-                        if (sprite) CCSprite_setOpacity(sprite, opacity);
-                    }
-                }
-                // 0x168/0x16c (control_arrow_left/right) and 0x174-0x188 (crouch, jump,
-                // interact, attack, defend, seath) are all cocos2d::CCMenuItemImage, which
-                // derives from CCMenuItemSprite. They are only 0x11c bytes, so reaching them
-                // through CCSprite::setOpacity overruns the allocation.
-                static const int kButtonOffsets[8] = {0x168, 0x16c,
-                                                      0x174, 0x178, 0x17c, 0x180, 0x184, 0x188};
-                for (int b = 0; b < 8; b++) {
-                    void *item = *(void **)((char *)controlsLayer + kButtonOffsets[b]);
-                    if (item) CCMenuItemSprite_setOpacity(item, opacity);
-                }
+                if (controlsVisible) SetControlVisible(jniEnv, NULL);
+                else                 SetControlInVisible(jniEnv, NULL);
                 l_debug("controls visibility toggled: %s", controlsVisible ? "visible" : "hidden");
             }
         }

@@ -1,0 +1,176 @@
+[
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/main.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/main.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/main.c",
+  "output": "CMakeFiles/so_loader.dir/source/main.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-g++ -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -std=gnu++20 -Wno-write-strings -Wno-psabi -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/audio.cpp.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/audio.cpp",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/audio.cpp",
+  "output": "CMakeFiles/so_loader.dir/source/audio.cpp.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-g++ -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -std=gnu++20 -Wno-write-strings -Wno-psabi -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/video.cpp.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/video.cpp",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/video.cpp",
+  "output": "CMakeFiles/so_loader.dir/source/video.cpp.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/dynlib.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/dynlib.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/dynlib.c",
+  "output": "CMakeFiles/so_loader.dir/source/dynlib.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/java.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/java.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/java.c",
+  "output": "CMakeFiles/so_loader.dir/source/java.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/patch.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/patch.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/patch.c",
+  "output": "CMakeFiles/so_loader.dir/source/patch.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/vitagl_no_splash.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/vitagl_no_splash.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/vitagl_no_splash.c",
+  "output": "CMakeFiles/so_loader.dir/source/vitagl_no_splash.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/reimpl/bits/_ctype.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/bits/_ctype.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/bits/_ctype.c",
+  "output": "CMakeFiles/so_loader.dir/source/reimpl/bits/_ctype.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/reimpl/egl.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/egl.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/egl.c",
+  "output": "CMakeFiles/so_loader.dir/source/reimpl/egl.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/reimpl/errno.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/errno.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/errno.c",
+  "output": "CMakeFiles/so_loader.dir/source/reimpl/errno.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/reimpl/io.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/io.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/io.c",
+  "output": "CMakeFiles/so_loader.dir/source/reimpl/io.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/reimpl/log.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/log.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/log.c",
+  "output": "CMakeFiles/so_loader.dir/source/reimpl/log.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/reimpl/mem.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/mem.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/mem.c",
+  "output": "CMakeFiles/so_loader.dir/source/reimpl/mem.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/reimpl/pthr.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/pthr.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/pthr.c",
+  "output": "CMakeFiles/so_loader.dir/source/reimpl/pthr.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/reimpl/sys.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/sys.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/sys.c",
+  "output": "CMakeFiles/so_loader.dir/source/reimpl/sys.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/reimpl/time64.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/time64.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/time64.c",
+  "output": "CMakeFiles/so_loader.dir/source/reimpl/time64.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-g++ -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -std=gnu++20 -Wno-write-strings -Wno-psabi -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/reimpl/asset_manager.cpp.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/asset_manager.cpp",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/reimpl/asset_manager.cpp",
+  "output": "CMakeFiles/so_loader.dir/source/reimpl/asset_manager.cpp.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/utils/dialog.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/dialog.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/dialog.c",
+  "output": "CMakeFiles/so_loader.dir/source/utils/dialog.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/utils/glutil.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/glutil.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/glutil.c",
+  "output": "CMakeFiles/so_loader.dir/source/utils/glutil.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/utils/init.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/init.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/init.c",
+  "output": "CMakeFiles/so_loader.dir/source/utils/init.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/utils/logger.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/logger.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/logger.c",
+  "output": "CMakeFiles/so_loader.dir/source/utils/logger.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/utils/settings.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/settings.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/settings.c",
+  "output": "CMakeFiles/so_loader.dir/source/utils/settings.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/source/utils/utils.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/utils.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source/utils/utils.c",
+  "output": "CMakeFiles/so_loader.dir/source/utils/utils.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/lib/falso_jni/FalsoJNI.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/falso_jni/FalsoJNI.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/falso_jni/FalsoJNI.c",
+  "output": "CMakeFiles/so_loader.dir/lib/falso_jni/FalsoJNI.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/lib/falso_jni/FalsoJNI_ImplBridge.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/falso_jni/FalsoJNI_ImplBridge.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/falso_jni/FalsoJNI_ImplBridge.c",
+  "output": "CMakeFiles/so_loader.dir/lib/falso_jni/FalsoJNI_ImplBridge.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/lib/falso_jni/FalsoJNI_Logger.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/falso_jni/FalsoJNI_Logger.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/falso_jni/FalsoJNI_Logger.c",
+  "output": "CMakeFiles/so_loader.dir/lib/falso_jni/FalsoJNI_Logger.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/lib/sha1/sha1.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/sha1/sha1.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/sha1/sha1.c",
+  "output": "CMakeFiles/so_loader.dir/lib/sha1/sha1.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/lib/fios/fios.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/fios/fios.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/fios/fios.c",
+  "output": "CMakeFiles/so_loader.dir/lib/fios/fios.c.obj"
+},
+{
+  "directory": "/private/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/build",
+  "command": "/Users/metalsyntax/vitasdk/bin/arm-vita-eabi-gcc -DDATA_PATH=\\\"ux0:data/popclassic/\\\" -DDUMP_COMPILED_SHADERS -DSKIP_SPLASHSCREEN -DUSE_GLSL_SHADERS -DUSE_SCELIBC_IO -D_GNU_SOURCE -D__POSIX_VISIBLE=999999 -I/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/source -isystem /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib  -Wl,-q -Wl,-q -Wl,--allow-multiple-definition -O3 -g -ffast-math -mfloat-abi=softfp -Wno-deprecated -g -DDEBUG -D_DEBUG -o CMakeFiles/so_loader.dir/lib/so_util/so_util.c.obj -c /var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/so_util/so_util.c",
+  "file": "/var/folders/vn/9fg6ppdj63dcxy000rlvdkrr0000gp/T/psvita-build-zntt84tp/src/lib/so_util/so_util.c",
+  "output": "CMakeFiles/so_loader.dir/lib/so_util/so_util.c.obj"
+}
+]

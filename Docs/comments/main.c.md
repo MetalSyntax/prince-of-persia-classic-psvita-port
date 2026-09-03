@@ -14,8 +14,10 @@ Migrated from inline comments in [`source/main.c`](../../source/main.c).
 6. [Jump Touch-Highlight – Reverted Twice](#jump-touch-highlight--reverted-twice)
 7. [Crouch – Shared Keycode for Down and Circle](#crouch--shared-keycode-for-down-and-circle)
 8. [Controls Visibility Toggle – L1+R1 Combo](#controls-visibility-toggle--l1r1-combo)
-9. [Jump-Plus-Walk Diagnostic Log](#jump-plus-walk-diagnostic-log)
-10. [Cross Real Jump via control1Clicked](#cross-real-jump-via-control1clicked)
+9. [ControlsLayer Member Layout – Sprites vs. Menu Items](#controlslayer-member-layout--sprites-vs-menu-items)
+10. [Jump-Plus-Walk Diagnostic Log](#jump-plus-walk-diagnostic-log)
+11. [Cross – Keycode 23 Already Is the Jump Event](#cross--keycode-23-already-is-the-jump-event)
+12. [Native Xperia PLAY Control Path](#native-xperia-play-control-path)
 
 ---
 
@@ -92,17 +94,50 @@ Crouch (keycode 20, `DPAD_DOWN`) is shared by two physical inputs: Down/left-sti
 
 ## Controls Visibility Toggle – L1+R1 Combo
 
-**Location:** Comment above the combo-detection block right after the R1 keycode dispatch, and above the `ControlsLayer_sharedControlsLayer`/`CCMenuItemSprite_setOpacity` symbol resolution near the top of `main()`.
+**Location:** Comment above the combo-detection block right after the R1 keycode dispatch, and above the `ControlsLayer_sharedControlsLayer`/`CCMenuItemSprite_setOpacity` symbol resolution near the top of `main()` (superseded in v01.28 — see [Native Xperia PLAY Control Path](#native-xperia-play-control-path)).
 
-Holding **L1+R1** together toggles the on-screen virtual control buttons on/off, for players using the physical controller who don't want the touch HUD cluttering the screen. This does **not** reuse `Cocos2dxActivity_SetControlInVisible`/`SetControlVisible` (already called once at boot, further up in `main()`) — those write a single byte on `CCDirector`'s singleton (confirmed via `nm`/Ghidra: `*(iVar1 + 0xac) = 1/0`) that nothing in either `libcocos2d.so` or `libgame_logic.so` ever reads back; it's dead code left over from an Android-TV/hardware-keyboard code path that never shipped, and calling it has no visible effect.
+Holding **L1+R1** together toggles the on-screen virtual control buttons on/off, for players using the physical controller who don't want the touch HUD cluttering the screen.
+
+> **Correction (v01.27): the claim that `SetControlVisible`/`SetControlInVisible` are dead code was wrong, and it is why this feature ended up being built the hard way.** Those two exported JNI stubs (`libcocos2d.so` @ `0xa331c`/`0xa3338`) do write a single byte — `CCDirector::sharedDirector()[0xac] = 1/0` — but `libgame_logic.so` **does** read it back, in two places: `ControlsLayer::tick(float)` @ `0x79280` compares it against its own cached copy at `ControlsLayer+0x1cb` (`m_ControlsXVisible` — the game logs it under that name via `CCLog`) and, on any change, hides all twelve control nodes and then re-runs `ControlsLayer::setControlsVisible(m_ControlsXVisible)`; and `SingleClickMenu::initWithItems` @ `0xbe588` reads it to decide whether to place an initial keyboard cursor via `moveItemSelection(1)`. What gates that path is **not** the byte being unread — it is the byte one address higher, `0xad`, which the next paragraph also describes incorrectly. See [Native Xperia PLAY Control Path](#native-xperia-play-control-path).
 
 **v01.21 originally used Select+Start for this combo — replaced in v01.22** after real hardware testing surfaced two problems traced to the same root cause. Select and Start each *individually* keep their existing bindings (keycode 82 `MENU` / keycode 4 `BACK`, further up in this file), and the game's own pause-menu flow opens off either one alone. Pressing the combo even slightly out of sync let one half register first and open the pause menu — exactly as reported ("si se hace a destiempo te lleva al menú de pausa"). Worse, once the pause menu had been touched this way, physical movement stopped responding even after hiding/showing again: confirmed via `arm-vita-eabi-objdump` that `ControlsLayer::tick(float)` (the function that drives all joystick/D-Pad direction handling every frame) opens with `if (CCDirector::sharedDirector()[0xad] != 0) return-early` — almost the entire function is skipped whenever that byte is set. That offset is one byte away from (and unrelated to) the dead `0xac` byte above; all evidence points to it being cocos2d-x's own `CCDirector::m_bPaused`, set by the game's real pause flow, not by anything this port's code writes. Switching the toggle to **L1+R1** (keycodes 102/103, with no pause association at all) removed that specific collision.
+
+> **Correction (v01.27): `CCDirector+0xad` is not `m_bPaused`, and `tick()` does not return early on it.** The byte is written by exactly one place in either library — `Java_org_cocos2dx_lib_Cocos2dxActivity_nativeSetPaths`, which does `strcmp(device, "R800i")` and sets it to 1 on match, 0 otherwise. It is the game's **IsXperia** flag (the game logs it under that name in `ControlsLayer::setControlsVisible`), i.e. "am I running on a Sony Ericsson Xperia PLAY, which has physical game buttons". `ControlsLayer::tick()` @ `0x7909c` branches on it to `0x7927a`, which is the physical-gamepad control-visibility path, and that path **falls back through to the normal per-frame handler** at `0x790a6` once it has applied any visibility change — it never returns early. This port passed `"PSVita"` as the device string from its first commit, so `IsXperia` was always 0 and none of the game's own physical-button support was ever reachable. The Select+Start collision this paragraph describes was real, but the movement-freeze diagnosis attached to it was not — L1+R1 remains the combo regardless, since it is the better choice on its own merits.
+>
+> Two further notes on this paragraph's premise: on a handheld Vita the physical shoulder buttons report as `SCE_CTRL_LTRIGGER`/`SCE_CTRL_RTRIGGER` (`0x100`/`0x200`), **not** `SCE_CTRL_L1`/`SCE_CTRL_R1` (`0x400`/`0x800`, PSTV/DualShock only — see `psp2common/ctrl.h`), so the combo code and the keycode-102/103 dispatch were never reading the same buttons. And keycode 102 resolves to `ControlsLayer::keyLeftKeyClicked`, whose entire body is `return` — it has never done anything — while keycode 103 (`keyRightKeyClicked`) just sets the interact flag at `+0x1cc`, duplicating Triangle.
 
 **v01.22–24 called `ControlsLayer::setControlsVisible(bool)` (mangled `_ZN13ControlsLayer18setControlsVisibleEb`) directly — replaced in v01.25 after a real console log exposed a second, unrelated problem: hiding the buttons this way also silently disabled walking.** `setControlsVisible` is the same function the original game calls on pause/resume, and it really does affect the real button sprites, not a vestigial flag — but a live `psvita-toolkit logs-live` capture showed footstep SFX stopping entirely for the whole time the controls stayed hidden (13 real seconds with `SCE_CTRL_RIGHT` confirmed held via `pad.buttons`) and resuming the instant they were shown again, while jump (`jump.mp3`) kept firing throughout. Root cause, confirmed by reading `ControlsLayer::init()`'s disassembly (not guessed): `setControlsVisible()` calls `CCNode::setIsVisible(bool)` (vtable slot 29, confirmed by hand-decoding `_ZTVN7cocos2d6CCNodeE`'s raw bytes) on the six `CCMenuItemImage` pointers at `this+0x174..0x188` (all six confirmed built via `CCMenuItemImage::itemFromFramesImage(...)` in `init()`), and `ControlsLayer::tick()` polls those exact same six pointers' click/visible state every frame to drive `control1Clicked()`/`control2Clicked()` (the D-Pad handlers) — jump never touches this array at all, since it's dispatched purely through the keycode → `AddEvent(JUMP)` path covered above, which is why it kept working. Setting a button invisible is, by the original engine's own design, indistinguishable from it not being pressable.
 
 **Fix:** stop calling `setControlsVisible()` for this feature entirely. Instead, read those same six `this+0x174..0x188` pointers directly off the `ControlsLayer` singleton and call `CCMenuItemSprite::setOpacity(item, 0 or 255)` (mangled `_ZN7cocos2d16CCMenuItemSprite10setOpacityEh`, resolved from `libcocos2d.so`; confirmed exported and safe to call directly — its own disassembly shows it just recursively fades the button's normal/selected child images via `CCRGBAProtocol`, nothing else) on each. Opacity 0 looks identical to hidden on screen without ever touching `isVisible`, so `tick()`'s click/visible poll keeps seeing these buttons as available and D-Pad input keeps working while "hidden". This also means `setControlsVisible()`'s other side effects (its own unconditional hide of a *different*, apparently-unused set of six `CCSprite` pointers at `this+0x158..0x16c`, and its call into `HudLayer::setItemsVisible()`) no longer happen as part of this toggle — intentional, since the ask was specifically to hide the touch buttons, not other HUD chrome.
 
 `comboMask`/edge-detection follows the same held-then-released pattern used elsewhere in this file (e.g. the combo only fires once per press, not every frame while held).
+
+---
+
+## ControlsLayer Member Layout – Sprites vs. Menu Items
+
+**Location:** Comments above `kSpriteOffsets`/`kButtonOffsets` inside the L1+R1 combo block.
+
+The twelve control nodes `setControlsVisible` touches are **not** all the same type, and the set at `this+0x158..0x16c` is not "apparently unused" as the section above claimed. Resolved from `ControlsLayer::init()`'s disassembly (`0x78618`), reading each creation call's pc-relative string literal (`target = word_at(literal_slot) + address_of("add rN,pc") + 4`):
+
+| Offset | Created by | Real type | Sprite frame |
+|---|---|---|---|
+| `0x158` | `CCSprite::spriteWithSpriteFrameName` | `cocos2d::CCSprite` | `move_slider_base` |
+| `0x15c` | `CCSprite::spriteWithSpriteFrameName` | `cocos2d::CCSprite` | `move_slider` |
+| `0x160` | `CCSprite::spriteWithSpriteFrameName` | `cocos2d::CCSprite` | `joystick_base` |
+| `0x164` | `CCSprite::spriteWithSpriteFrameName` | `cocos2d::CCSprite` | `joystick` |
+| `0x168` | `CCMenuItemImage::itemFromFramesImage` | `cocos2d::CCMenuItemImage` | `control_arrow_left` |
+| `0x16c` | `CCMenuItemImage::itemFromFramesImage` | `cocos2d::CCMenuItemImage` | `control_arrow_right` |
+| `0x174` | `CCMenuItemImage::itemFromFramesImage` | `cocos2d::CCMenuItemImage` | `control_platform_crouch` |
+| `0x178` | `CCMenuItemImage::itemFromFramesImage` | `cocos2d::CCMenuItemImage` | `control_platform_jump` |
+| `0x17c` | `CCMenuItemImage::itemFromFramesImage` | `cocos2d::CCMenuItemImage` | `control_platform_interact` |
+| `0x180` | `CCMenuItemImage::itemFromFramesImage` | `cocos2d::CCMenuItemImage` | `control_combat_attack` |
+| `0x184` | `CCMenuItemImage::itemFromFramesImage` | `cocos2d::CCMenuItemImage` | `control_combat_defend` |
+| `0x188` | `CCMenuItemImage::itemFromFramesImage` | `cocos2d::CCMenuItemImage` | `control_combat_seath` |
+
+The first four are the *slider* and *joystick* control schemes (`SaveGame::GetSelectedControls()` picks which scheme is live — `CONTROLS_SLIDER` / `CONTROLS_BUTTONS` / `CONTROLS_JOYSTICK`); the arrows at `0x168`/`0x16c` are the left/right movement buttons the synthetic-touch D-Pad emulation was aiming at. `setControlsVisible` reaches all twelve through the **virtual** `CCNode::setIsVisible` (vtable `+0x74`), so the type difference never mattered to it.
+
+**This matters because `setOpacity` is not virtual and must be called on the right class.** `sizeof(CCMenuItemImage)` is `0x11c` (284 bytes — `operator new(142 << 1)` in `itemFromFramesImage`), while `CCSprite::setOpacity` (`libcocos2d.so` @ `0xa5cfc`) writes `this+0x100`, reads `this+0x1bf`, may make a virtual call through `vtable[0xfc]` with `this+0x1bc`, and then calls `CCSprite::updateColor()`, which writes the quad vertex colours at `this+0x168`, `+0x16a`, `+0x1b0`, `+0x1b2` and beyond. Pointing that at a 284-byte `CCMenuItemImage` overruns the allocation by up to ~0x9a bytes — silent heap corruption on every toggle. `CCMenuItemSprite::setOpacity` (`0x93c10`) only touches `+0x110`/`+0x114`/`+0x118` (the normal/selected/disabled child images), all inside those 284 bytes, and `CCMenuItemImage` derives from `CCMenuItemSprite` and adds no members — so it is the correct entry point for all eight menu items, arrows included.
 
 ---
 
@@ -118,15 +153,83 @@ Since this couldn't be confirmed or refuted by static analysis alone, this log i
 
 ---
 
-## Cross Real Jump via control1Clicked
+## Cross – Keycode 23 Already Is the Jump Event
 
-**Location:** Comment above the `ControlsLayer_control1Clicked` symbol resolution near the top of `main()`, and above the call to it inside the Cross-pressed block (face buttons section).
+**Location:** Comment above the Cross rising/falling-edge block in the face-buttons section of the main loop.
 
-Properly tracing `Java_org_cocos2dx_lib_Cocos2dxRenderer_nativeKeyDown`'s own keycode dispatch table (resolved by hand: `table_base = value_at(0xa3ef8) + address_of("add r3,pc")+4`, then `target = table_base + table[keyCode-4]`, cross-checked against the one entry already known to be correct — keycode 4/BACK → `kTypeBackClicked`) turned up two facts neither previous session had verified:
+> **This section replaces "Cross Real Jump via control1Clicked" (v01.26), whose central conclusion was exactly inverted.** That section stated that `control1Clicked` sends `AddEvent(8)` = the real jump event matching `control_platform_jump` at `0x178`, that `control2Clicked` is the crouch button, and that `keyXClicked`'s `AddEvent(4)` is therefore crouch. Every one of those three mappings is backwards, and v01.26 shipped Cross wired to the **crouch** button as a result.
 
-- **Keycode 96 (`BUTTON_A`, sent alongside keycode 23 since this port's very first commit) resolves to the table's default "do nothing" stub.** It has never done anything. Every valid entry in this table is a real Android keycode with a real meaning: 4 (`BACK`), 19–23 (`DPAD_UP/DOWN/LEFT/RIGHT/CENTER`), 82 (`MENU`), 99/100/102/103 (further gamepad buttons this game also supports). 96 isn't one of them.
-- **Keycode 23 (`DPAD_CENTER`) dispatches to `CCKeypadDispatcher` msgType 8, which calls the currently-active scene/layer's own `keyXClicked()` override** — a virtual method declared on `cocos2d::CCKeypadDelegate` and overridden by a long list of classes (`ControlsLayer` in gameplay, but also `SingleClickMenu`, `LevelSelectLayer`, `CutSceneSelectLayer`, `LevelBuyScreen`, and others in menus — confirmed via `nm -D`). In other words, "X" is a generic per-scene "Cross was pressed" callback, not a jump-specific one; menus need it for confirm, so keycode 23's dispatch can't just be removed.
+**What the binary actually says.** `ControlsLayer::tick(float)` polls the six platform/combat buttons and dispatches each one, so the button ↔ selector pairing can be read straight off the poll order (`0x790ba` onward, `vtable+0xf0` = `CCMenuItem::getIsSelected`, which reads `this+0xf7`):
 
-**`ControlsLayer::keyXClicked()` itself was fully disassembled and confirmed to send `AddEvent(4)` or `AddEvent(16)` depending on an internal mode flag — never `AddEvent(8)`.** `AddEvent(4)` is the exact same event `ControlsLayer::control2Clicked()` sends (the on-screen **crouch** button), and `AddEvent(16)` is the same event `control4Clicked()` sends (the on-screen **attack** button, `control_combat_attack`). `AddEvent(8)` — confirmed via `nm`/disassembly to be what `ControlsLayer::control1Clicked()` sends — is the real jump event, matching the on-screen `control_platform_jump` button (one of the six `CCMenuItemImage`s at `this+0x174..0x188`, see the controls-visibility section above; `0x178` specifically resolves to `"control_platform_jump"`/`"control_platform_jump_p"` via the same string-literal-resolution technique used there). **Cross, via this port's original keycode-23/96 mapping, has never actually sent the real jump event** — whatever the earlier "works when standing still" behavior was is crouch or attack's own idle-state animation, not a genuine jump; the real, correctly-behaving jump-while-moving the user already confirmed via a two-finger touch test goes through `control1Clicked()`, not through this keycode path at all.
+| Member | Sprite frame | Selector | Event sent |
+|---|---|---|---|
+| `0x174` | `control_platform_crouch` | `control1Clicked` @ `0x77164` | `AddEvent(8)` |
+| `0x178` | `control_platform_jump` | `control2Clicked` @ `0x77170` | `AddEvent(4)` |
+| `0x17c` | `control_platform_interact` | `control3Clicked` @ `0x7717c` | `RemoveEvent(2)` + `AddEvent(1)` |
+| `0x180` | `control_combat_attack` | `control4Clicked` @ `0x7719c` | `AddEvent(0x10)` |
+| `0x184` | `control_combat_defend` | `control5Clicked` @ `0x771a8` | `AddEvent(0x20)` |
+| `0x188` | `control_combat_seath` | `control6Clicked` @ `0x771b4` | `AddEvent(0x80)` |
 
-**Fix:** keycode 23/96 dispatch is left completely alone (still needed for menu confirm and whatever crouch/attack behavior already existed), and a **direct call to `ControlsLayer::control1Clicked()`** (resolved via `so_symbol`, called with the `ControlsLayer::sharedControlsLayer()` singleton as `this`) is added alongside it on Cross's rising edge only. This is not a repeat of the reverted synthetic-touch jump-highlight attempts (`docs/comments/main.c.md#jump-touch-highlight--reverted-twice`) — it never injects a touch at a screen coordinate, so it can't land on a menu list item and hijack selection; it only flips `ControlsLayer`'s own internal event bitmask, which does nothing while a menu scene (not `ControlsLayer`) is what's currently ticking.
+So **`AddEvent(4)` is jump and `AddEvent(8)` is crouch**, and the `CONTROL_EVENT` bitmask (`ControlsLayer+0x1d0`, OR-ed by `AddEvent` @ `0x770d8`) is: `1` = walk, `2` = run, `4` = jump/up, `8` = crouch/down, `0x10` = attack, `0x20` = defend, `0x40` = (space, see below), `0x80` = sheath.
+
+**Keycode 23 therefore already was the jump event.** The `nativeKeyDown` keycode table and the `CCKeypadDispatcher::dispatchKeypadMSG` message→vtable-slot switch were both re-derived, and `ControlsLayer`'s keypad-delegate vtable was dumped directly out of `.data.rel.ro` (found by scanning for `_ZThn260_N13ControlsLayer14keyBackClickedEv`'s address at file offset `0x13ce34`, vaddr `0x144e34`) rather than inferred:
+
+| Keycode | MSG | Vtable slot | Handler | Platform mode (`+0x1c9` = 0) | Combat mode (= 1) | Release handler |
+|---|---|---|---|---|---|---|
+| 4 `BACK` | 1 | `+0x00` | `keyBackClicked` | pause / back | — | `keyRemoveBack` |
+| 82 `MENU` | 2 | `+0x04` | `keyMenuClicked` | — | — | *(none)* |
+| 19 `DPAD_UP` | 3 | `+0x08` | `keyUpClicked` | `AddEvent(4)` jump | *(nothing)* | `keyRemoveUp` |
+| 20 `DPAD_DOWN` | 4 | `+0x0c` | `keyDownClicked` | `AddEvent(8)` crouch | *(nothing)* | `keyRemoveDown` |
+| 21 `DPAD_LEFT` | 5 | `+0x10` | `keyLeftClicked` | walk→run, dir = left | same | `keyRemoveLeft` |
+| 22 `DPAD_RIGHT` | 6 | `+0x14` | `keyRightClicked` | walk→run, dir = right | same | `keyRemoveRight` |
+| *(unreachable)* | 7 | `+0x18` | `keySpaceClicked` | `AddEvent(0x40)` | `AddEvent(0x10)` | `keyRemoveSpace` |
+| **23 `DPAD_CENTER`** | 8 | `+0x1c` | **`keyXClicked`** | **`AddEvent(4)` jump** | `AddEvent(0x10)` attack | `keyRemoveX` |
+| 99 `BUTTON_C` | 9 | `+0x20` | `keySqrClicked` | `AddEvent(8)` crouch | `AddEvent(0x20)` defend | `keyRemoveSqr` |
+| 100 `BUTTON_Z` | 10 | `+0x24` | `keyTriClicked` | sets interact flag `+0x1cc` | `AddEvent(0x80)` sheath | `keyRemoveTri` |
+| 102 `BUTTON_L1` | 0xb | `+0x28` | `keyLeftKeyClicked` | **empty body** | — | `keyRemoveLeftKey` |
+| 103 `BUTTON_R1` | 0xc | `+0x2c` | `keyRightKeyClicked` | sets interact flag `+0x1cc` | — | `keyRemoveRightKey` |
+
+Two things fall out of this table. `keySpaceClicked` — the only handler that sends `AddEvent(0x40)` — has **no keycode at all**: `nativeKeyDown` can emit MSG 1–6 and 8–0xc but never MSG 7, so that event is reachable only by calling the vtable slot directly. And keycode 96 (`BUTTON_A`) really is absent from the table, exactly as v01.26 found; that part was right, and it is now dropped.
+
+**Why the events survive the frame.** Every `key*Clicked` handler also sets the byte at `ControlsLayer+0x1e8` ("a physical key is driving me"), and `tick()`'s no-button-selected path checks it at `0x795f6` and returns without clearing the event mask; the `keyRemove*` handlers clear it again once `GetEvent()` drops to 0. So keyboard-injected events are explicitly protected from being wiped by the on-screen-button poll — the port never needed to bypass the keycode path.
+
+**Fix:** Cross sends keycode 23 down on its rising edge and up on its falling edge, and nothing else. No `control1Clicked` call (that is crouch, and Circle/Down/Square already cover crouch), no keycode 96 (no-op), no `crossSentKey` bookkeeping. Because keycode 23 is a per-scene `keyXClicked` callback and `SingleClickMenu`, `LevelSelectLayer`, `CutSceneSelectLayer`, `LevelBuyScreen`, `LevelCompleteStats`, `ModesUnlock`, `IntroTextLayer`, `GameInfoText` and `Offers` all override it (`nm -D`), the same single keycode is jump in platform mode, attack in combat, and confirm in every menu.
+
+A note on the v01.26 diagnosis that jump "works when standing still but not while moving": with Cross bound to crouch, that is expected — and the reason the *original* keycode-23 binding may still have looked broken on hardware is combat mode, where `keyXClicked` sends `AddEvent(0x10)` (attack) instead of `AddEvent(4)`. Worth re-checking on real hardware in platform mode specifically before assuming anything else is wrong.
+
+---
+
+## Native Xperia PLAY Control Path
+
+**Location:** The `"R800i"` device string passed to `nativeSetPaths`, and the `SetControlVisible`/`SetControlInVisible` symbol resolution near the top of `main()`.
+
+This is the Xperia PLAY build of the game, and it ships a complete physical-gamepad code path that this port never switched on. `Java_org_cocos2dx_lib_Cocos2dxActivity_nativeSetPaths`'s third argument is a device name, and it is used for exactly one thing:
+
+```c
+if (strcmp(device, "R800i") == 0) CCDirector::sharedDirector()[0xad] = 1;  // IsXperia
+else                              CCDirector::sharedDirector()[0xad] = 0;
+```
+
+`R800i` is the Sony Ericsson Xperia PLAY's model number. Nothing else in either library reads that string — the resource path and the `original.apk` source dir are the other two arguments — so changing it from `"PSVita"` to `"R800i"` has no asset-loading side effects.
+
+With `IsXperia` set, three things change, all of them wanted here:
+
+1. **`ControlsLayer::tick(float)`** branches at its first instruction (`0x7909c`) into the gamepad path at `0x7927a`. That path compares `CCDirector+0xac` against its cached copy `m_ControlsXVisible` (`ControlsLayer+0x1cb`, initialised to 1 in `init()`), and on a change hides all twelve control nodes via the virtual `setIsVisible(false)` and then calls `setControlsVisible(m_ControlsXVisible)` to bring back just the six action buttons if the flag says visible. Then it falls through to the normal handler. Since `main()` already calls `SetControlInVisible()` at boot (`CCDirector+0xac = 0`), the on-screen controls hide themselves natively on the first tick of the first level — no member-offset pokes, no opacity trick, and none of the "hidden controls disable walking" problem that motivated the opacity approach, because the game is hiding controls it is no longer polling.
+2. **`SingleClickMenu::initWithItems`** (`0xbe588`) places an initial keyboard cursor via `moveItemSelection(1)` when `IsXperia` is set and controls are invisible, so menus get a highlight to move with the D-Pad. `SingleClickMenu::onExit` still removes both its keypad *and* its touch delegate, so touchscreen menu navigation keeps working alongside it.
+3. **`Tutorials::ShowPopUp(int)`** (`0xcbd00`) takes its gamepad branch, so tutorial popups describe physical buttons instead of on-screen ones.
+
+**Show/hide toggle.** L1+R1 (physically `SCE_CTRL_LTRIGGER|SCE_CTRL_RTRIGGER`) now just calls the two exported JNI stubs `Cocos2dxActivity_SetControlVisible` / `SetControlInVisible`, which flip `CCDirector+0xac`; `tick()` picks the change up on the next frame and applies it through the game's own code. This replaces reading raw member offsets off the `ControlsLayer` singleton and calling `setOpacity` on them — see [ControlsLayer Member Layout](#controlslayer-member-layout--sprites-vs-menu-items) for why that approach was hazardous.
+
+**Walk vs. run, and jumping while running.** `keyLeftClicked`/`keyRightClicked` implement a two-stage promotion:
+
+```c
+if (!(GetEvent() & 1) && !(GetEvent() & 2) && this[0x1f8] == 0) {
+    AddEvent(1); SetDirection(dir);                       // first press: walk
+} else {
+    AddEvent(2); SetDirection(dir); this[0x1f8] = 1;      // again while walking: run
+}
+```
+
+and `keyRemoveLeft`/`keyRemoveRight` clear events 1 and 2 plus the run flag at `+0x1f8`. The on-screen arrows drive the same promotion on a timer: `tick()` @ `0x7951e` runs `CCSequence(CCDelayTime(0.25f), CCCallFunc(this, &ControlsLayer::setPrinceRun))` on first touch, and `setPrinceRun` (`0x770cc`) sets `+0x1f8 = 1`. The port replicates that rule for physical buttons — keycode 21/22 down on the press edge, then **once more** after the direction has been held for 250 ms, which promotes walk to run; keycode up on release. Tap to take a single careful step, hold to run, exactly as the touch controls behave.
+
+Jumping while running then needs nothing special: the event mask is a bitfield, so holding a direction (event `2`) and pressing Cross (event `4`) leaves both bits set simultaneously — which the synthetic-touch D-Pad could never reliably express, since it had to fit walk, run and jump into finite touch slots at guessed screen coordinates.

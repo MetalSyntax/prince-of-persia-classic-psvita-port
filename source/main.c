@@ -70,8 +70,7 @@ int main() {
     //! @see docs/comments/main.c.md#controls-visibility-toggle--l1r1-combo
     void *(* ControlsLayer_sharedControlsLayer)(void) = (void *)so_symbol(&game_mod, "_ZN13ControlsLayer19sharedControlsLayerEv");
     void (* CCMenuItemSprite_setOpacity)(void *self, unsigned char opacity) = (void *)so_symbol(&cocos2d_mod, "_ZN7cocos2d16CCMenuItemSprite10setOpacityEh");
-    //! @see docs/comments/main.c.md#cross-real-jump-via-control1clicked
-    void (* ControlsLayer_control1Clicked)(void *self) = (void *)so_symbol(&game_mod, "_ZN13ControlsLayer15control1ClickedEv");
+    void (* CCSprite_setOpacity)(void *self, unsigned char opacity) = (void *)so_symbol(&cocos2d_mod, "_ZN7cocos2d8CCSprite10setOpacityEh");
 
     // Initialize Cocos2d-x environment
     if (nativeSetPaths) {
@@ -174,7 +173,7 @@ int main() {
         const int WALK_X_LEFT = 95, RUN_X_LEFT = 30;
         const int WALK_X_RIGHT = 155, RUN_X_RIGHT = 220;
         
-        // Square is walk toggle button
+        // Square is walk toggle button.
         if (wantWalk && reportCount < 5) {
             reportHwId[reportCount] = -7;
             reportX[reportCount] = 780; // Virtual Walk button
@@ -184,14 +183,14 @@ int main() {
 
         if (dpadWantLeft && reportCount < 5) {
             reportHwId[reportCount] = -2; // Virtual ID for Left Arrow
-            reportX[reportCount] = wantWalk ? 95 : 30;
+            reportX[reportCount] = wantWalk ? WALK_X_LEFT : RUN_X_LEFT;
             reportY[reportCount] = ARROW_Y;
             reportCount++;
         }
 
         if (dpadWantRight && reportCount < 5) {
             reportHwId[reportCount] = -3; // Virtual ID for Right Arrow
-            reportX[reportCount] = wantWalk ? 155 : 220;
+            reportX[reportCount] = wantWalk ? WALK_X_RIGHT : RUN_X_RIGHT;
             reportY[reportCount] = ARROW_Y;
             reportCount++;
         }
@@ -240,6 +239,11 @@ int main() {
             }
         }
 
+        void *controlsLayer = NULL;
+        if (ControlsLayer_sharedControlsLayer) {
+            controlsLayer = ControlsLayer_sharedControlsLayer();
+        }
+
         if (nativeKeyDown && nativeKeyUp) {
             // MAP KEYS (Based on analysis)
             // START/SELECT -> KEYCODE_BACK (4) / KEYCODE_MENU (82)
@@ -262,18 +266,12 @@ int main() {
 
             // ACTIONS - Keyboard simulated actions
             // Face buttons
+            //! @see docs/comments/main.c.md#cross--keycode-23-already-is-the-jump-event
             if ((current_pad & SCE_CTRL_CROSS) && !(oldpad & SCE_CTRL_CROSS)) {
-                nativeKeyDown(jniEnv, NULL, 23); // DPAD CENTER (Menu Select / Crouch-Attack in gameplay)
-                nativeKeyDown(jniEnv, NULL, 96); // BUTTON_A (unbound in this engine's keypad table, kept for parity)
-                //! @see docs/comments/main.c.md#cross-real-jump-via-control1clicked
-                if (ControlsLayer_sharedControlsLayer && ControlsLayer_control1Clicked) {
-                    void *controlsLayer = ControlsLayer_sharedControlsLayer();
-                    if (controlsLayer) ControlsLayer_control1Clicked(controlsLayer);
-                }
+                nativeKeyDown(jniEnv, NULL, 23); // DPAD_CENTER -> ControlsLayer::keyXClicked (jump / attack / menu confirm)
             }
             if (!(current_pad & SCE_CTRL_CROSS) && (oldpad & SCE_CTRL_CROSS)) {
-                nativeKeyUp(jniEnv, NULL, 23);
-                nativeKeyUp(jniEnv, NULL, 96);
+                nativeKeyUp(jniEnv, NULL, 23);   // -> ControlsLayer::keyRemoveX
             }
             
             if ((current_pad & SCE_CTRL_TRIANGLE) && !(oldpad & SCE_CTRL_TRIANGLE)) nativeKeyDown(jniEnv, NULL, 100); // BUTTON_Y
@@ -290,18 +288,30 @@ int main() {
             int comboHeldNow = (current_pad & comboMask) == comboMask;
             int comboHeldBefore = (oldpad & comboMask) == comboMask;
             if (comboHeldNow && !comboHeldBefore
-                && ControlsLayer_sharedControlsLayer && CCMenuItemSprite_setOpacity) {
+                && controlsLayer && CCMenuItemSprite_setOpacity) {
                 controlsVisible = !controlsVisible;
-                void *controlsLayer = ControlsLayer_sharedControlsLayer();
-                if (controlsLayer) {
-                    unsigned char opacity = controlsVisible ? 255 : 0;
-                    static const int kButtonOffsets[6] = {0x174, 0x178, 0x17c, 0x180, 0x184, 0x188};
-                    for (int b = 0; b < 6; b++) {
-                        void *item = *(void **)((char *)controlsLayer + kButtonOffsets[b]);
-                        if (item) CCMenuItemSprite_setOpacity(item, opacity);
+                unsigned char opacity = controlsVisible ? 255 : 0;
+                //! @see docs/comments/main.c.md#controlslayer-member-layout--sprites-vs-menu-items
+                // 0x158-0x164 are cocos2d::CCSprite (move_slider_base, move_slider,
+                // joystick_base, joystick).
+                if (CCSprite_setOpacity) {
+                    static const int kSpriteOffsets[4] = {0x158, 0x15c, 0x160, 0x164};
+                    for (int b = 0; b < 4; b++) {
+                        void *sprite = *(void **)((char *)controlsLayer + kSpriteOffsets[b]);
+                        if (sprite) CCSprite_setOpacity(sprite, opacity);
                     }
-                    l_debug("controls visibility toggled: %s", controlsVisible ? "visible" : "hidden");
                 }
+                // 0x168/0x16c (control_arrow_left/right) and 0x174-0x188 (crouch, jump,
+                // interact, attack, defend, seath) are all cocos2d::CCMenuItemImage, which
+                // derives from CCMenuItemSprite. They are only 0x11c bytes, so reaching them
+                // through CCSprite::setOpacity overruns the allocation.
+                static const int kButtonOffsets[8] = {0x168, 0x16c,
+                                                      0x174, 0x178, 0x17c, 0x180, 0x184, 0x188};
+                for (int b = 0; b < 8; b++) {
+                    void *item = *(void **)((char *)controlsLayer + kButtonOffsets[b]);
+                    if (item) CCMenuItemSprite_setOpacity(item, opacity);
+                }
+                l_debug("controls visibility toggled: %s", controlsVisible ? "visible" : "hidden");
             }
         }
         oldpad = current_pad;

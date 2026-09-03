@@ -72,6 +72,11 @@ if (ENABLE_VERBOSE_LOG)
   add_definitions(-DDEBUG_SOLOADER)
 endif()
 
+option(NO_SPLASHSCREEN "Disable the vitaGL boot splashscreen" ON)
+if (NO_SPLASHSCREEN)
+  add_definitions(-DSKIP_SPLASHSCREEN)
+endif()
+
 # makes sincos, sincosf, etc. visible
 add_definitions(-D_GNU_SOURCE -D__POSIX_VISIBLE=999999)
 
@@ -89,6 +94,7 @@ add_executable(${CMAKE_PROJECT_NAME}
                source/dynlib.c
                source/java.c
                source/patch.c
+               source/vitagl_no_splash.c
                source/reimpl/bits/_ctype.c
                source/reimpl/egl.c
                source/reimpl/errno.c

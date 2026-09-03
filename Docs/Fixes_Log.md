@@ -390,6 +390,155 @@ Con el fix de memoria de v01.17, el video de las cinemáticas por fin llegó a d
   mientras la escena activa sea un menú (no `ControlsLayer`) en vez de gameplay.
 - **Build:** `popclassic.vpk` v01.26, mismo TITLEID. No confirmado aún en consola real.
 
+#### 26. `control1Clicked` es AGACHARSE, no saltar — y el toggle de controles corrompía el heap (build `popclassic.vpk` v01.27)
+
+- **Dos bugs verificados en el trabajo pendiente de v01.26/v01.27, ambos rastreados en los binarios reales
+  en vez de deducidos.**
+- **Bug 1 — el mapeo de #25 estaba invertido.** `ControlsLayer::tick()` sondea los seis botones de
+  plataforma/combate y despacha cada uno, así que el emparejamiento botón↔selector se lee directo del orden
+  de sondeo en `0x790ba` (`vtable+0xf0` = `CCMenuItem::getIsSelected`, que lee `this+0xf7`):
+
+  | Miembro | Sprite frame | Selector | Evento |
+  |---|---|---|---|
+  | `0x174` | `control_platform_crouch` | `control1Clicked` @ `0x77164` | `AddEvent(8)` |
+  | `0x178` | `control_platform_jump` | `control2Clicked` @ `0x77170` | `AddEvent(4)` |
+  | `0x17c` | `control_platform_interact` | `control3Clicked` @ `0x7717c` | `RemoveEvent(2)`+`AddEvent(1)` |
+  | `0x180` | `control_combat_attack` | `control4Clicked` @ `0x7719c` | `AddEvent(0x10)` |
+  | `0x184` | `control_combat_defend` | `control5Clicked` @ `0x771a8` | `AddEvent(0x20)` |
+  | `0x188` | `control_combat_seath` | `control6Clicked` @ `0x771b4` | `AddEvent(0x80)` |
+
+  O sea **`AddEvent(4)` es saltar y `AddEvent(8)` es agacharse**, exactamente al revés de lo que concluyó
+  #25 — que por eso dejó Cruz cableada al botón de agacharse. El bitmask `CONTROL_EVENT`
+  (`ControlsLayer+0x1d0`, OR-eado por `AddEvent` @ `0x770d8`) es: `1` caminar, `2` correr, `4` saltar/arriba,
+  `8` agacharse/abajo, `0x10` atacar, `0x20` defender, `0x40` (space, ver #27), `0x80` envainar.
+- **El keycode 23 ya era el evento de salto.** Se volcó la vtable de keypad-delegate de `ControlsLayer`
+  directamente desde `.data.rel.ro` — localizada buscando la dirección de
+  `_ZThn260_N13ControlsLayer14keyBackClickedEv` en el offset de archivo `0x13ce34`, vaddr `0x144e34` — en vez
+  de inferirla. `keyXClicked` ocupa la ranura `+0x1c` a la que llega el keycode 23 vía
+  `dispatchKeypadMSG(8)`, y manda `AddEvent(4)` en modo plataforma / `AddEvent(0x10)` en combate. Además el
+  byte `+0x1e8` que ponen todos los `key*Clicked` ("me está manejando una tecla física") hace que
+  `tick()` retorne en `0x795f6` sin borrar la máscara de eventos, así que los eventos inyectados por teclado
+  están explícitamente protegidos — el port nunca necesitó saltarse el camino de keycodes.
+- **Fix 1:** Cruz manda keycode 23 en el flanco de subida y lo suelta en el de bajada, y nada más. Sin
+  `control1Clicked` (es agacharse, y Abajo/Círculo/Cuadrado ya cubren agacharse), sin keycode 96 (no-op), sin
+  el bookkeeping de `crossSentKey`. Eso además restaura Cruz como confirmar en menús, que el borrador rompía
+  al volver los dos caminos mutuamente excluyentes mientras existiera una `GameScene` (el global de
+  `sharedControlsLayer` solo se anula en `GameScene::unloadGameScene`), dejando sin efecto los
+  `keyXClicked` de `SingleClickMenu`, `LevelCompleteStats`, `LevelBuyScreen` y demás.
+- **Bug 2 — corrupción de heap en el toggle L1+R1.** El array de sprites trataba los seis punteros
+  `0x158..0x16c` como `cocos2d::CCSprite`, pero el disassembly de `ControlsLayer::init()` (`0x78618`) con sus
+  literales de string resueltos (`target = word_at(literal) + addr_of("add rN,pc") + 4`) muestra que solo los
+  cuatro primeros lo son (`move_slider_base`, `move_slider`, `joystick_base`, `joystick` — los esquemas de
+  control slider y joystick, no "aparentemente sin usar" como decía #24) y que `0x168`/`0x16c` son
+  `CCMenuItemImage` (`control_arrow_left`/`control_arrow_right`, los botones de movimiento a los que apuntaba
+  la emulación de toques). `sizeof(CCMenuItemImage)` es `0x11c` (284 bytes, `operator new(142 << 1)` en
+  `itemFromFramesImage`), mientras `CCSprite::setOpacity` (`0xa5cfc`) escribe `this+0x100`, lee `this+0x1bf`,
+  puede llamar por `vtable[0xfc]` con `this+0x1bc`, y después corre `CCSprite::updateColor()`, que escribe
+  los colores de vértice del quad en `this+0x168`, `+0x16a`, `+0x1b0`, `+0x1b2` y más allá — hasta ~`0x9a`
+  bytes pasado el final de la asignación, en cada toggle. `setControlsVisible` llega a los doce por el
+  `CCNode::setIsVisible` **virtual** (`vtable+0x74`), así que a él la diferencia de tipo nunca le importó.
+- **Fix 2:** las dos flechas pasan a `CCMenuItemSprite::setOpacity` (`0x93c10`, que solo toca
+  `+0x110`/`+0x114`/`+0x118` — los hijos normal/selected/disabled, todos dentro de los 284 bytes; y
+  `CCMenuItemImage` deriva de `CCMenuItemSprite` sin agregar miembros); `CCSprite::setOpacity` queda solo
+  para los cuatro sprites reales de `0x158..0x164`.
+- **Correcciones de documentación:** `docs/comments/main.c.md` afirmaba tres cosas que este análisis
+  contradice. (a) `SetControlVisible`/`SetControlInVisible` **no** son código muerto: `ControlsLayer::tick()`
+  @ `0x79280` y `SingleClickMenu::initWithItems` @ `0xbe588` leen `CCDirector+0xac`. (b) `CCDirector+0xad`
+  **no** es `m_bPaused`: lo escribe únicamente `nativeSetPaths` con `strcmp(device, "R800i")`, es el flag
+  **IsXperia** (el juego lo loguea con ese nombre). (c) `tick()` no retorna temprano con ese byte: bifurca a
+  `0x7927a` y vuelve a caer al handler normal. Las tres quedan corregidas con fecha junto al texto original.
+- **Build:** `popclassic.vpk` v01.27, mismo TITLEID. No confirmado aún en consola real.
+
+---
+
+#### 27. Los botones físicos por la ruta de gamepad que el propio juego trae (Xperia PLAY), y saltar en corrida (build `popclassic.vpk` v01.28)
+
+- **Causa raíz de cinco rondas de adivinanzas:** esta es la build de **Xperia PLAY**, y trae una ruta
+  completa de gamepad físico que el port nunca encendió. El 3er argumento de `nativeSetPaths` es un nombre de
+  dispositivo usado para exactamente una cosa:
+
+  ```c
+  if (strcmp(device, "R800i") == 0) CCDirector::sharedDirector()[0xad] = 1;  // IsXperia
+  else                              CCDirector::sharedDirector()[0xad] = 0;
+  ```
+
+  `R800i` es el número de modelo del Sony Ericsson Xperia PLAY. Nada más en ninguna de las dos librerías lee
+  esa cadena — la ruta de recursos y el directorio del apk son los otros dos argumentos — así que cambiarla
+  de `"PSVita"` a `"R800i"` no tiene ningún efecto colateral en la carga de assets. Con `IsXperia` en 0
+  (desde el primer commit del proyecto), toda la API de teclado de `ControlsLayer`
+  (`keyLeft/keyRightClicked` con promoción caminar→correr nativa, `keyXClicked`, `keySqrClicked`,
+  `keyTriClicked` y sus `keyRemove*`), el ocultado nativo de controles y el resaltado de menús por teclado
+  eran inalcanzables. Eso explica retroactivamente #20, #21, #24, #25 y las cinco rondas de coordenadas
+  adivinadas del HUD (§9.38-9.42, v01.18).
+- **Qué enciende `IsXperia`:**
+  1. `ControlsLayer::tick()` bifurca en su primera instrucción (`0x7909c`) a la ruta de gamepad en `0x7927a`,
+     que compara `CCDirector+0xac` contra su copia cacheada `m_ControlsXVisible` (`ControlsLayer+0x1cb`,
+     inicializada a 1 en `init()`) y, al cambiar, oculta los doce nodos de control con el `setIsVisible`
+     virtual y vuelve a correr `setControlsVisible()`. Después cae al handler normal. Como `main()` ya
+     llamaba `SetControlInVisible()` en el arranque, los controles en pantalla se ocultan solos en el primer
+     tick del primer nivel — sin tocar offsets de miembros, sin truco de opacidad, y **sin el bug de #24**,
+     porque el juego deja de sondear lo que oculta.
+  2. `SingleClickMenu::initWithItems` (`0xbe588`) coloca un cursor de teclado inicial vía
+     `moveItemSelection(1)`. `SingleClickMenu::onExit` sigue quitando su delegado de keypad **y** el de
+     touch, así que la navegación táctil de menús sigue funcionando en paralelo.
+  3. `Tutorials::ShowPopUp(int)` (`0xcbd00`) toma su rama de gamepad, así que los popups de tutorial
+     describen botones físicos en vez de botones en pantalla.
+- **Movimiento por keycodes, con la regla de correr del propio juego.** Izquierda/derecha pasan a los
+  keycodes 21/22 → `ControlsLayer::keyLeft/keyRightClicked`, la misma puerta de entrada que usan las flechas
+  en pantalla, en vez de toques sintéticos en (30/95/155/220, 400) y (780, 450). Esos handlers implementan
+  una promoción en dos etapas:
+
+  ```c
+  if (!(GetEvent() & 1) && !(GetEvent() & 2) && this[0x1f8] == 0) {
+      AddEvent(1); SetDirection(dir);                       // primera pulsación: camina
+  } else {
+      AddEvent(2); SetDirection(dir); this[0x1f8] = 1;      // otra vez mientras camina: corre
+  }
+  ```
+
+  y `keyRemoveLeft`/`keyRemoveRight` limpian los eventos 1 y 2 más el flag de correr en `+0x1f8`. Las flechas
+  en pantalla disparan la misma promoción con un temporizador: `tick()` @ `0x7951e` corre
+  `CCSequence(CCDelayTime(0.25f), CCCallFunc(this, &ControlsLayer::setPrinceRun))` al primer toque, y
+  `setPrinceRun` (`0x770cc`) pone `+0x1f8 = 1`. El port replica esa regla para botones físicos con
+  `sceKernelGetProcessTimeWide()`: keycode 21/22 abajo en el flanco, y **otra vez** cuando la dirección lleva
+  250 ms mantenida, lo que promociona caminar a correr; keycode arriba al soltar. Toque corto para un paso
+  medido, mantenido para correr, igual que se comportan los controles táctiles.
+- **Saltar en corrida entonces no necesita nada especial:** la máscara de eventos es un bitfield, así que
+  mantener una dirección (evento `2`) y presionar Cruz (evento `4`) deja los dos bits puestos a la vez — algo
+  que la emulación de toques nunca pudo expresar con fiabilidad, al tener que meter caminar, correr y saltar
+  en ranuras de toque finitas con coordenadas adivinadas. Esto cierra el reporte de #20/#25.
+- **Mapa final de botones,** todo verificado contra la vtable de keypad-delegate de `ControlsLayer`:
+
+  | Botón | keycode | Plataforma (`+0x1c9` = 0) | Combate (= 1) |
+  |---|---|---|---|
+  | Izq / Der | 21 / 22 | camina, promociona a correr a los 250 ms | igual |
+  | Arriba | 19 | `AddEvent(4)` saltar | *(nada)* |
+  | Abajo / Círculo | 20 | `AddEvent(8)` agacharse | *(nada)* |
+  | **Cruz** | **23** | **`AddEvent(4)` saltar** | `AddEvent(0x10)` atacar |
+  | Cuadrado | 99 | `AddEvent(8)` agacharse | `AddEvent(0x20)` defender |
+  | Triángulo | 100 | flag interactuar `+0x1cc` | `AddEvent(0x80)` envainar |
+  | Start / Select | 4 / 82 | `keyBackClicked` / `keyMenuClicked` | |
+  | L + R | — | mostrar/ocultar controles en pantalla | |
+
+  **Cambio de UX a tener en cuenta:** Cuadrado era el modificador de "andar" y ahora es agacharse/defender.
+  Andar ya no necesita modificador — lo resuelve la promoción de 250 ms.
+- **Keycodes 102/103 eliminados:** el cuerpo de `keyLeftKeyClicked` es solo `return` (nunca hizo nada) y
+  `keyRightKeyClicked` solo duplica el flag de interactuar de Triángulo. De todas formas estaban muertos en
+  hardware de mano: los gatillos físicos de una Vita reportan como `SCE_CTRL_LTRIGGER`/`RTRIGGER`
+  (`0x100`/`0x200`), **no** como `SCE_CTRL_L1`/`R1` (`0x400`/`0x800`, solo PSTV/DualShock — ver
+  `psp2common/ctrl.h`). Es decir que el combo y el despacho de 102/103 nunca leyeron los mismos botones.
+- **El toggle L+R ahora es nativo:** llama a los dos stubs JNI exportados
+  `Cocos2dxActivity_SetControlVisible` / `SetControlInVisible`, que voltean `CCDirector+0xac`; `tick()` toma
+  el cambio en el frame siguiente y lo aplica con el código del propio juego. Eso elimina del código los
+  arrays `kSpriteOffsets`/`kButtonOffsets`, ambos símbolos `setOpacity` y `sharedControlsLayer`.
+- **Nota de método:** Ghidra se rinde en varias de estas funciones (`"WARNING: Subroutine does not return"`
+  trunca `setControlsVisible`, `init` y `tick`), y las dos conclusiones equivocadas de #21 y #25 salieron de
+  esa salida parcial. Lo que resolvió control1-vs-control2 fue leer el `arm-vita-eabi-objdump` real y
+  resolver los literales pc-relativos para obtener los nombres de sprite frame. No concluir nada sobre qué
+  miembro es cuál sin ese paso.
+- **Build:** `popclassic.vpk` v01.28, mismo TITLEID. No confirmado aún en consola real; v01.27 queda como
+  commit de retirada si la ruta Xperia se porta mal.
+
 ---
 
 ### 🇬🇧 English
@@ -761,3 +910,152 @@ With v01.17's memory fix, cutscene video finally decoded and drew real frames fo
   coordinate, so it can't land on a menu item and hijack selection; it only flips `ControlsLayer`'s own
   internal event bitmask, which does nothing while the active scene is a menu rather than gameplay.
 - **Build:** `popclassic.vpk` v01.26, same TITLEID. Not yet confirmed on real hardware.
+
+---
+
+#### 26. `control1Clicked` Is CROUCH, Not Jump -- and the Controls Toggle Corrupted the Heap (build `popclassic.vpk` v01.27)
+
+- **Two verified bugs in the pending v01.26/v01.27 work, both traced in the real binaries rather than
+  inferred.**
+- **Bug 1 -- #25's mapping was inverted.** `ControlsLayer::tick()` polls the six platform/combat buttons and
+  dispatches each one, so the button-to-selector pairing reads straight off the poll order at `0x790ba`
+  (`vtable+0xf0` = `CCMenuItem::getIsSelected`, which reads `this+0xf7`):
+
+  | Member | Sprite frame | Selector | Event |
+  |---|---|---|---|
+  | `0x174` | `control_platform_crouch` | `control1Clicked` @ `0x77164` | `AddEvent(8)` |
+  | `0x178` | `control_platform_jump` | `control2Clicked` @ `0x77170` | `AddEvent(4)` |
+  | `0x17c` | `control_platform_interact` | `control3Clicked` @ `0x7717c` | `RemoveEvent(2)`+`AddEvent(1)` |
+  | `0x180` | `control_combat_attack` | `control4Clicked` @ `0x7719c` | `AddEvent(0x10)` |
+  | `0x184` | `control_combat_defend` | `control5Clicked` @ `0x771a8` | `AddEvent(0x20)` |
+  | `0x188` | `control_combat_seath` | `control6Clicked` @ `0x771b4` | `AddEvent(0x80)` |
+
+  So **`AddEvent(4)` is jump and `AddEvent(8)` is crouch** -- exactly the inverse of what #25 concluded,
+  which is why it shipped Cross wired to the crouch button. The `CONTROL_EVENT` bitmask
+  (`ControlsLayer+0x1d0`, OR-ed by `AddEvent` @ `0x770d8`) is: `1` walk, `2` run, `4` jump/up, `8`
+  crouch/down, `0x10` attack, `0x20` defend, `0x40` (space, see #27), `0x80` sheath.
+- **Keycode 23 already was the jump event.** `ControlsLayer`'s keypad-delegate vtable was dumped directly out
+  of `.data.rel.ro` -- located by scanning for `_ZThn260_N13ControlsLayer14keyBackClickedEv`'s address at
+  file offset `0x13ce34`, vaddr `0x144e34` -- rather than inferred. `keyXClicked` sits in slot `+0x1c`, which
+  keycode 23 reaches via `dispatchKeypadMSG(8)`, and it sends `AddEvent(4)` in platform mode /
+  `AddEvent(0x10)` in combat. On top of that, the `+0x1e8` byte every `key*Clicked` sets ("a physical key is
+  driving me") makes `tick()` return at `0x795f6` without clearing the event mask, so keyboard-injected
+  events are explicitly protected -- the port never needed to bypass the keycode path.
+- **Fix 1:** Cross sends keycode 23 on its rising edge and releases it on the falling edge, and nothing else.
+  No `control1Clicked` (that is crouch, and Down/Circle/Square already cover crouch), no keycode 96 (no-op),
+  no `crossSentKey` bookkeeping. That also restores Cross as menu confirm, which the draft broke by making
+  the two paths mutually exclusive for as long as a `GameScene` existed (`sharedControlsLayer`'s global is
+  only nulled in `GameScene::unloadGameScene`), leaving `SingleClickMenu`, `LevelCompleteStats`,
+  `LevelBuyScreen` and the rest with a dead `keyXClicked`.
+- **Bug 2 -- heap corruption in the L1+R1 toggle.** The sprite array treated all six of `0x158..0x16c` as
+  `cocos2d::CCSprite`, but `ControlsLayer::init()`'s disassembly (`0x78618`) with its string literals
+  resolved (`target = word_at(literal) + addr_of("add rN,pc") + 4`) shows only the first four are
+  (`move_slider_base`, `move_slider`, `joystick_base`, `joystick` -- the slider and joystick control schemes,
+  not "apparently unused" as #24 claimed), and that `0x168`/`0x16c` are `CCMenuItemImage`
+  (`control_arrow_left`/`control_arrow_right`, the movement buttons the synthetic-touch emulation was aiming
+  at). `sizeof(CCMenuItemImage)` is `0x11c` (284 bytes, `operator new(142 << 1)` in `itemFromFramesImage`),
+  while `CCSprite::setOpacity` (`0xa5cfc`) writes `this+0x100`, reads `this+0x1bf`, may call through
+  `vtable[0xfc]` with `this+0x1bc`, then runs `CCSprite::updateColor()`, which writes the quad vertex colours
+  at `this+0x168`, `+0x16a`, `+0x1b0`, `+0x1b2` and beyond -- up to ~`0x9a` bytes past the end of the
+  allocation, on every toggle. `setControlsVisible` reaches all twelve through the **virtual**
+  `CCNode::setIsVisible` (`vtable+0x74`), so the type difference never mattered to it.
+- **Fix 2:** both arrows move to `CCMenuItemSprite::setOpacity` (`0x93c10`, which only touches
+  `+0x110`/`+0x114`/`+0x118` -- the normal/selected/disabled children, all inside those 284 bytes; and
+  `CCMenuItemImage` derives from `CCMenuItemSprite` adding no members); `CCSprite::setOpacity` is left with
+  only the four real sprites at `0x158..0x164`.
+- **Documentation corrections:** `docs/comments/main.c.md` asserted three things this analysis contradicts.
+  (a) `SetControlVisible`/`SetControlInVisible` are **not** dead code: `ControlsLayer::tick()` @ `0x79280`
+  and `SingleClickMenu::initWithItems` @ `0xbe588` both read `CCDirector+0xac`. (b) `CCDirector+0xad` is
+  **not** `m_bPaused`: it is written by exactly one place, `nativeSetPaths` via `strcmp(device, "R800i")`, and
+  is the **IsXperia** flag (the game logs it under that name). (c) `tick()` does not return early on that
+  byte: it branches to `0x7927a` and falls back through to the normal handler. All three are corrected in
+  place, dated, alongside the original text.
+- **Build:** `popclassic.vpk` v01.27, same TITLEID. Not yet confirmed on real hardware.
+
+---
+
+#### 27. Physical Buttons via the Game's Own Xperia PLAY Gamepad Path, and Jumping While Running (build `popclassic.vpk` v01.28)
+
+- **Root cause of five rounds of guesswork:** this is the **Xperia PLAY** build, and it ships a complete
+  physical-gamepad code path the port never switched on. `nativeSetPaths`' third argument is a device name
+  used for exactly one thing:
+
+  ```c
+  if (strcmp(device, "R800i") == 0) CCDirector::sharedDirector()[0xad] = 1;  // IsXperia
+  else                              CCDirector::sharedDirector()[0xad] = 0;
+  ```
+
+  `R800i` is the Sony Ericsson Xperia PLAY's model number. Nothing else in either library reads that string
+  -- the resource path and the apk source dir are the other two arguments -- so changing it from `"PSVita"`
+  to `"R800i"` has no asset-loading side effects. With `IsXperia` at 0 (since the project's first commit),
+  `ControlsLayer`'s entire keypad API (`keyLeft/keyRightClicked` with native walk-to-run promotion,
+  `keyXClicked`, `keySqrClicked`, `keyTriClicked` and their `keyRemove*`), the native control hiding and the
+  keyboard menu highlighting were all unreachable. That retroactively explains #20, #21, #24, #25 and the
+  five rounds of guessed HUD coordinates (§9.38-9.42, v01.18).
+- **What `IsXperia` turns on:**
+  1. `ControlsLayer::tick()` branches at its first instruction (`0x7909c`) into the gamepad path at
+     `0x7927a`, which compares `CCDirector+0xac` against its cached copy `m_ControlsXVisible`
+     (`ControlsLayer+0x1cb`, initialised to 1 in `init()`) and, on a change, hides the twelve control nodes
+     via the virtual `setIsVisible` and re-runs `setControlsVisible()`. Then it falls through to the normal
+     handler. Since `main()` already called `SetControlInVisible()` at boot, the on-screen controls hide
+     themselves on the first tick of the first level -- no member-offset pokes, no opacity trick, and **none
+     of #24's bug**, because the game stops polling what it hides.
+  2. `SingleClickMenu::initWithItems` (`0xbe588`) places an initial keyboard cursor via
+     `moveItemSelection(1)`. `SingleClickMenu::onExit` still removes its keypad **and** its touch delegate,
+     so touchscreen menu navigation keeps working alongside it.
+  3. `Tutorials::ShowPopUp(int)` (`0xcbd00`) takes its gamepad branch, so tutorial popups describe physical
+     buttons instead of on-screen ones.
+- **Movement by keycode, using the game's own run rule.** Left/right move to keycodes 21/22 ->
+  `ControlsLayer::keyLeft/keyRightClicked`, the same entry point the on-screen arrows use, instead of
+  synthetic touches at (30/95/155/220, 400) and (780, 450). Those handlers implement a two-stage promotion:
+
+  ```c
+  if (!(GetEvent() & 1) && !(GetEvent() & 2) && this[0x1f8] == 0) {
+      AddEvent(1); SetDirection(dir);                       // first press: walk
+  } else {
+      AddEvent(2); SetDirection(dir); this[0x1f8] = 1;      // again while walking: run
+  }
+  ```
+
+  and `keyRemoveLeft`/`keyRemoveRight` clear events 1 and 2 plus the run flag at `+0x1f8`. The on-screen
+  arrows drive the same promotion on a timer: `tick()` @ `0x7951e` runs
+  `CCSequence(CCDelayTime(0.25f), CCCallFunc(this, &ControlsLayer::setPrinceRun))` on first touch, and
+  `setPrinceRun` (`0x770cc`) sets `+0x1f8 = 1`. The port replicates that rule for physical buttons off
+  `sceKernelGetProcessTimeWide()`: keycode 21/22 down on the press edge, then **once more** after the
+  direction has been held for 250 ms, which promotes walk to run; keycode up on release. Tap for one careful
+  step, hold to run, exactly as the touch controls behave.
+- **Jumping while running then needs nothing special:** the event mask is a bitfield, so holding a direction
+  (event `2`) and pressing Cross (event `4`) leaves both bits set simultaneously -- which the synthetic-touch
+  approach could never reliably express, having to fit walk, run and jump into finite touch slots at guessed
+  coordinates. This closes the #20/#25 report.
+- **Final button map,** all verified against `ControlsLayer`'s keypad-delegate vtable:
+
+  | Button | keycode | Platform mode (`+0x1c9` = 0) | Combat mode (= 1) |
+  |---|---|---|---|
+  | Left / Right | 21 / 22 | walk, promoted to run after 250 ms | same |
+  | Up | 19 | `AddEvent(4)` jump | *(nothing)* |
+  | Down / Circle | 20 | `AddEvent(8)` crouch | *(nothing)* |
+  | **Cross** | **23** | **`AddEvent(4)` jump** | `AddEvent(0x10)` attack |
+  | Square | 99 | `AddEvent(8)` crouch | `AddEvent(0x20)` defend |
+  | Triangle | 100 | interact flag `+0x1cc` | `AddEvent(0x80)` sheath |
+  | Start / Select | 4 / 82 | `keyBackClicked` / `keyMenuClicked` | |
+  | L + R | -- | show/hide the on-screen controls | |
+
+  **UX change to be aware of:** Square used to be the "walk" modifier and is now crouch/defend. Walking no
+  longer needs a modifier -- the 250 ms promotion handles it.
+- **Keycodes 102/103 dropped:** `keyLeftKeyClicked`'s body is just `return` (it has never done anything) and
+  `keyRightKeyClicked` only duplicates Triangle's interact flag. They were dead on handheld hardware
+  regardless: a Vita's physical shoulders report as `SCE_CTRL_LTRIGGER`/`RTRIGGER` (`0x100`/`0x200`), **not**
+  `SCE_CTRL_L1`/`R1` (`0x400`/`0x800`, PSTV/DualShock only -- see `psp2common/ctrl.h`). Which means the combo
+  and the 102/103 dispatch were never reading the same buttons.
+- **The L+R toggle is now native:** it calls the two exported JNI stubs
+  `Cocos2dxActivity_SetControlVisible` / `SetControlInVisible`, which flip `CCDirector+0xac`; `tick()` picks
+  the change up on the next frame and applies it through the game's own code. That removes the
+  `kSpriteOffsets`/`kButtonOffsets` arrays, both `setOpacity` symbols and `sharedControlsLayer` from the code.
+- **Method note:** Ghidra bails on several of these functions (`"WARNING: Subroutine does not return"`
+  truncates `setControlsVisible`, `init` and `tick`), and both of #21's and #25's wrong conclusions came out
+  of that partial output. What settled control1-vs-control2 was reading the real `arm-vita-eabi-objdump`
+  output and resolving the pc-relative literals to get the sprite frame names. Do not conclude anything about
+  which member is which without that step.
+- **Build:** `popclassic.vpk` v01.28, same TITLEID. Not yet confirmed on real hardware; v01.27 is the
+  fallback commit if the Xperia path misbehaves.

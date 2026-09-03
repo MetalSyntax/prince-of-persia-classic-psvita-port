@@ -32,11 +32,11 @@ To play the game, you MUST possess a legitimate, legally obtained copy of the An
 
 This is an early, actively-developed port. Please read this list before reporting a bug — it may already be a known/tracked issue (see [`Docs/Fixes_Log.md`](Docs/Fixes_Log.md) and [`Docs/plan_portabilidad.md`](Docs/plan_portabilidad.md) for the full technical history).
 
-- **D-Pad currently only makes the Prince Walk, not Run.** Use the **Left Analog Stick** for full movement speed (walk + run) until this is fixed.
+- **v01.28's control rework is not confirmed on real hardware yet.** Physical buttons now go through the game's own Xperia PLAY gamepad path (see [`Docs/RELEASE_v01.28.md`](Docs/RELEASE_v01.28.md)); it builds clean and every change is backed by disassembly, but it hasn't been played on a console. **v01.27** is the fallback build if something is off. Bug reports on this especially welcome.
 - **Not using the game's official fonts yet.** Since Sony's native font APIs (`ScePvf`/`ScePgf`) aren't implemented on Vita3K and pulling in the original Android font assets raised licensing questions, text is currently rendered with the open-source, freely-licensed **DejaVu Serif** font via `stb_truetype`. On-screen text would look closer to the original Ubisoft style with the real font.
 - **Not compatible with Vita3K (emulator).** This is a confirmed **bug in Vita3K itself**, not in this port: the menu, text, and audio all work correctly, but starting a real game ("New Game"/"Quick Game") crashes because Vita3K's renderer mishandles non-power-of-2 swizzled textures (confirmed by reading Vita3K's own source, reproducible 3/3 times, and still present on Vita3K's latest `master` at the time of testing). **This port targets real PS Vita hardware.** Technical details in `Docs/plan_portabilidad.md` §9.17.
 
-As of the current build (v01.20), the previously-listed issues around the stuck-action loop, cutscene video/audio playback, and audio mixing distortion have all been fixed and confirmed fluid/correct on real hardware — see [`Docs/CHANGELOG.md`](Docs/CHANGELOG.md) for the version-by-version detail.
+As of the current build (v01.28), the previously-listed issues around the stuck-action loop, cutscene video/audio playback, audio mixing distortion, the D-Pad only ever walking, and not being able to jump while running have all been fixed — see [`Docs/CHANGELOG.md`](Docs/CHANGELOG.md) for the version-by-version detail and [`Docs/RELEASE_v01.28.md`](Docs/RELEASE_v01.28.md) for this release. Everything up to v01.20 is confirmed on real hardware; the control work in v01.27–v01.28 is not yet.
 
 Found something not on this list? Please open an issue — see [Beta Testing / Contributing](#beta-testing--contributing).
 
@@ -95,16 +95,26 @@ For a full step-by-step FTP transfer walkthrough (using VitaShell), see [`Docs/e
 
 ## Controls
 
-| Button | Action |
-|:---:|:---|
-| Left Analog Stick | Move Prince (Left/Right, walk **and** run), Crouch (Down), Jump/Climb (Up) |
-| D-Pad | Move Prince — currently **Walk only**, see [Known Issues](#known-issues--current-limitations) |
-| Cross | Jump |
-| Circle | Roll |
-| Square | Action / Use Sword |
-| Cross / Start | Skip cutscene (during video playback) |
-| Start | Pause Menu (Android KEYCODE_BACK) |
-| Touchscreen | Touch Menu Navigation |
+As of **v01.28** the physical buttons drive the game's own gamepad code path, so the on-screen touch buttons
+are hidden by default and the D-Pad and analog stick behave identically. Several buttons do double duty —
+the game switches between "platform" and "combat" mode on its own, depending on whether the sword is drawn.
+
+| Button | Platform mode | Combat mode |
+|:---:|:---|:---|
+| Left Analog Stick / D-Pad | Move Prince — tap for one careful step, **hold to run** | same |
+| Cross | **Jump** | Attack |
+| Square | Crouch | **Defend / parry** |
+| Triangle | Interact (grab, levers) | Sheath sword |
+| Circle / Down | Crouch | — |
+| Up | Jump / climb | — |
+| Start | Pause Menu (Android `KEYCODE_BACK`) | Pause Menu |
+| Select | Menu (Android `KEYCODE_MENU`) | Menu |
+| L + R together | Show/hide the on-screen touch buttons | same |
+| Cross / Start | Skip cutscene (during video playback) | — |
+| Touchscreen | Still works for menu navigation | — |
+
+> Coming from v01.20 or earlier: **Square used to be a "walk" modifier and is now crouch/defend.** Walking
+> no longer needs a modifier. Full details in [`Docs/RELEASE_v01.28.md`](Docs/RELEASE_v01.28.md).
 
 ## Build Instructions (For Developers)
 

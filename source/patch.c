@@ -40,7 +40,9 @@ static void hook_UnLockAchievement(void *this, int id, int popup) {
     l_info("Game Logic Achievement triggered: ID %d (popup=%d)", id, popup);
 
     if (real_UnLockAchievement) {
+        so_unhook(&gUnLockAchievementHook);
         real_UnLockAchievement(this, id, popup);
+        gUnLockAchievementHook = hook_addr((uintptr_t) real_UnLockAchievement, (uintptr_t) hook_UnLockAchievement);
     }
 
     // Map 0-indexed game achievements (0..16) to Vita trophy IDs (1..17)

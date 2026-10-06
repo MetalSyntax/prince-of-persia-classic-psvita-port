@@ -26,7 +26,7 @@ set(VITA_APP_NAME "Prince of Persia Classic")
 set(VITA_TITLEID "POPC00001")
 set(VITA_VPKNAME "popclassic")
 set(VITA_VERSION "01.40")
-set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
+set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12 -s NP_COMMUNICATION_ID=POPC00001_00")
 
 ## vitaGL vendorizada de Zenonia 3/4 (2026 master + mods de compat, system_app deshabilitada)
 ## SOFTFP_ABI=1 es OBLIGATORIO para evitar pantalla negra en PS Vita.

@@ -4,6 +4,7 @@
  */
 
 #include <vitasdk.h>
+#include <vitaGL.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -30,6 +31,16 @@ typedef struct {
 } SceNpTrophyUnlockState;
 
 static SceNpTrophyUnlockState trophies_unlocks;
+
+int sceNpTrophyInit(void *unk);
+int sceNpTrophyCreateContext(int *context, char *commId, char *commSign, uint64_t options);
+int sceNpTrophySetupDialogInit(SceNpTrophySetupDialogParam *param);
+SceCommonDialogStatus sceNpTrophySetupDialogGetStatus(void);
+int sceNpTrophySetupDialogTerm(void);
+int sceNpTrophyCreateHandle(int *handle);
+int sceNpTrophyDestroyHandle(int handle);
+int sceNpTrophyUnlockTrophy(int ctx, int handle, int id, int *plat_id);
+int sceNpTrophyGetTrophyUnlockState(int ctx, int handle, SceNpTrophyUnlockState *state, uint32_t *count);
 
 #define TRP_QUEUE_SIZE 32
 static uint32_t trp_queue[TRP_QUEUE_SIZE];
@@ -84,8 +95,14 @@ static int trophies_unlocker_thread(SceSize args, void *argp) {
 int trophies_init(void) {
     char app_comm_id[256];
     if (sceAppMgrAppParamGetString(0, 12, app_comm_id, sizeof(app_comm_id)) >= 0 && app_comm_id[0] != '\0') {
-        strncpy(comm_id, app_comm_id, sizeof(comm_id) - 1);
-        comm_id[sizeof(comm_id) - 1] = '\0';
+        if (strchr(app_comm_id, '_') == NULL) {
+            snprintf(comm_id, sizeof(comm_id), "%s_00", app_comm_id);
+        } else {
+            strncpy(comm_id, app_comm_id, sizeof(comm_id) - 1);
+            comm_id[sizeof(comm_id) - 1] = '\0';
+        }
+    } else {
+        strcpy(comm_id, "POPC00001_00");
     }
 
     l_info("Initializing trophies with comm_id: %s", comm_id);
@@ -97,7 +114,7 @@ int trophies_init(void) {
 
     int res = sceNpTrophyCreateContext(&trp_ctx, comm_id, signature, 0);
     if (res < 0) {
-        l_warn("sceNpTrophyCreateContext failed (0x%08X). Ensure NoTrpDrm plugin is installed.", (unsigned)res);
+        l_warn("sceNpTrophyCreateContext failed (0x%08X). Ensure NoTrpDrm plugin is installed in ur0:tai/config.txt (*ALL or *MAIN).", (unsigned)res);
         return res;
     }
 
@@ -111,7 +128,7 @@ int trophies_init(void) {
     int res_dlg = sceNpTrophySetupDialogInit(&setupParam);
     if (res_dlg >= 0) {
         while (sceNpTrophySetupDialogGetStatus() == SCE_COMMON_DIALOG_STATUS_RUNNING) {
-            sceKernelDelayThread(16000);
+            vglSwapBuffers(GL_TRUE);
         }
         sceNpTrophySetupDialogTerm();
     } else {
@@ -130,7 +147,9 @@ int trophies_init(void) {
     uint32_t count = 0;
     int res_h = sceNpTrophyCreateHandle(&trp_handle);
     if (res_h >= 0) {
-        sceNpTrophyGetTrophyUnlockState(trp_ctx, trp_handle, &trophies_unlocks, &count);
+        int res_st = sceNpTrophyGetTrophyUnlockState(trp_ctx, trp_handle, &trophies_unlocks, &count);
+        l_info("sceNpTrophyGetTrophyUnlockState returned 0x%08X (mask0=0x%08X, count=%u)",
+               (unsigned)res_st, (unsigned)trophies_unlocks.unk[0], (unsigned)count);
         sceNpTrophyDestroyHandle(trp_handle);
     }
 

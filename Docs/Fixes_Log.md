@@ -1073,3 +1073,12 @@ With v01.17's memory fix, cutscene video finally decoded and drew real frames fo
 - **Issue 2 (Black Screen):** The global prebuilt `libvitaGL.a` from vitasdk produced a persistent black screen on physical hardware due to a missing `SOFTFP_ABI=1` definition and faulty `system_app_mode` autodetection on `UNSAFE/NOASLR` + `kubridge` executables.
 - **Fix 2:** Vendored the battle-tested `vitaGL` source tree from Zenonia 3/4 under `vendor/vitaGL/` compiled with `SOFTFP_ABI=1 NO_DEBUG=1 HAVE_SHADER_CACHE=1 NO_SPLASHSCREEN=1 HAVE_GLSL_UBOS=1 SAMPLERS_SPEEDHACK=1 DRAW_SPEEDHACK=2` and `system_app_mode` autodetection disabled. Integrated via `ExternalProject` in `CMakeLists.txt`.
 - **Build:** `popclassic.vpk` v01.40, same TITLEID (`POPC00001`).
+
+#### 29. Trophy Subsystem Communication ID Fix & Dialog Buffer Synchronization (v01.40 Hotfix)
+- **Problem:** Trophies did not pop on physical PS Vita hardware even after fixing the hook recursion.
+- **Root Causes & Solutions:**
+  1. **Missing `NP_COMMUNICATION_ID` in `param.sfo`:** `vita-mksfoex` was not receiving an explicit `-s NP_COMMUNICATION_ID=POPC00001_00`. Without this tag, Sony's OS cannot pair the executable with `sce_sys/trophy/POPC00001_00/TROPHY.TRP`. Added to `VITA_MKSFOEX_FLAGS` in `CMakeLists.txt`.
+  2. **Runtime `comm_id` formatting:** `sceAppMgrAppParamGetString(0, 12, ...)` retrieves `TITLE_ID` (`POPC00001`). Standardized in `source/trophies.c` so that `comm_id` always suffixes `_00` if not present.
+  3. **Dialog Loop & Initialization Timing:** Moved `trophies_init()` to run immediately after `gl_init()` and added `vglSwapBuffers(GL_TRUE)` to the `sceNpTrophySetupDialogGetStatus()` polling loop, ensuring proper synchronization with Sony's common dialog system.
+  4. **Save State Persistence:** Identified that `ux0:data/popclassic/save/pop_save_profile` retains unlocked achievement state (`0 = unlocked, 1 = locked`). Starting a new game only resets level data, so testing already-earned achievements requires clearing `pop_save_profile`.
+  5. **Prerequisite:** Documented and verified requirement of `NoTrpDrm.suprx` under `*main` in `ur0:tai/config.txt`.

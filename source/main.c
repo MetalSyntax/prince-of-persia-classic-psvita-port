@@ -31,7 +31,6 @@ int main() {
     l_success("soloader_init_all() done -- entering game bring-up sequence.");
     audio_init();
     video_init();
-    trophies_init();
 
     // Touch sampling is off by default -- sceTouchPeek() below always
     // reports reportNum=0 (no touches, ever) until this is called.
@@ -111,6 +110,8 @@ int main() {
 
     gl_init();
     l_success("gl_init() done.");
+
+    trophies_init();
     
     sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
 

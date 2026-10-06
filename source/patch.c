@@ -23,12 +23,31 @@
 #include <string.h>
 
 #include "utils/logger.h"
+#include "trophies.h"
 
 extern so_module so_mod;
 extern so_module cocos2d_mod;
+extern so_module game_mod;
 
 //! @see docs/comments/patch.c.md#loose-file-override-for-ccfileutilsgetfiledata
 #define GETFILEDATA_SYM "_ZN7cocos2d11CCFileUtils11getFileDataEPKcS2_Pm"
+#define UNLOCK_ACHIEVEMENT_SYM "_ZN18AchievementManager17UnLockAchievementEib"
+
+static so_hook gUnLockAchievementHook;
+static void (*real_UnLockAchievement)(void *this, int id, int popup) = NULL;
+
+static void hook_UnLockAchievement(void *this, int id, int popup) {
+    l_info("Game Logic Achievement triggered: ID %d (popup=%d)", id, popup);
+
+    if (real_UnLockAchievement) {
+        real_UnLockAchievement(this, id, popup);
+    }
+
+    // Map 0-indexed game achievements (0..16) to Vita trophy IDs (1..17)
+    if (id >= 0 && id <= 16) {
+        trophies_unlock((uint32_t)(id + 1));
+    }
+}
 
 static so_hook gGetFileDataHook;
 static void *(*real_getFileData)(const char *, const char *, unsigned long *) = NULL;
@@ -89,9 +108,18 @@ void so_patch(void) {
     uintptr_t addr = so_symbol(&cocos2d_mod, GETFILEDATA_SYM);
     if (!addr) {
         l_warn("so_patch: %s not found, apk/obb-less loose-file loading disabled (original.apk/.obb still required)", GETFILEDATA_SYM);
-        return;
+    } else {
+        real_getFileData = (void *(*)(const char *, const char *, unsigned long *)) addr;
+        gGetFileDataHook = hook_addr(addr, (uintptr_t) hook_getFileData);
+        l_info("so_patch: hooked %s at 0x%08x", GETFILEDATA_SYM, (unsigned) addr);
     }
-    real_getFileData = (void *(*)(const char *, const char *, unsigned long *)) addr;
-    gGetFileDataHook = hook_addr(addr, (uintptr_t) hook_getFileData);
-    l_info("so_patch: hooked %s at 0x%08x", GETFILEDATA_SYM, (unsigned) addr);
+
+    uintptr_t achv_addr = so_symbol(&game_mod, UNLOCK_ACHIEVEMENT_SYM);
+    if (!achv_addr) {
+        l_warn("so_patch: %s not found in libgame_logic", UNLOCK_ACHIEVEMENT_SYM);
+    } else {
+        real_UnLockAchievement = (void (*)(void *, int, int)) achv_addr;
+        gUnLockAchievementHook = hook_addr(achv_addr, (uintptr_t) hook_UnLockAchievement);
+        l_info("so_patch: hooked %s at 0x%08x", UNLOCK_ACHIEVEMENT_SYM, (unsigned) achv_addr);
+    }
 }

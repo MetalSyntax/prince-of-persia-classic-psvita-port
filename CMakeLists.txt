@@ -6,6 +6,7 @@
 ]]
 
 cmake_minimum_required(VERSION 3.14)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum policy version for legacy SDK scripts")
 
 if (NOT DEFINED ENV{VITASDK} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   message(FATAL_ERROR "Please define VITASDK env var to point to your SDK path or set CMAKE_TOOLCHAIN_FILE.")
@@ -24,8 +25,26 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 set(VITA_APP_NAME "Prince of Persia Classic")
 set(VITA_TITLEID "POPC00001")
 set(VITA_VPKNAME "popclassic")
-set(VITA_VERSION "01.28")
+set(VITA_VERSION "01.40")
 set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
+
+## vitaGL vendorizada de Zenonia 3/4 (2026 master + mods de compat, system_app deshabilitada)
+## SOFTFP_ABI=1 es OBLIGATORIO para evitar pantalla negra en PS Vita.
+set(VITAGL_VENDOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/vitaGL)
+set(VITAGL_MAKE_FLAGS_STR "SOFTFP_ABI=1 NO_DEBUG=1 HAVE_SHADER_CACHE=1 NO_SPLASHSCREEN=1 HAVE_GLSL_UBOS=1 SAMPLERS_SPEEDHACK=1 DRAW_SPEEDHACK=2")
+separate_arguments(VITAGL_MAKE_FLAGS UNIX_COMMAND "${VITAGL_MAKE_FLAGS_STR}")
+include(ExternalProject)
+ExternalProject_Add(
+  vitaGL_vendored
+  SOURCE_DIR ${VITAGL_VENDOR_DIR}
+  BUILD_IN_SOURCE 1
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND make ${VITAGL_MAKE_FLAGS}
+  INSTALL_COMMAND ""
+)
+add_library(vitaGL_vendored_lib STATIC IMPORTED)
+set_target_properties(vitaGL_vendored_lib PROPERTIES IMPORTED_LOCATION ${VITAGL_VENDOR_DIR}/libvitaGL.a)
+add_dependencies(vitaGL_vendored_lib vitaGL_vendored)
 
 # Optional: used for "send" and "dump" targets
 set(PSVITAIP "192.168.3.15" CACHE STRING "PSVita IP (for FTP access)")
@@ -94,6 +113,7 @@ add_executable(${CMAKE_PROJECT_NAME}
                source/dynlib.c
                source/java.c
                source/patch.c
+               source/trophies.c
                source/vitagl_no_splash.c
                source/reimpl/bits/_ctype.c
                source/reimpl/egl.c
@@ -123,6 +143,7 @@ add_dependencies(${CMAKE_PROJECT_NAME} SceLibcBridge)
 
 target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM
                            PUBLIC ${CMAKE_SOURCE_DIR}/lib
+                           PUBLIC ${VITAGL_VENDOR_DIR}/source
                            )
 
 target_include_directories(${CMAKE_PROJECT_NAME}
@@ -132,7 +153,7 @@ target_include_directories(${CMAKE_PROJECT_NAME}
 target_link_libraries(${CMAKE_PROJECT_NAME}
                       -Wl,--whole-archive pthread -Wl,--no-whole-archive
                       stdc++
-                      vitaGL
+                      vitaGL_vendored_lib
                       vitashark
                       SceShaccCgExt
                       taihen_stub
@@ -163,6 +184,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
                       SceVshBridge_stub
                       SceNet_stub
                       SceNetCtl_stub
+                      SceNpTrophy_stub
                       )
 
 vita_create_self(eboot.bin ${CMAKE_PROJECT_NAME} UNSAFE NOASLR)
@@ -177,6 +199,7 @@ vita_create_vpk(${VITA_VPKNAME}.vpk ${VITA_TITLEID} eboot.bin
                 ${CMAKE_SOURCE_DIR}/extras/livearea/bg0.png sce_sys/livearea/contents/bg0.png
                 ${CMAKE_SOURCE_DIR}/extras/livearea/template.xml sce_sys/livearea/contents/template.xml
                 ${CMAKE_SOURCE_DIR}/extras/fonts/DejaVuSans.ttf DejaVuSans.ttf
+                ${CMAKE_SOURCE_DIR}/extras/trophy/POPC00001_00/TROPHY.TRP sce_sys/trophy/POPC00001_00/TROPHY.TRP
                 )
 
 add_custom_target(send

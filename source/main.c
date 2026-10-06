@@ -14,6 +14,7 @@
 
 #include "audio.h"
 #include "video.h"
+#include "trophies.h"
 
 int _newlib_heap_size_user = 256 * 1024 * 1024;
 
@@ -30,6 +31,7 @@ int main() {
     l_success("soloader_init_all() done -- entering game bring-up sequence.");
     audio_init();
     video_init();
+    trophies_init();
 
     // Touch sampling is off by default -- sceTouchPeek() below always
     // reports reportNum=0 (no touches, ever) until this is called.

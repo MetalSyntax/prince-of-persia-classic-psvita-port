@@ -539,6 +539,13 @@ Con el fix de memoria de v01.17, el video de las cinemáticas por fin llegó a d
 - **Build:** `popclassic.vpk` v01.28, mismo TITLEID. No confirmado aún en consola real; v01.27 queda como
   commit de retirada si la ruta Xperia se porta mal.
 
+#### 28. Sistema Oficial de Trofeos PS Vita y Vendorización de vitaGL (v01.40)
+- **Problema 1 (Trofeos):** El juego original en Android incluía 17 logros dentro del motor Cocos2d-x (`AchievementManager`), pero no existía soporte para el sistema nativo de trofeos de PlayStation Vita (`SceNpTrophy`).
+- **Solución 1:** Se implementó soporte completo para trofeos nativos en `source/trophies.c` y `source/trophies.h`. Se interceptó `AchievementManager::UnLockAchievement(int, bool)` en `source/patch.c` para mapear los 17 logros del juego a los trofeos del sistema Vita (`POPC00001_00`), además de un trofeo de Platino ("PRINCE OF PERSIA") que se desbloquea automáticamente al obtener los 17 logros base. Los iconos se procesaron con super-resolución por IA (Real-ESRGAN / nanobanana pipeline a escala 4x) corrigiendo su rotación e integrándose en `TROPHY.TRP` sin bordes artificiales postizos.
+- **Problema 2 (Pantalla Negra):** La librería global `libvitaGL.a` del SDK producía una pantalla negra permanente en hardware físico debido a la falta del flag `SOFTFP_ABI=1` y la autodetección defectuosa de `system_app_mode` bajo binarios `UNSAFE/NOASLR` + `kubridge`.
+- **Solución 2:** Se vendorizó el árbol de `vitaGL` probado en Zenonia 3/4 en `vendor/vitaGL/` con `SOFTFP_ABI=1 NO_DEBUG=1 HAVE_SHADER_CACHE=1 NO_SPLASHSCREEN=1 HAVE_GLSL_UBOS=1 SAMPLERS_SPEEDHACK=1 DRAW_SPEEDHACK=2` y autodetección `system_app` deshabilitada, integrándose en `CMakeLists.txt` como `ExternalProject`.
+- **Build:** `popclassic.vpk` v01.40, mismo TITLEID (`POPC00001`).
+
 ---
 
 ### 🇬🇧 English
@@ -1059,3 +1066,10 @@ With v01.17's memory fix, cutscene video finally decoded and drew real frames fo
   which member is which without that step.
 - **Build:** `popclassic.vpk` v01.28, same TITLEID. Not yet confirmed on real hardware; v01.27 is the
   fallback commit if the Xperia path misbehaves.
+
+#### 28. Official PS Vita Trophy Support & Vendored vitaGL (v01.40)
+- **Issue 1 (Trophies):** The original Android game featured 17 in-engine achievements managed by Cocos2d-x (`AchievementManager`), but had no integration with the native PlayStation Vita trophy system (`SceNpTrophy`).
+- **Fix 1:** Added comprehensive native PS Vita trophy support in `source/trophies.c` and `source/trophies.h`. Hooked `AchievementManager::UnLockAchievement(int, bool)` in `source/patch.c` to translate in-game achievement triggers directly into Vita trophy unlocks (`POPC00001_00`). Included a custom Platinum Trophy ("PRINCE OF PERSIA") unlocking upon earning all 17 base achievements. Extracted and enhanced all official icons using Real-ESRGAN AI super-resolution (4x neural upscaler), un-rotated them, and packed them borderless into `TROPHY.TRP`.
+- **Issue 2 (Black Screen):** The global prebuilt `libvitaGL.a` from vitasdk produced a persistent black screen on physical hardware due to a missing `SOFTFP_ABI=1` definition and faulty `system_app_mode` autodetection on `UNSAFE/NOASLR` + `kubridge` executables.
+- **Fix 2:** Vendored the battle-tested `vitaGL` source tree from Zenonia 3/4 under `vendor/vitaGL/` compiled with `SOFTFP_ABI=1 NO_DEBUG=1 HAVE_SHADER_CACHE=1 NO_SPLASHSCREEN=1 HAVE_GLSL_UBOS=1 SAMPLERS_SPEEDHACK=1 DRAW_SPEEDHACK=2` and `system_app_mode` autodetection disabled. Integrated via `ExternalProject` in `CMakeLists.txt`.
+- **Build:** `popclassic.vpk` v01.40, same TITLEID (`POPC00001`).

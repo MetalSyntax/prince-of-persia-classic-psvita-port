@@ -24,6 +24,7 @@
 
 #include "utils/logger.h"
 #include "trophies.h"
+#include "patch.h"
 
 extern so_module so_mod;
 extern so_module cocos2d_mod;
@@ -106,6 +107,82 @@ static void *hook_getFileData(const char *filename, const char *mode, unsigned l
     return ret;
 }
 
+#define SET_CONTROLS_POS_SYM "_ZN13ControlsLayer14setControlsPosEb"
+#define SHARED_CONTROLS_LAYER_SYM "_ZN13ControlsLayer19sharedControlsLayerEv"
+#define CCSPRITE_SET_OPACITY_SYM "_ZN7cocos2d8CCSprite10setOpacityEh"
+#define CCMENUITEMSPRITE_SET_OPACITY_SYM "_ZN7cocos2d16CCMenuItemSprite10setOpacityEh"
+
+static void *(*real_sharedControlsLayer)(void) = NULL;
+static void (*real_CCSprite_setOpacity)(void *self, unsigned char opacity) = NULL;
+static void (*real_CCMenuItemSprite_setOpacity)(void *self, unsigned char opacity) = NULL;
+
+static so_hook gSetControlsPosHook;
+static void (*real_setControlsPos)(void *this, int param) = NULL;
+
+static int g_controlsVisible = 0;
+
+// Fixed 1% opacity (~2/255 = 0.78%) for hidden virtual controls so that even if
+// checkpoint reload after death re-enables their visibility, they remain completely
+// invisible on screen while preserving internal touch/engine mechanics.
+#define CONTROLS_OPACITY_HIDDEN  ((unsigned char) 2)
+#define CONTROLS_OPACITY_VISIBLE ((unsigned char) 255)
+
+void controls_set_visible(int visible) {
+    g_controlsVisible = visible;
+}
+
+int controls_is_visible(void) {
+    return g_controlsVisible;
+}
+
+void *controls_get_layer(void) {
+    if (real_sharedControlsLayer) {
+        return real_sharedControlsLayer();
+    }
+    return NULL;
+}
+
+void controls_update_opacity(void *controlsLayer, int visible) {
+    if (!controlsLayer) return;
+
+    unsigned char opacity = visible ? CONTROLS_OPACITY_VISIBLE : CONTROLS_OPACITY_HIDDEN;
+
+    if (real_CCSprite_setOpacity) {
+        // 0x158-0x164 are cocos2d::CCSprite (move_slider_base, move_slider,
+        // joystick_base, joystick).
+        static const int kSpriteOffsets[4] = {0x158, 0x15c, 0x160, 0x164};
+        for (int b = 0; b < 4; b++) {
+            void *sprite = *(void **)((char *)controlsLayer + kSpriteOffsets[b]);
+            if (sprite) real_CCSprite_setOpacity(sprite, opacity);
+        }
+    }
+
+    if (real_CCMenuItemSprite_setOpacity) {
+        // 0x168/0x16c (control_arrow_left/right) and 0x174-0x188 (crouch, jump,
+        // interact, attack, defend, sheath) are all cocos2d::CCMenuItemImage
+        // (which inherits from CCMenuItemSprite).
+        static const int kButtonOffsets[8] = {0x168, 0x16c,
+                                              0x174, 0x178, 0x17c, 0x180, 0x184, 0x188};
+        for (int b = 0; b < 8; b++) {
+            void *item = *(void **)((char *)controlsLayer + kButtonOffsets[b]);
+            if (item) real_CCMenuItemSprite_setOpacity(item, opacity);
+        }
+    }
+}
+
+static void hook_setControlsPos(void *this, int param) {
+    if (real_setControlsPos) {
+        so_unhook(&gSetControlsPosHook);
+        real_setControlsPos(this, param);
+        gSetControlsPosHook = hook_addr((uintptr_t) real_setControlsPos, (uintptr_t) hook_setControlsPos);
+    }
+
+    // After setControlsPos (called by ControlsLayer::reset() upon death / checkpoint reload),
+    // movement controls at 0x158..0x16c have their visibility restored by the engine.
+    // Re-apply current opacity (fixed 1% if hidden) to ensure they stay invisible if controls are disabled.
+    controls_update_opacity(this, g_controlsVisible);
+}
+
 void so_patch(void) {
     uintptr_t addr = so_symbol(&cocos2d_mod, GETFILEDATA_SYM);
     if (!addr) {
@@ -124,4 +201,18 @@ void so_patch(void) {
         gUnLockAchievementHook = hook_addr(achv_addr, (uintptr_t) hook_UnLockAchievement);
         l_info("so_patch: hooked %s at 0x%08x", UNLOCK_ACHIEVEMENT_SYM, (unsigned) achv_addr);
     }
+
+    real_sharedControlsLayer = (void *(*)(void)) so_symbol(&game_mod, SHARED_CONTROLS_LAYER_SYM);
+    real_CCSprite_setOpacity = (void (*)(void *, unsigned char)) so_symbol(&cocos2d_mod, CCSPRITE_SET_OPACITY_SYM);
+    real_CCMenuItemSprite_setOpacity = (void (*)(void *, unsigned char)) so_symbol(&cocos2d_mod, CCMENUITEMSPRITE_SET_OPACITY_SYM);
+
+    uintptr_t set_controls_pos_addr = so_symbol(&game_mod, SET_CONTROLS_POS_SYM);
+    if (!set_controls_pos_addr) {
+        l_warn("so_patch: %s not found in libgame_logic", SET_CONTROLS_POS_SYM);
+    } else {
+        real_setControlsPos = (void (*)(void *, int)) set_controls_pos_addr;
+        gSetControlsPosHook = hook_addr(set_controls_pos_addr, (uintptr_t) hook_setControlsPos);
+        l_info("so_patch: hooked %s at 0x%08x", SET_CONTROLS_POS_SYM, (unsigned) set_controls_pos_addr);
+    }
 }
+

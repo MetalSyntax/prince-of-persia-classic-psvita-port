@@ -19,6 +19,7 @@
 #include "vita_menu.h"
 #include "overlay.h"
 #include "utils/settings.h"
+#include "patch.h"
 
 int _newlib_heap_size_user = 256 * 1024 * 1024;
 
@@ -111,6 +112,7 @@ int main() {
     if (nativeSetDensityScaleValue) nativeSetDensityScaleValue(jniEnv, NULL, 1.3f);
     if (nativeSetDevicePixelsPerInch) nativeSetDevicePixelsPerInch(jniEnv, NULL, 240.0f);
     if (SetControlInVisible) SetControlInVisible(jniEnv, NULL);
+    controls_set_visible(0);
 
     gl_init();
     l_success("gl_init() done.");
@@ -280,6 +282,15 @@ int main() {
             }
         }
 
+        void *ctrlLayer = controls_get_layer();
+        static void *lastCtrlLayer = NULL;
+        static int lastVisible = -1;
+        if (ctrlLayer && (ctrlLayer != lastCtrlLayer || controlsVisible != lastVisible)) {
+            controls_update_opacity(ctrlLayer, controlsVisible);
+            lastCtrlLayer = ctrlLayer;
+            lastVisible = controlsVisible;
+        }
+
         if (nativeKeyDown && nativeKeyUp) {
             // SELECT alone sends KEYCODE_MENU (82)
             if (!(current_pad & SCE_CTRL_START)) {
@@ -346,6 +357,8 @@ int main() {
                 controlsVisible = !controlsVisible;
                 if (controlsVisible) SetControlVisible(jniEnv, NULL);
                 else                 SetControlInVisible(jniEnv, NULL);
+                controls_set_visible(controlsVisible);
+                if (ctrlLayer) controls_update_opacity(ctrlLayer, controlsVisible);
                 l_debug("controls visibility toggled: %s", controlsVisible ? "visible" : "hidden");
             }
         }

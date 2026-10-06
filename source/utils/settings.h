@@ -21,6 +21,7 @@ extern "C" {
 
 extern int  setting_sampleSetting;
 extern bool setting_sampleSetting2;
+extern int  setting_analogDeadzone;
 
 void settings_load();
 void settings_save();

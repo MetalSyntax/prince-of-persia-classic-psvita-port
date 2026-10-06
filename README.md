@@ -32,11 +32,13 @@ To play the game, you MUST possess a legitimate, legally obtained copy of the An
 
 This is an early, actively-developed port. Please read this list before reporting a bug — it may already be a known/tracked issue (see [`Docs/Fixes_Log.md`](Docs/Fixes_Log.md) and [`Docs/plan_portabilidad.md`](Docs/plan_portabilidad.md) for the full technical history).
 
-- **v01.28's control rework is not confirmed on real hardware yet.** Physical buttons now go through the game's own Xperia PLAY gamepad path (see [`Docs/RELEASE_v01.28.md`](Docs/RELEASE_v01.28.md)); it builds clean and every change is backed by disassembly, but it hasn't been played on a console. **v01.27** is the fallback build if something is off. Bug reports on this especially welcome.
+- **Exit crash fix**: Fixed an issue where selecting 'Yes' in the game's in-game Exit dialog crashed instead of returning cleanly to the LiveArea (`Cocos2dxActivity_terminateProcess`).
+- **In-game controls remapping overlay**: Press **START + SELECT** at any time to open the configuration menu. Allows remapping any action, binding PS Vita rear touch quadrants (L2/R2/L3/R3), tuning analog deadzone, and saving directly to `ux0:data/popclassic/controls.txt`.
+- **PS Vita Trophies (En desarrollo / Work in Progress)**: La integración y el paquete de trofeos nativos (`SceNpTrophy` / `TROPHY.TRP`) están estructurados en el código, pero **actualmente no se instalan ni desbloquean todavía en la consola** (error `0x800204C4` en el diálogo de configuración del sistema). Se está investigando activamente para una próxima actualización.
 - **Not using the game's official fonts yet.** Since Sony's native font APIs (`ScePvf`/`ScePgf`) aren't implemented on Vita3K and pulling in the original Android font assets raised licensing questions, text is currently rendered with the open-source, freely-licensed **DejaVu Serif** font via `stb_truetype`. On-screen text would look closer to the original Ubisoft style with the real font.
 - **Not compatible with Vita3K (emulator).** This is a confirmed **bug in Vita3K itself**, not in this port: the menu, text, and audio all work correctly, but starting a real game ("New Game"/"Quick Game") crashes because Vita3K's renderer mishandles non-power-of-2 swizzled textures (confirmed by reading Vita3K's own source, reproducible 3/3 times, and still present on Vita3K's latest `master` at the time of testing). **This port targets real PS Vita hardware.** Technical details in `Docs/plan_portabilidad.md` §9.17.
 
-As of the current build (v01.28), the previously-listed issues around the stuck-action loop, cutscene video/audio playback, audio mixing distortion, the D-Pad only ever walking, and not being able to jump while running have all been fixed — see [`Docs/CHANGELOG.md`](Docs/CHANGELOG.md) for the version-by-version detail and [`Docs/RELEASE_v01.28.md`](Docs/RELEASE_v01.28.md) for this release. Everything up to v01.20 is confirmed on real hardware; the control work in v01.27–v01.28 is not yet.
+As of the current build (v01.45), controls remapping and exit crash fixes are fully functional. Native trophies are in progress.
 
 Found something not on this list? Please open an issue — see [Beta Testing / Contributing](#beta-testing--contributing).
 
@@ -60,12 +62,16 @@ If you're not sure which one you need: install the **Play** build. Only switch t
 To install the port on a real PS Vita:
 
 1. Ensure your console is running a CFW that allows signed homebrew (**Enso**, HENkaku/h-encore², etc. — firmware 3.60/3.65 or the currently supported h-encore² range).
-2. Install the **kubridge** and **FdFix** plugins by adding them to your `config.txt` under `*KERNEL`:
-   ```
+2. Install the **kubridge**, **FdFix**, and **NoTrpDrm** plugins by adding them to your `config.txt`:
+   ```ini
    *KERNEL
    ur0:tai/kubridge.skprx
    ur0:tai/fd_fix.skprx
+
+   *main
+   ur0:tai/NoTrpDrm.suprx
    ```
+   > ⚠️ **Important for Trophies**: `NoTrpDrm.suprx` is required under `*main` for the console to install and pop native PS Vita trophies without DRM errors (`0x800204C4` / `SETUP_REQUIRED`). Be sure to reboot the console after editing `config.txt`.
 3. Install `libshacccg.suprx` (Sony's shader compiler). You can obtain a legitimate copy from your own console using the ShaRKBR33D homebrew — it can never be redistributed, so it is **not** included in this repository (`.gitignore`: `*.suprx`).
 4. Install the generated `.vpk` (see the table above for Debug vs. Play).
 5. Obtain your own legal copy of the Android game. Extract its data and lay it out on the console under `ux0:data/popclassic/` with **exactly** this structure — `original.apk`/the `.obb` are **not needed at all**, just the loose files below:
@@ -75,6 +81,7 @@ To install the port on a real PS Vita:
    ├── libcocosdenshion.so
    ├── libgame_logic.so
    ├── appConfig.txt                 <- required (either here or inside Data_960_576/)
+   ├── controls.txt                  <- optional: custom controller mapping (auto-generated)
    ├── save/                         <- empty folder, the game writes its saves here
    ├── logs/                         <- only used by the Debug build; created automatically if missing
    ├── Data/
@@ -95,9 +102,17 @@ For a full step-by-step FTP transfer walkthrough (using VitaShell), see [`Docs/e
 
 ## Controls
 
-As of **v01.28** the physical buttons drive the game's own gamepad code path, so the on-screen touch buttons
-are hidden by default and the D-Pad and analog stick behave identically. Several buttons do double duty —
-the game switches between "platform" and "combat" mode on its own, depending on whether the sword is drawn.
+The port includes a full physical controls remapping system and an in-game configuration overlay:
+
+### In-Game Remapping Menu
+- Press **START + SELECT** together at any time to open the remapping overlay.
+- Navigate with D-Pad Up/Down.
+- Press **Cross** to replace a button binding, **Square** to add a secondary button binding, or **Triangle** to unbind.
+- Adjust **Analog Stick Deadzone** (left/right to calibrate).
+- Supports Vita physical buttons, PlayStation TV controllers (DualShock 3/4 with native L2/R2), and PS Vita Rear Touch quadrants (`L2`, `R2`, `L3`, `R3`).
+- Bindings are saved automatically to `ux0:data/popclassic/controls.txt`.
+
+### Default Controls
 
 | Button | Platform mode | Combat mode |
 |:---:|:---|:---|
@@ -105,13 +120,15 @@ the game switches between "platform" and "combat" mode on its own, depending on 
 | Cross | **Jump** | Attack |
 | Square | Crouch | **Defend / parry** |
 | Triangle | Interact (grab, levers) | Sheath sword |
-| Circle / Down | Crouch | — |
+| Circle / Down | Crouch / Roll | — |
 | Up | Jump / climb | — |
 | Start | Pause Menu (Android `KEYCODE_BACK`) | Pause Menu |
 | Select | Menu (Android `KEYCODE_MENU`) | Menu |
+| Start + Select | **Open Controls Configuration Overlay** | same |
 | L + R together | Show/hide the on-screen touch buttons | same |
 | Cross / Start | Skip cutscene (during video playback) | — |
 | Touchscreen | Still works for menu navigation | — |
+
 
 > Coming from v01.20 or earlier: **Square used to be a "walk" modifier and is now crouch/defend.** Walking
 > no longer needs a modifier. Full details in [`Docs/RELEASE_v01.28.md`](Docs/RELEASE_v01.28.md).

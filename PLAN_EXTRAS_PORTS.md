@@ -16,6 +16,7 @@
 | Port / repo | Extras que aporta (y los nuestros no tienen) |
 |---|---|
 | `TheOfficialFloW/gtasa_vita` (GTA SA) | Configurator app desde LiveArea, `controls.txt` remapeable, L2/R2→rear touch y L3/R3→front touch (conmutable), teclado OSK con L+SELECT para cheats, quick-save al salir + Resume=carga último save, canciones de radio recortadas restaurables (`MUSIC.md`), MP3 fuzzy seek, texturas HD opcionales, render PS2-like conmutable |
+| `Carnivores-Dinosaur-Hunter-vita` / `Carnivores-Ice-Age-vita` (referencia interna) | **Estándar de controles y remapeo modular**: parser bidireccional y tolerante de `controls.txt` (`VERSION = 2`), diccionario completo de botones físicos + alias, cuadrantes de **L2/R2/L3/R3 en panel táctil trasero**, menú in-game de remapeo (START+SELECT), guardado y auto-generación de defaults comentados (`input_controls_save()`), recarga en caliente (`input_reload_controls()`), navegación sintética sobre controles GUI y slider de opacidad del HUD. |
 | `Rinnegatamante/raider-vita`, `ff4_vita`, `fahrenheit-vita`, `not_a_hero-vita` | **Trofeos** (incl. ocultos + iconos hi-res), multilenguaje (hasta 7 idiomas, TR2), FMV por transcode ffmpeg `.bat` opcional, `datafiles.zip` separado, front-touch mapping L2/L3/R2/R3, nota PSVshell 500 MHz |
 | `v-atamanenko/soloader-boilerplate` (Solobop) | `settings.bin` persistente (`source/utils/settings.c`), redirect `-config` a binario configurador, overclock 444/222/222/166 al arrancar, `SHADER_FORMAT` GLSL/CG/GXP + `DUMP_COMPILED_SHADERS`, targets CMake `send/dump/reboot` vía `PSVITAIP` |
 | `v-atamanenko/masseffect-vita`, Backstab HD, Dead Space (gl33ntwine) | Companion/configurator lanzable con botón **Settings en el LiveArea**, deadzones de sticks, nivel de detalle gráfico, FPS limiter, sensibilidad, `Control Scheme 2` documentado |
@@ -26,7 +27,7 @@
 
 | # | Extra de la escena | Estado en nuestros ports | Prioridad |
 |---|---|---|---|
-| 1 | Remapeo de controles (`controls.txt` + esquema Vita mejorado) | ❌ Hardcodeado en `source/input.c` | P0 |
+| 1 | Remapeo de controles (estándar Carnivores: `controls.txt` v2 + botones físicos + Rear Touch) | ❌ Hardcodeado en `source/main.c` / `source/input.c` | P0 |
 | 2 | L2/R2/R3 trasero/delantero + soporte PSTV real | ❌ Parcial / sin documentar | P0 |
 | 3 | Deadzones + sensibilidad configurables | ❌ | P0 |
 | 4 | Configurator app + botón Settings en LiveArea + `settings.bin` | ❌ (boilerplate lo soporta, ningún port lo usa) | P0 |
@@ -45,18 +46,178 @@
 
 ## Fase P0 — Quick wins (1–2 tardes por port, alto valor jugador)
 
-### P0.1 Controles remapeables + `controls.txt`
-- Copiar el patrón `gtasa_vita`: `ux0:data/<juego>/controls.txt` con parsing
-  simple `VITA_BOTON = ACCION_JUEGO`, + esquema por defecto "Vita mejorado".
-- Mantener compat: si no existe el archivo, usar el mapeo actual (cero regresión).
-- Documentar en README con tabla (como ya hace Asphalt 5, que es el mejor ejemplo propio).
+### P0.1 Controles remapeables + `controls.txt` (Estándar Carnivores)
 
-### P0.2 L2/R2/R3 touch + PSTV
-- Estándar escena: **L2/R2 = rear touch arriba, L3/R3 = front touch abajo**,
-  con alternativa L2/R2 = front arriba (la que añadió GTA SA v1.2 para PSTV).
-- Donde el juego no necesite L2/R2, mapearlos a acciones útiles
-  (poción/mapa/save rápido) en vez de dejarlos muertos.
-- Probar explícitamente en PSTV (o declarar "PSTV requiere DS3/DS4 por MiniVitaTV").
+Se adopta como estándar transversal el diseño probado e implementado en `Carnivores-Dinosaur-Hunter-vita` y `Carnivores-Ice-Age-vita` (`source/input.c`), sustituyendo cualquier hardcodeo directo de botones por un sistema dinámico, tolerante y autodocumentado:
+
+#### 1. Formato y Parser Bidireccional (`ux0:data/<slug>/controls.txt`)
+- **Directiva de versión obligatoria**: Cabecera `VERSION = 2`. Si el archivo no existe, el loader lo genera con comentarios descriptivos y los mapeos por defecto (`input_controls_save()`). Si existe pero tiene una versión inferior (`version < 2`), se regenera preservando valores válidos o restableciendo los defaults nuevos.
+- **Sintaxis bidireccional tolerante**:
+  - `ACCION = BOTON, BOTON...` (permite asignar múltiples botones a una misma acción).
+  - `BOTON = ACCION` (formato inverso estilo emulador/consola).
+- **Tratamiento de texto**: Insensible a mayúsculas/minúsculas (`CROSS`, `cross`, `Cross`), espacios/tabulaciones recortados automáticamente, comentarios prefijados con `#` o `;`.
+- **Recarga en caliente**: Función `input_reload_controls()` que re-parsea el archivo sin requerir reinicio del juego.
+
+#### 2. Diccionario Canónico de Botones y Alias (Idéntico a Carnivores)
+
+| Botón Canónico | Etiqueta UI / Menú | Máscara Bit / Valor | Alias Aceptados por Parser |
+|---|---|---|---|
+| `CROSS` | Cross | `SCE_CTRL_CROSS` | `X` |
+| `CIRCLE` | Circle | `SCE_CTRL_CIRCLE` | `O` |
+| `SQUARE` | Square | `SCE_CTRL_SQUARE` | — |
+| `TRIANGLE` | Triangle | `SCE_CTRL_TRIANGLE` | — |
+| `L1` | L | `SCE_CTRL_LTRIGGER` | `L`, `LTRIGGER` |
+| `R1` | R | `SCE_CTRL_RTRIGGER` | `R`, `RTRIGGER` |
+| `UP` | Up | `SCE_CTRL_UP` | `DPAD_UP` |
+| `DOWN` | Down | `SCE_CTRL_DOWN` | `DPAD_DOWN` |
+| `LEFT` | Left | `SCE_CTRL_LEFT` | `DPAD_LEFT` |
+| `RIGHT` | Right | `SCE_CTRL_RIGHT` | `DPAD_RIGHT` |
+| `SELECT` | Select | `SCE_CTRL_SELECT` | — |
+| `START` | Start | `SCE_CTRL_START` | — |
+| `L2` | Rear TL | `CUSTOM_BTN_L2` (`1 << 24`) | `REAR_UP_L` |
+| `R2` | Rear TR | `CUSTOM_BTN_R2` (`1 << 25`) | `REAR_UP_R` |
+| `L3` | Rear BL | `CUSTOM_BTN_L3` (`1 << 26`) | `REAR_DOWN_L` |
+| `R3` | Rear BR | `CUSTOM_BTN_R3` (`1 << 27`) | `REAR_DOWN_R` |
+| `NONE` | - | `0` (Desvincular acción) | `none` |
+
+#### 3. Estructuras C y Lógica de Parseo Modular
+
+```c
+// Definición de bits virtuales para el panel táctil trasero
+enum {
+    CUSTOM_BTN_L2 = (1 << 24), // Rear touch superior-izquierdo
+    CUSTOM_BTN_R2 = (1 << 25), // Rear touch superior-derecho
+    CUSTOM_BTN_L3 = (1 << 26), // Rear touch inferior-izquierdo
+    CUSTOM_BTN_R3 = (1 << 27), // Rear touch inferior-derecho
+};
+
+typedef struct {
+    const char *name;   // Nombre canónico para controls.txt
+    const char *label;  // Nombre amigable para UI in-game
+    uint32_t default_buttons; // Máscara de botones por defecto
+    uint32_t buttons;         // Máscara activa en runtime
+} Action;
+
+typedef struct {
+    const char *name;   // Nombre clave para parseo
+    const char *label;  // Etiqueta UI (NULL si es solo alias de lectura)
+    uint32_t mask;      // Máscara del botón
+} ButtonName;
+
+static const ButtonName button_names[] = {
+    { "CROSS",       "Cross",    SCE_CTRL_CROSS },
+    { "CIRCLE",      "Circle",   SCE_CTRL_CIRCLE },
+    { "SQUARE",      "Square",   SCE_CTRL_SQUARE },
+    { "TRIANGLE",    "Triangle", SCE_CTRL_TRIANGLE },
+    { "L1",          "L",        SCE_CTRL_LTRIGGER },
+    { "R1",          "R",        SCE_CTRL_RTRIGGER },
+    { "UP",          "Up",       SCE_CTRL_UP },
+    { "DOWN",        "Down",     SCE_CTRL_DOWN },
+    { "LEFT",        "Left",     SCE_CTRL_LEFT },
+    { "RIGHT",       "Right",    SCE_CTRL_RIGHT },
+    { "SELECT",      "Select",   SCE_CTRL_SELECT },
+    { "START",       "Start",    SCE_CTRL_START },
+    { "L2",          "Rear TL",  CUSTOM_BTN_L2 },
+    { "R2",          "Rear TR",  CUSTOM_BTN_R2 },
+    { "L3",          "Rear BL",  CUSTOM_BTN_L3 },
+    { "R3",          "Rear BR",  CUSTOM_BTN_R3 },
+    // Alias para máxima compatibilidad
+    { "X",           NULL,       SCE_CTRL_CROSS },
+    { "O",           NULL,       SCE_CTRL_CIRCLE },
+    { "LTRIGGER",    NULL,       SCE_CTRL_LTRIGGER },
+    { "L",           NULL,       SCE_CTRL_LTRIGGER },
+    { "RTRIGGER",    NULL,       SCE_CTRL_RTRIGGER },
+    { "R",           NULL,       SCE_CTRL_RTRIGGER },
+    { "DPAD_UP",     NULL,       SCE_CTRL_UP },
+    { "DPAD_DOWN",   NULL,       SCE_CTRL_DOWN },
+    { "DPAD_LEFT",   NULL,       SCE_CTRL_LEFT },
+    { "DPAD_RIGHT",  NULL,       SCE_CTRL_RIGHT },
+    { "REAR_UP_L",   NULL,       CUSTOM_BTN_L2 },
+    { "REAR_UP_R",   NULL,       CUSTOM_BTN_R2 },
+    { "REAR_DOWN_L", NULL,       CUSTOM_BTN_L3 },
+    { "REAR_DOWN_R", NULL,       CUSTOM_BTN_R3 },
+};
+```
+
+#### 4. Mapeo Canónico para Prince of Persia Classic
+
+En `source/main.c` / `source/input.c`, el pool de acciones se define mapeando los eventos del motor:
+
+| Acción | Descripción en Juego | Valor por Defecto | Disparador Motor |
+|---|---|---|---|
+| `JUMP` | Salto / Atacar con espada / Confirmar | `CROSS` | Keycode 23 (`ControlsLayer::keyXClicked`) |
+| `CROUCH` | Agacharse / Defenderse con espada | `SQUARE` | Keycode 99 (`ControlsLayer::keySqrClicked`) |
+| `INTERACT` | Interactuar / Enfundar espada | `TRIANGLE` | Keycode 100 (`ControlsLayer::keyTriClicked`) |
+| `ROLL` | Rodar / Agacharse rápido | `CIRCLE, DOWN` | Keycode 20 (`DPAD_DOWN`) |
+| `UP` | Subir repisas / Mirar arriba | `UP` | Keycode 19 (`DPAD_UP`) |
+| `LEFT` | Andar / Correr a la izquierda | `LEFT` | Keycode 21 (Tap = andar, Hold 250ms = correr) |
+| `RIGHT` | Andar / Correr a la derecha | `RIGHT` | Keycode 22 (Tap = andar, Hold 250ms = correr) |
+| `BACK` | Pausa / Atrás en menús | `START` | Keycode 4 (`KEYCODE_BACK`) |
+| `MENU` | Menú Android / Opciones | `SELECT` | Keycode 82 (`KEYCODE_MENU`) |
+| `TOGGLE_HUD`| Mostrar / Ocultar controles táctiles | `L1, R1` | `SetControlVisible` / `SetControlInVisible` |
+
+#### 5. Ejemplo de `controls.txt` generado automáticamente
+
+```ini
+# Prince of Persia Classic - PS Vita controls
+# Also editable in game: START + SELECT (or SELECT in menus).
+#
+# Buttons: CROSS, CIRCLE, SQUARE, TRIANGLE, L1, R1, UP, DOWN, LEFT, RIGHT,
+#   SELECT, L2 / R2 (rear touch top-left / top-right),
+#   L3 / R3 (rear touch bottom-left / bottom-right), NONE.
+#   START is always pause / back.
+#
+# ACTION = BUTTON, BUTTON ...   (or BUTTON = ACTION)
+
+VERSION = 2
+JUMP = CROSS
+CROUCH = SQUARE
+INTERACT = TRIANGLE
+ROLL = CIRCLE, DOWN
+UP = UP
+LEFT = LEFT
+RIGHT = RIGHT
+BACK = START
+MENU = SELECT
+TOGGLE_HUD = L1, R1
+```
+
+#### 6. Menú Overlay In-Game de Remapeo Visual (`source/vita_menu.c` + `source/overlay.c`)
+
+El jugador **NO necesita conectar la consola al PC ni usar VitaShell para editar `controls.txt` manualmente**. `controls.txt` actúa exclusivamente como la capa de persistencia en disco; la experiencia principal del usuario se gestiona mediante un **menú Overlay interactivo sobreimpreso en pantalla** en tiempo real, replicando 1:1 la arquitectura de `Carnivores`:
+
+- **Activación universal in-game**:
+  - **`START + SELECT`** durante el juego: el loader pausa inmediatamente el motor (`nativeOnBackPressed` o evento de pausa nativo) para que nada se mueva debajo y despliega el overlay de configuración.
+  - **`SELECT`** en los menús principales del juego: abre directamente el overlay sin pausar.
+- **Flujo de interacción y reasignación en caliente**:
+  - **D-Pad Arriba / Abajo**: Navega verticalmente por las filas de acciones (`JUMP`, `CROUCH`, `INTERACT`, etc.) y ajustes del port.
+  - **CROSS (✕) — Reemplazar (Modo Captura)**: Activa `capture = 1` mostrando `"Press button..."`. El jugador presiona cualquier botón físico o cuadrante del panel táctil trasero (`L2`/`R2`/`L3`/`R3`) y la acción queda reasignada de inmediato.
+  - **SQUARE (▢) — Añadir botón secundario**: Activa `capture = 2` para vincular un botón adicional sin sobrescribir el existente (permite crear combinaciones como `CIRCLE, DOWN`).
+  - **TRIANGLE (△) — Desvincular**: Limpia la asignación actual (`input_action_clear()`), dejando la acción en `NONE`.
+  - **START — Cancelar**: Si se está esperando una pulsación en modo captura, cancela la espera sin modificar el valor previo.
+  - **Fila "Restore defaults"**: Al pulsar **CROSS (✕)**, restablece todos los controles y configuraciones al preset oficial de fábrica.
+  - **Fila "Close" o botón CIRCLE (◯)**: Cierra el overlay y ejecuta en segundo plano `input_controls_save()` y `settings_save()`, escribiendo las modificaciones a `controls.txt` y `settings.bin` / `config.txt` automáticamente.
+- **Ajustes adicionales integrados en el mismo Overlay**:
+  - **Sensibilidad / Velocidad de stick**: Modificable con **D-Pad Izquierda / Derecha** (10% a 400%).
+  - **Invertir ejes**: Toggle para invertir Eje Y y Eje X de la cámara/stick.
+  - **Swap Sticks**: Intercambiar funciones entre stick analógico izquierdo y derecho.
+  - **Opacidad del HUD táctil virtual**: Slider por pasos (0%, 1%, 5%, 10%, 20%... 100%) para atenuar o esconder botones táctiles en pantalla al usar mandos físicos.
+- **Mapeo de eventos y dibujo técnico (`source/overlay.c`)**:
+  - Mientras el overlay está abierto (`vita_menu_active() == 1`), `input_update()` absorbe todas las entradas de gamepad para la interfaz del menú, evitando que se propaguen al juego.
+  - El dibujo se realiza inyectando una llamada a `vita_menu_draw()` antes del swap de buffers (`eglSwapBuffers` / `vglSwapBuffers` / `gl_swap()` o hook en la rutina de renderizado 2D/fuentes del motor).
+  - Dibuja un fondo oscurecido (`COL_DIM`), panel central estructurado (`COL_PANEL`), bordes de contraste (`COL_BORDER`), selector iluminado (`COL_SEL_BG`) y texto tipográfico nativo legible en resolución completa de PS Vita (960×544).
+
+### P0.2 L2/R2/L3/R3 Rear Touch + Compatibilidad PSTV (Patrón Carnivores)
+- **Muestreo del Panel Táctil Trasero (`poll_rear_touch`)**:
+  - Habilitar muestreo: `sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_START)`.
+  - Lectura en cada frame con `sceTouchPeek(SCE_TOUCH_PORT_BACK, &touch, 1)`.
+  - Mapeo espacial por cuadrantes (resolución nativa trasera 1920×1088):
+    - `Y < 544` && `X < 960`  → `CUSTOM_BTN_L2` (Arriba Izquierda)
+    - `Y < 544` && `X >= 960` → `CUSTOM_BTN_R2` (Arriba Derecha)
+    - `Y >= 544` && `X < 960` → `CUSTOM_BTN_L3` (Abajo Izquierda)
+    - `Y >= 544` && `X >= 960` → `CUSTOM_BTN_R3` (Abajo Derecha)
+- **PSTV / Mandos DualShock 3/4**:
+  - En PlayStation TV, `sceCtrlPeekBufferPositive` ya reporta `SCE_CTRL_L2`, `SCE_CTRL_R2`, etc. El mapper unifica los botones físicos de DS3/DS4 con los cuadrantes táctiles traseros mediante un operador `OR` de máscaras, garantizando soporte transparente tanto en consola portátil como en sobremesa.
 
 ### P0.3 Deadzone + sensibilidad
 - Exponer 2 valores en settings (default: inner ~8–12): evita drift y quejas de
@@ -389,8 +550,9 @@ para cazar el bug → `log-trace --remove` (o build con `PORT_TRACE=OFF`) antes 
 
 ## Criterio de "hecho" por port
 
-- [ ] `controls.txt` funciona y está documentado
-- [ ] L2/R2/R3 tienen función en Vita y PSTV
+- [ ] `controls.txt` (VERSION = 2) funciona con parser bidireccional (`ACCION = BOTON` / `BOTON = ACCION`), regeneración de defaults comentados y recarga en caliente
+- [ ] Soporte completo de botones físicos (`CROSS`, `CIRCLE`, `SQUARE`, `TRIANGLE`, `L1`, `R1`, D-Pad, `SELECT`, `START`) + cuadrantes `L2`/`R2`/`L3`/`R3` en panel táctil trasero y PSTV
+- [ ] Menú in-game de remapeo (START+SELECT) o configurador en LiveArea
 - [ ] Botón Settings en LiveArea abre configurador (deadzones, detalle, FPS lock)
 - [ ] Relojes fijados + nota PSVshell en README
 - [x] **Trofeos oficiales de PS Vita plenamente operativos**:

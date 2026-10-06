@@ -27,7 +27,7 @@ Collapsing immediate repeats keeps every *distinct* message (nothing is silently
 
 **Location:** above `next_log_index()`.
 
-`next_log_index()` picks the next free `log_<N>_.txt` index by scanning the `logs/` directory, instead of stamping the filename with `time(NULL)`. Consoles without a battery-backed RTC (or one that has simply never been set) don't advance their clock across power cycles, so every run would compute the exact same "unique" timestamp and keep re-appending to one stale file forever — this looked like logging had stopped working entirely.
+`next_log_index()` picks the next free `log_<N>_.log` index by scanning the `logs/` directory, instead of stamping the filename with `time(NULL)`. Consoles without a battery-backed RTC (or one that has simply never been set) don't advance their clock across power cycles, so every run would compute the exact same "unique" timestamp and keep re-appending to one stale file forever — this looked like logging had stopped working entirely.
 
 A sequential index has no clock dependency, so every run is guaranteed a fresh file regardless of what the RTC thinks the date is. The index is zero-padded so that lexicographic and numeric filename order agree.
 

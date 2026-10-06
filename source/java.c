@@ -2,6 +2,7 @@
 #include <falso_jni/FalsoJNI_Impl.h>
 #include <falso_jni/FalsoJNI.h>
 #include <psp2/kernel/clib.h>
+#include <psp2/kernel/processmgr.h>
 #include <psp2/io/fcntl.h>
 #include <so_util/so_util.h>
 #include <stdint.h>
@@ -64,6 +65,9 @@ NameToMethodID nameToMethodId[] = {
 
     //! @see docs/comments/java.c.md#introtextlayer--playvideo-no-op
     { 64, "playVideo", METHOD_TYPE_VOID },
+
+    //! @see docs/comments/java.c.md#terminateprocess--clean-exit-to-livearea
+    { 65, "terminateProcess", METHOD_TYPE_VOID },
 };
 
 jobject Cocos2dxActivity_getDeviceName(jmethodID id, va_list args) {
@@ -379,6 +383,15 @@ jint Cocos2dxHelper_getRewardsCoins(jmethodID id, va_list args) {
     return 0;
 }
 
+/** @brief Clean process exit (YES on the game's exit ConfirmationBox).
+ *  @note See docs/comments/java.c.md#terminateprocess--clean-exit-to-livearea */
+void Cocos2dxActivity_terminateProcess(jmethodID id, va_list args) {
+    (void)id;
+    (void)args;
+    l_info("Cocos2dxActivity_terminateProcess() -- exiting to LiveArea.");
+    sceKernelExitProcess(0);
+    while (1) { } // unreachable; silences noreturn warnings on some toolchains
+}
 /** @brief Plays an FMV cutscene via video_play(), then fires the completion callback.
  *  @note See docs/comments/java.c.md#ccvideoutilsplayvideo--argument-handling
  *  @note See docs/comments/java.c.md#video-completion-callback */
@@ -429,6 +442,8 @@ MethodsVoid methodsVoid[] = {
     { 61, Cocos2dxActivity_startFlurry },
     { 62, Cocos2dxActivity_initializePapayaFramework },
     { 64, Cocos2dxActivity_playVideo },
+    //! @see docs/comments/java.c.md#terminateprocess--clean-exit-to-livearea
+    { 65, Cocos2dxActivity_terminateProcess },
     { 10, Cocos2dxMusic_playBackgroundMusic },
     { 11, Cocos2dxMusic_stopBackgroundMusic },
     { 12, Cocos2dxMusic_pauseBackgroundMusic },

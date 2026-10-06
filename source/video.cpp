@@ -156,7 +156,7 @@ static void *av_alloc_texture(void *arg, uint32_t alignment, uint32_t size) {
         SceUID blk2 = sceKernelAllocMemBlock("av_tex_phycont", SCE_KERNEL_MEMBLOCK_TYPE_USER_MAIN_PHYCONT_RW, size, &opt);
         if (blk2 < 0) {
             l_error("video: texture memblock alloc FAILED on both CDRAM (0x%08X) and PHYCONT (0x%08X) (req align=%u size=%u -> size=%u) -- free CDRAM (vitaGL pool)=%u bytes, free PHYCONT (vitaGL pool)=%u bytes",
-                    (unsigned) blk, (unsigned) blk2, req_align, req_size, size, freeCdram, (unsigned) vglMemFree(VGL_MEM_SLOW));
+                    (unsigned) blk, (unsigned) blk2, req_align, req_size, size, freeCdram, (unsigned) vglMemFree(VGL_MEM_PHYCONT));
             return NULL;
         }
         l_warn("video: CDRAM alloc failed (0x%08X, free CDRAM=%u bytes) -- fell back to PHYCONT for this frame buffer",
@@ -471,7 +471,7 @@ void video_init() {
     }
     gModuleLoaded = true;
     l_info("video: SceAvPlayer module loaded. [vitaGL pools free: PHYCONT=%u CDRAM=%u RAM=%u]",
-           (unsigned) vglMemFree(VGL_MEM_SLOW), (unsigned) vglMemFree(VGL_MEM_VRAM),
+           (unsigned) vglMemFree(VGL_MEM_PHYCONT), (unsigned) vglMemFree(VGL_MEM_VRAM),
            (unsigned) vglMemFree(VGL_MEM_RAM));
 }
 

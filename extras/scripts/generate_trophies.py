@@ -303,6 +303,14 @@ def build_trp(file_dict, output_path):
 
     total_size = current_offset
 
+    # The 20-byte header field is a plain SHA-1 CONTENT hash, not a Sony
+    # signature: it is SHA-1 over the whole file with this field zeroed.
+    # Verified against Rinnegatamante's working Eldritch TROPHY.TRP, whose
+    # header hash recomputes exactly. NoTrpDrm bypasses SIGNATURE checks,
+    # but the firmware still verifies this hash during
+    # sceNpTrophySetupDialogInit -- a zeroed field fails install (0x800204C4
+    # -> SETUP_REQUIRED, no system notification). Assemble with zeros first,
+    # then hash and patch.
     sha_dummy = b"\x00" * 20
     header = struct.pack(">4sIQIII20s16s",
                          b"\xdc\xa2\x4d\x00",
@@ -343,9 +351,13 @@ def build_trp(file_dict, output_path):
     if final_pad > 0:
         out.extend(b"\x00" * final_pad)
 
+    # Patch the real content hash into the header (bytes 28..48).
+    real_sha = hashlib.sha1(bytes(out)).digest()
+    out[28:48] = real_sha
+
     with open(output_path, "wb") as f:
         f.write(out)
-    print(f"TRP written to {output_path} ({len(out)} bytes)")
+    print(f"TRP written to {output_path} ({len(out)} bytes, header sha1={real_sha.hex()})")
 
 def main():
     workdir = "extras/trophy/icons"

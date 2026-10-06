@@ -25,8 +25,14 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 set(VITA_APP_NAME "Prince of Persia Classic")
 set(VITA_TITLEID "POPC00001")
 set(VITA_VPKNAME "popclassic")
-set(VITA_VERSION "01.40")
-set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12 -s NP_COMMUNICATION_ID=POPC00001_00")
+set(VITA_VERSION "01.45")
+# NOTE: NO -s NP_COMMUNICATION_ID here on purpose. Rinnegatamante's trophy
+# ports (Eldritch, Fahrenheit, FFIV, World of Goo, Late Shift) all ship
+# param.sfo WITHOUT NP_COMMUNICATION_ID (only TITLE_ID + ATTRIBUTE2=12) and
+# pass the bare 9-char base ("ELDR00001") to sceNpTrophyCreateContext.
+# Shipping the field broke sceNpTrophySetupDialogInit on real HW (0x800204C4
+# -> SETUP_REQUIRED, no system notification); see Docs/Fixes_Log.md.
+set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
 
 ## vitaGL vendorizada de Zenonia 3/4 (2026 master + mods de compat, system_app deshabilitada)
 ## SOFTFP_ABI=1 es OBLIGATORIO para evitar pantalla negra en PS Vita.
@@ -86,7 +92,9 @@ if (DUMP_COMPILED_SHADERS)
 endif()
 
 # @see docs/comments/CMakeLists.txt.md#enable_verbose_log-rationale
-option(ENABLE_VERBOSE_LOG "Log the full sequential execution trace (module load, audio/video/scene events) to the log file" OFF)
+# ON for the v01.41 "build con logs": trophy diagnostics (sceNpTrophy return
+# codes, queue events, TRP game info) only exist behind DEBUG_SOLOADER.
+option(ENABLE_VERBOSE_LOG "Log the full sequential execution trace (module load, audio/video/scene events) to the log file" ON)
 if (ENABLE_VERBOSE_LOG)
   add_definitions(-DDEBUG_SOLOADER)
 endif()
@@ -115,6 +123,9 @@ add_executable(${CMAKE_PROJECT_NAME}
                source/patch.c
                source/trophies.c
                source/vitagl_no_splash.c
+               source/input.c
+               source/overlay.c
+               source/vita_menu.c
                source/reimpl/bits/_ctype.c
                source/reimpl/egl.c
                source/reimpl/errno.c

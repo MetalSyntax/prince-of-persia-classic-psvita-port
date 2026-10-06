@@ -159,3 +159,11 @@ Reference: https://developer.android.com/reference/android/os/Build.VERSION.html
 Possible values: https://developer.android.com/reference/android/os/Build.VERSION_CODES
 
 Set to **19** (Android 4.4 / KitKat).
+
+---
+
+## terminateProcess – Clean Exit to LiveArea
+
+**Location:** `nameToMethodId[]` table, entry 65 (`terminateProcess`); body of `Cocos2dxActivity_terminateProcess()`.
+
+The game's exit ConfirmationBox (YES/NO) ends in `Cocos2dxActivity.terminateProcess()`, which on Android is `Process.killProcess(myPid())` — an instant kill with no cleanup. The FalsoJNI table had no entry for it, so the lookup returned NULL, the game survived its own exit path, tore the scene down halfway and died with a data abort in `ConfirmationBox::init()` (`log_000071_.log` + `popclassic-psp2core-1791304045` dump). The handler calls `sceKernelExitProcess(0)`, the exact Vita equivalent: on accept the game now closes straight to LiveArea.

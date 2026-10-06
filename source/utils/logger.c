@@ -93,6 +93,8 @@ static char last_msg[2048] = {0};
 static unsigned int repeat_count = 0;
 
 //! @see docs/comments/utils_logger.c.md#log-file-naming-without-a-reliable-clock
+// Log files are incremental ".log" files: ux0:data/popclassic/logs/log_000001_.log ...
+// Both legacy ".txt" and new ".log" files are scanned so the index never reuses numbers.
 static unsigned int next_log_index(const char *dir) {
     unsigned int max_idx = 0;
     SceUID d = sceIoDopen(dir);
@@ -110,7 +112,10 @@ static unsigned int next_log_index(const char *dir) {
             p++;
             digits++;
         }
-        if (digits > 0 && sceClibStrncmp(p, "_.txt", 5) == 0 && idx > max_idx)
+        if (digits == 0) continue;
+        // Accept "_.log" (current) and "_.txt" (legacy) suffixes.
+        if ((sceClibStrncmp(p, "_.log", 5) == 0 || sceClibStrncmp(p, "_.txt", 5) == 0)
+            && idx > max_idx)
             max_idx = idx;
     }
     sceIoDclose(d);
@@ -196,7 +201,7 @@ void _log_print(int t, const char* fmt, ...) {
         sceIoMkdir(DATA_PATH "logs", 0777);
         unsigned int idx = next_log_index(DATA_PATH "logs");
         char log_file_path[256];
-        sceClibSnprintf(log_file_path, sizeof(log_file_path), "%slogs/log_%06u_.txt", DATA_PATH, idx);
+        sceClibSnprintf(log_file_path, sizeof(log_file_path), "%slogs/log_%06u_.log", DATA_PATH, idx);
         log_fd = sceIoOpen(log_file_path, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_APPEND, 0777);
     }
 #endif

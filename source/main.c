@@ -15,6 +15,10 @@
 #include "audio.h"
 #include "video.h"
 #include "trophies.h"
+#include "input.h"
+#include "vita_menu.h"
+#include "overlay.h"
+#include "utils/settings.h"
 
 int _newlib_heap_size_user = 256 * 1024 * 1024;
 
@@ -113,7 +117,8 @@ int main() {
 
     trophies_init();
     
-    sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
+    settings_load();
+    input_init();
 
     if (nativeInit) {
         nativeInit(jniEnv, NULL, 960, 544);
@@ -160,6 +165,72 @@ int main() {
         sceCtrlPeekBufferPositive(0, &pad, 1);
         uint32_t current_pad = pad.buttons;
 
+        // Poll Rear Touch (4 quadrants: L2, R2, L3, R3)
+        SceTouchData touch_back;
+        if (sceTouchPeek(SCE_TOUCH_PORT_BACK, &touch_back, 1) > 0) {
+            for (int r = 0; r < touch_back.reportNum && r < SCE_TOUCH_MAX_REPORT; r++) {
+                int rx = touch_back.report[r].x;
+                int ry = touch_back.report[r].y;
+                if (ry < 544) {
+                    if (rx < 960) current_pad |= CUSTOM_BTN_L2;
+                    else         current_pad |= CUSTOM_BTN_R2;
+                } else {
+                    if (rx < 960) current_pad |= CUSTOM_BTN_L3;
+                    else         current_pad |= CUSTOM_BTN_R3;
+                }
+            }
+        }
+
+        // PSTV DualShock 3/4 hardware L2/R2 triggers
+        if (current_pad & SCE_CTRL_L2) current_pad |= CUSTOM_BTN_L2;
+        if (current_pad & SCE_CTRL_R2) current_pad |= CUSTOM_BTN_R2;
+
+        int dz = setting_analogDeadzone > 0 ? setting_analogDeadzone : 38;
+        if (pad.lx < (128 - dz)) current_pad |= SCE_CTRL_LEFT;
+        if (pad.lx > (128 + dz)) current_pad |= SCE_CTRL_RIGHT;
+        if (pad.ly < (128 - dz)) current_pad |= SCE_CTRL_UP;
+        if (pad.ly > (128 + dz)) current_pad |= SCE_CTRL_DOWN;
+
+        uint32_t pressed = current_pad & ~oldpad;
+        uint32_t released = oldpad & ~current_pad;
+
+        static int start_combo = 0;
+        static int start_tap = 0;
+
+        // Release BACK key if START was tapped last frame
+        if (start_tap && nativeKeyUp) {
+            nativeKeyUp(jniEnv, NULL, 4);
+            start_tap = 0;
+        }
+
+        if (vita_menu_active()) {
+            if (!(current_pad & SCE_CTRL_START))
+                start_combo = 0;
+            vita_menu_update(current_pad, pressed);
+            vita_menu_render();
+            if (!vita_menu_active() && (current_pad & SCE_CTRL_START))
+                start_combo = 1;
+            oldpad = current_pad;
+            continue;
+        }
+
+        // START + SELECT (either order) opens the port menu
+        if (((current_pad & SCE_CTRL_START) && (pressed & SCE_CTRL_SELECT)) ||
+            ((current_pad & SCE_CTRL_SELECT) && (pressed & SCE_CTRL_START))) {
+            start_combo = 1;
+            vita_menu_open();
+            oldpad = current_pad;
+            continue;
+        }
+
+        if (released & SCE_CTRL_START) {
+            if (!start_combo && nativeKeyDown) {
+                nativeKeyDown(jniEnv, NULL, 4);
+                start_tap = 1;
+            }
+            start_combo = 0;
+        }
+
         //! @see docs/comments/main.c.md#virtual-finger-slots-and-the-cc_max_touches-limit
         int reportHwId[5], reportX[5], reportY[5], reportCount = 0;
         for (int r = 0; r < touch.reportNum && reportCount < 5; r++) {
@@ -168,18 +239,6 @@ int main() {
             reportY[reportCount] = (int)((float)touch.report[r].y * 544.0f / 1088.0f);
             reportCount++;
         }
-
-        // Map Left Analog Stick to D-Pad buttons so they share the same logic
-        if (pad.lx < 90) current_pad |= SCE_CTRL_LEFT;
-        if (pad.lx > 165) current_pad |= SCE_CTRL_RIGHT;
-        if (pad.ly < 90) current_pad |= SCE_CTRL_UP;
-        if (pad.ly > 165) current_pad |= SCE_CTRL_DOWN;
-
-        //! @see docs/comments/main.c.md#native-xperia-play-control-path
-        // Movement no longer injects synthetic touches at guessed screen coordinates.
-        // Left/Right go through keycodes 21/22 -> ControlsLayer::keyLeft/keyRightClicked,
-        // which is the same entry point the on-screen arrows use, so the touch report
-        // below is real fingers only.
 
         int seenThisFrame[5] = {0, 0, 0, 0, 0};
 
@@ -222,81 +281,68 @@ int main() {
         }
 
         if (nativeKeyDown && nativeKeyUp) {
-            // MAP KEYS (Based on analysis)
-            // START/SELECT -> KEYCODE_BACK (4) / KEYCODE_MENU (82)
-            if ((current_pad & SCE_CTRL_START) && !(oldpad & SCE_CTRL_START)) nativeKeyDown(jniEnv, NULL, 4);
-            if (!(current_pad & SCE_CTRL_START) && (oldpad & SCE_CTRL_START)) nativeKeyUp(jniEnv, NULL, 4);
+            // SELECT alone sends KEYCODE_MENU (82)
+            if (!(current_pad & SCE_CTRL_START)) {
+                if ((current_pad & SCE_CTRL_SELECT) && !(oldpad & SCE_CTRL_SELECT)) nativeKeyDown(jniEnv, NULL, 82);
+                if (!(current_pad & SCE_CTRL_SELECT) && (oldpad & SCE_CTRL_SELECT)) nativeKeyUp(jniEnv, NULL, 82);
+            }
 
-            if ((current_pad & SCE_CTRL_SELECT) && !(oldpad & SCE_CTRL_SELECT)) nativeKeyDown(jniEnv, NULL, 82);
-            if (!(current_pad & SCE_CTRL_SELECT) && (oldpad & SCE_CTRL_SELECT)) nativeKeyUp(jniEnv, NULL, 82);
+            // DPAD UP (ACT_UP): Keycode 19
+            uint32_t btnUp = input_action_buttons(ACT_UP);
+            if ((current_pad & btnUp) && !(oldpad & btnUp)) nativeKeyDown(jniEnv, NULL, 19);
+            if (!(current_pad & btnUp) && (oldpad & btnUp)) nativeKeyUp(jniEnv, NULL, 19);
 
-            // DPAD UP and DOWN keep their keycodes to allow proper menu scrolling.
-            if ((current_pad & SCE_CTRL_UP) && !(oldpad & SCE_CTRL_UP)) nativeKeyDown(jniEnv, NULL, 19);
-            if (!(current_pad & SCE_CTRL_UP) && (oldpad & SCE_CTRL_UP)) nativeKeyUp(jniEnv, NULL, 19);
-
-            //! @see docs/comments/main.c.md#native-xperia-play-control-path
-            // Left/Right: keycodes 21/22 reach ControlsLayer::keyLeft/keyRightClicked, which
-            // promote walk (event 1) to run (event 2) the *second* time they are called while
-            // the first event is still set. The on-screen arrows get that second call from a
-            // CCSequence(CCDelayTime(0.25f), CCCallFunc(setPrinceRun)) started on first touch,
-            // so the same 250 ms threshold is replayed here: tap for one careful step, hold to
-            // run. keyRemoveLeft/Right on release clear both events and the run flag.
+            // Left/Right: walk tap / run hold promotion
             const uint64_t nowUs = sceKernelGetProcessTimeWide();
             for (int d = 0; d < 2; d++) {
-                const uint32_t mask = d == 0 ? SCE_CTRL_LEFT : SCE_CTRL_RIGHT;
-                const int keycode = d == 0 ? 21 : 22;
-                if ((current_pad & mask) && !(oldpad & mask)) {
+                const int act = (d == 0) ? ACT_LEFT : ACT_RIGHT;
+                const int keycode = (d == 0) ? 21 : 22;
+                uint32_t btnDir = input_action_buttons(act);
+                if ((current_pad & btnDir) && !(oldpad & btnDir)) {
                     nativeKeyDown(jniEnv, NULL, keycode); // first call -> AddEvent(WALK)
                     dirHeldSince[d] = nowUs;
                     dirRunSent[d] = 0;
-                } else if ((current_pad & mask) && !dirRunSent[d]
+                } else if ((current_pad & btnDir) && !dirRunSent[d]
                            && nowUs - dirHeldSince[d] >= RUN_PROMOTE_US) {
                     nativeKeyDown(jniEnv, NULL, keycode); // second call -> AddEvent(RUN)
                     dirRunSent[d] = 1;
-                } else if (!(current_pad & mask) && (oldpad & mask)) {
+                } else if (!(current_pad & btnDir) && (oldpad & btnDir)) {
                     nativeKeyUp(jniEnv, NULL, keycode);
                     dirRunSent[d] = 0;
                 }
             }
 
-            //! @see docs/comments/main.c.md#crouch--shared-keycode-for-down-and-circle
-            int wantCrouch = (current_pad & (SCE_CTRL_DOWN | SCE_CTRL_CIRCLE)) != 0;
-            int wantedCrouch = (oldpad & (SCE_CTRL_DOWN | SCE_CTRL_CIRCLE)) != 0;
-            if (wantCrouch && !wantedCrouch) nativeKeyDown(jniEnv, NULL, 20);
-            if (!wantCrouch && wantedCrouch) nativeKeyUp(jniEnv, NULL, 20);
+            // Roll / Crouch Down (ACT_ROLL): Keycode 20
+            uint32_t btnRoll = input_action_buttons(ACT_ROLL);
+            int wantRoll = (current_pad & btnRoll) != 0;
+            int wantedRoll = (oldpad & btnRoll) != 0;
+            if (wantRoll && !wantedRoll) nativeKeyDown(jniEnv, NULL, 20);
+            if (!wantRoll && wantedRoll) nativeKeyUp(jniEnv, NULL, 20);
 
-            // ACTIONS - Keyboard simulated actions
-            // Face buttons
-            //! @see docs/comments/main.c.md#cross--keycode-23-already-is-the-jump-event
-            if ((current_pad & SCE_CTRL_CROSS) && !(oldpad & SCE_CTRL_CROSS)) {
+            // Jump / Attack / Confirm (ACT_JUMP): Keycode 23
+            uint32_t btnJump = input_action_buttons(ACT_JUMP);
+            if ((current_pad & btnJump) && !(oldpad & btnJump)) {
                 nativeKeyDown(jniEnv, NULL, 23); // DPAD_CENTER -> ControlsLayer::keyXClicked (jump / attack / menu confirm)
             }
-            if (!(current_pad & SCE_CTRL_CROSS) && (oldpad & SCE_CTRL_CROSS)) {
+            if (!(current_pad & btnJump) && (oldpad & btnJump)) {
                 nativeKeyUp(jniEnv, NULL, 23);   // -> ControlsLayer::keyRemoveX
             }
             
-            // Square -> keySqrClicked: crouch in platform mode, defend in combat.
-            if ((current_pad & SCE_CTRL_SQUARE) && !(oldpad & SCE_CTRL_SQUARE)) nativeKeyDown(jniEnv, NULL, 99); // BUTTON_C
-            if (!(current_pad & SCE_CTRL_SQUARE) && (oldpad & SCE_CTRL_SQUARE)) nativeKeyUp(jniEnv, NULL, 99);
+            // Crouch / Defend (ACT_CROUCH): Keycode 99 (BUTTON_C)
+            uint32_t btnCrouch = input_action_buttons(ACT_CROUCH);
+            if ((current_pad & btnCrouch) && !(oldpad & btnCrouch)) nativeKeyDown(jniEnv, NULL, 99);
+            if (!(current_pad & btnCrouch) && (oldpad & btnCrouch)) nativeKeyUp(jniEnv, NULL, 99);
 
-            // Triangle -> keyTriClicked: interact in platform mode, sheath in combat.
-            if ((current_pad & SCE_CTRL_TRIANGLE) && !(oldpad & SCE_CTRL_TRIANGLE)) nativeKeyDown(jniEnv, NULL, 100); // BUTTON_Z
-            if (!(current_pad & SCE_CTRL_TRIANGLE) && (oldpad & SCE_CTRL_TRIANGLE)) nativeKeyUp(jniEnv, NULL, 100);
+            // Interact / Sheathe (ACT_INTERACT): Keycode 100 (BUTTON_Z)
+            uint32_t btnInteract = input_action_buttons(ACT_INTERACT);
+            if ((current_pad & btnInteract) && !(oldpad & btnInteract)) nativeKeyDown(jniEnv, NULL, 100);
+            if (!(current_pad & btnInteract) && (oldpad & btnInteract)) nativeKeyUp(jniEnv, NULL, 100);
 
-            // Keycodes 102/103 are deliberately not sent: keyLeftKeyClicked has an empty body
-            // and keyRightKeyClicked only duplicates Triangle's interact flag. The physical
-            // shoulders are SCE_CTRL_LTRIGGER/RTRIGGER on a handheld Vita anyway (SCE_CTRL_L1/R1
-            // are PSTV/DualShock only), and they are used for the toggle below.
-
-            //! @see docs/comments/main.c.md#controls-visibility-toggle--l1r1-combo
-            uint32_t comboMask = SCE_CTRL_LTRIGGER | SCE_CTRL_RTRIGGER;
-            int comboHeldNow = (current_pad & comboMask) == comboMask;
-            int comboHeldBefore = (oldpad & comboMask) == comboMask;
+            // Toggle on-screen HUD (ACT_TOGGLE_HUD)
+            uint32_t hudMask = input_action_buttons(ACT_TOGGLE_HUD);
+            int comboHeldNow = hudMask && ((current_pad & hudMask) == hudMask);
+            int comboHeldBefore = hudMask && ((oldpad & hudMask) == hudMask);
             if (comboHeldNow && !comboHeldBefore && SetControlVisible && SetControlInVisible) {
-                //! @see docs/comments/main.c.md#native-xperia-play-control-path
-                // Both stubs just write CCDirector+0xac; ControlsLayer::tick() compares that
-                // byte against its cached m_ControlsXVisible next frame and applies the change
-                // through the game's own show/hide code. No member offsets, no opacity trick.
                 controlsVisible = !controlsVisible;
                 if (controlsVisible) SetControlVisible(jniEnv, NULL);
                 else                 SetControlInVisible(jniEnv, NULL);

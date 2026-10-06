@@ -19,10 +19,12 @@
 
 int  setting_sampleSetting;
 bool setting_sampleSetting2;
+int  setting_analogDeadzone;
 
 void settings_reset() {
     setting_sampleSetting  = 1;
     setting_sampleSetting2 = true;
+    setting_analogDeadzone = 38;
 }
 
 void settings_load() {
@@ -37,6 +39,7 @@ void settings_load() {
         while (EOF != fscanf(config, "%[^ ] %d\n", buffer, &value)) {
             if 		(strcmp("setting_sampleSetting", buffer) == 0) 	setting_sampleSetting  = (int)value;
             else if (strcmp("setting_sampleSetting2", buffer) == 0) setting_sampleSetting2 = (bool)value;
+            else if (strcmp("setting_analogDeadzone", buffer) == 0) setting_analogDeadzone = (int)value;
         }
         fclose(config);
     }
@@ -48,6 +51,7 @@ void settings_save() {
     if (config) {
         fprintf(config, "%s %d\n", "setting_sampleSetting", (int)(setting_sampleSetting));
         fprintf(config, "%s %d\n", "setting_sampleSetting2", (int)(setting_sampleSetting2));
+        fprintf(config, "%s %d\n", "setting_analogDeadzone", (int)(setting_analogDeadzone));
         fclose(config);
     }
 }

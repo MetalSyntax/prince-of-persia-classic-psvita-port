@@ -188,6 +188,32 @@ static stbtt_fontinfo *get_font(const char *fontName) {
     return &g_fonts[slot].info;
 }
 
+/** @brief Fallback for glyphs the requested font lacks (msmincho.ttf has no Simplified Chinese; Android falls back to system fonts). */
+static stbtt_fontinfo *get_fallback_font(void) {
+    static stbtt_fontinfo info;
+    static int state = 0; // 0=not tried, 1=ready, -1=failed
+    if (state == 0) {
+        int size = 0;
+        unsigned char *data = read_font_file_sceio("app0:/NotoSerifSC-Subset.otf", &size);
+        state = (data && stbtt_InitFont(&info, data, 0)) ? 1 : -1;
+        if (state < 0) {
+            free(data);
+            l_warn("createTextBitmap: CJK fallback font missing, some glyphs will be blank");
+        }
+    }
+    return state > 0 ? &info : NULL;
+}
+
+/** @brief Returns the font that has a glyph for cp (requested font first) and its scale for size. */
+static stbtt_fontinfo *font_for_cp(stbtt_fontinfo *font, int cp, float size, float *scale) {
+    if (!stbtt_FindGlyphIndex(font, cp)) {
+        stbtt_fontinfo *fb = get_fallback_font();
+        if (fb && stbtt_FindGlyphIndex(fb, cp)) font = fb;
+    }
+    *scale = stbtt_ScaleForPixelHeight(font, size);
+    return font;
+}
+
 static int utf8_decode(const char **p) {
     const unsigned char *s = (const unsigned char *)*p;
     int c = *s++;
@@ -254,8 +280,10 @@ void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
             int cp = utf8_decode(&p);
             
             int advance, lsb;
-            stbtt_GetCodepointHMetrics(font, cp, &advance, &lsb);
-            int char_w = (int)(advance * scale);
+            float gscale;
+            stbtt_fontinfo *gfont = font_for_cp(font, cp, (float) fontSize, &gscale);
+            stbtt_GetCodepointHMetrics(gfont, cp, &advance, &lsb);
+            int char_w = (int)(advance * gscale);
             
             if (width > 0 && cur_w + char_w > width) {
                 if (last_space) {
@@ -306,16 +334,18 @@ void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
                 int cp = utf8_decode(&cp_ptr);
                 
                 int advance, lsb;
-                stbtt_GetCodepointHMetrics(font, cp, &advance, &lsb);
+                float gscale;
+                stbtt_fontinfo *gfont = font_for_cp(font, cp, (float) fontSize, &gscale);
+                stbtt_GetCodepointHMetrics(gfont, cp, &advance, &lsb);
                 
                 int x0, y0, x1, y1;
-                stbtt_GetCodepointBitmapBox(font, cp, scale, scale, &x0, &y0, &x1, &y1);
+                stbtt_GetCodepointBitmapBox(gfont, cp, gscale, gscale, &x0, &y0, &x1, &y1);
                 int glyph_w = x1 - x0, glyph_h = y1 - y0;
                 
                 if (glyph_w > 0 && glyph_h > 0) {
                     unsigned char *glyph = calloc(1, (size_t) glyph_w * glyph_h);
                     if (glyph) {
-                        stbtt_MakeCodepointBitmap(font, glyph, glyph_w, glyph_h, glyph_w, scale, scale, cp);
+                        stbtt_MakeCodepointBitmap(gfont, glyph, glyph_w, glyph_h, glyph_w, gscale, gscale, cp);
                         
                         int origin_x = pen_x + x0;
                         int origin_y = baseline + y0;
@@ -337,7 +367,7 @@ void Cocos2dxBitmap_createTextBitmap(jmethodID id, va_list args) {
                         free(glyph);
                     }
                 }
-                pen_x += (int)(advance * scale);
+                pen_x += (int)(advance * gscale);
             }
         }
     }

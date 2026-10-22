@@ -38,7 +38,7 @@ This is an early, actively-developed port. Please read this list before reportin
 - **Not using the game's official fonts yet.** Since Sony's native font APIs (`ScePvf`/`ScePgf`) aren't implemented on Vita3K and pulling in the original Android font assets raised licensing questions, text is currently rendered with the open-source, freely-licensed **DejaVu Serif** font via `stb_truetype`. On-screen text would look closer to the original Ubisoft style with the real font.
 - **Not compatible with Vita3K (emulator).** This is a confirmed **bug in Vita3K itself**, not in this port: the menu, text, and audio all work correctly, but starting a real game ("New Game"/"Quick Game") crashes because Vita3K's renderer mishandles non-power-of-2 swizzled textures (confirmed by reading Vita3K's own source, reproducible 3/3 times, and still present on Vita3K's latest `master` at the time of testing). **This port targets real PS Vita hardware.** Technical details in `Docs/plan_portabilidad.md` §9.17.
 
-As of the current build (v01.45), controls remapping and exit crash fixes are fully functional. Native trophies are in progress.
+As of the current build (v01.50), controls remapping, exit crash fixes and full Simplified Chinese text are functional. Native trophies are in progress.
 
 Found something not on this list? Please open an issue — see [Beta Testing / Contributing](#beta-testing--contributing).
 

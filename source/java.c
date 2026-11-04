@@ -17,6 +17,7 @@
 #include "video.h"
 
 extern so_module cocos2d_mod;
+extern so_module game_mod;
 
 /*
  * JNI Methods
@@ -408,9 +409,46 @@ void Cocos2dxActivity_initializePapayaFramework(jmethodID id, va_list args) {
     l_debug("Cocos2dxActivity_initializePapayaFramework() (no-op: ENABLE_PAPAYA=NO)");
 }
 
+/* 1 point = 1 coin. A total below the baseline means the profile was reset:
+ * re-anchor and award nothing. */
+static int score_to_coins(int total, int *baseline) {
+    int award = total > *baseline ? total - *baseline : 0;
+    *baseline = total;
+    return award;
+}
+
+#define SCORE_COINS_FILE DATA_PATH "save/score_coins"
+
+/** @brief Converts newly earned in-game score into store coins.
+ *  The game calls this (old Tapjoy "free coins" hook) from MainMenuLayer::init and
+ *  PauseMenuLayer::init and feeds the result to SaveGame::AddNoOfCoins +
+ *  SaveAppStoreInfoData. Total = sum of best per-level scores
+ *  (RewardsLayer::CalculateTotalNormalModeScore), so only first clears and
+ *  improved bests pay out. */
 jint Cocos2dxHelper_getRewardsCoins(jmethodID id, va_list args) {
-    l_debug("Cocos2dxHelper_getRewardsCoins() -> 0");
-    return 0;
+    static int (*total_score)(void) = NULL;
+    if (!total_score)
+        total_score = (int (*)(void))so_symbol(&game_mod, "_ZN12RewardsLayer29CalculateTotalNormalModeScoreEv");
+    if (!total_score)
+        return 0;
+
+    int baseline = 0;
+    FILE *f = fopen(SCORE_COINS_FILE, "r");
+    if (f) {
+        if (fscanf(f, "%d", &baseline) != 1) baseline = 0;
+        fclose(f);
+    }
+    int total = total_score();
+    int award = score_to_coins(total, &baseline);
+    f = fopen(SCORE_COINS_FILE, "w");
+    if (!f) {
+        l_warn("getRewardsCoins: cannot write %s, not awarding %d coins", SCORE_COINS_FILE, award);
+        return 0; // never award unpersisted coins, or they'd repeat on every menu open
+    }
+    fprintf(f, "%d\n", baseline);
+    fclose(f);
+    l_info("getRewardsCoins: total score %d -> +%d coins", total, award);
+    return award;
 }
 
 /** @brief Clean process exit (YES on the game's exit ConfirmationBox).

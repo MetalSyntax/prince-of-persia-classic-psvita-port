@@ -8,7 +8,9 @@ Generate high-quality PS Vita TROPHY.TRP for Prince of Persia Classic.
 - Improves Trophy 000 (Platinum) with crisp golden medallion and celestial platinum border.
 """
 
+import io
 import os
+import sys
 import plistlib
 import struct
 import hashlib
@@ -165,7 +167,7 @@ TROPHIES = [
 ]
 
 def make_tropconf_sfm():
-    sig = "x" * 384
+    sig = "x" * 320  # same placeholder length as working NoTrpDrm packs (godot4-psvita)
     lines = [
         f"<!--Sce-Np-Trophy-Signature: {sig}-->",
         '<trophyconf version="1.1" platform="psp2" policy="large">',
@@ -179,7 +181,7 @@ def make_tropconf_sfm():
     return "\n".join(lines).encode("utf-8")
 
 def make_trop_sfm():
-    sig = "x" * 384
+    sig = "x" * 320  # same placeholder length as working NoTrpDrm packs (godot4-psvita)
     lines = [
         f"<!--Sce-Np-Trophy-Signature: {sig}-->",
         '<trophyconf version="1.1" platform="psp2" policy="large">',
@@ -286,6 +288,15 @@ def generate_icons(workdir):
         canvas.save(os.path.join(workdir, out_name), format="PNG")
         print(f"Generated AI-enhanced upright borderless {out_name}")
 
+def png8(path):
+    """8-bit palette PNG with transparency, like working NoTrpDrm packs.
+    The full-RGBA ~100 KB icons are far above what retail trophy packs ship
+    and the set install failed with NP-6185-0 ("data corrupted")."""
+    img = Image.open(path).convert("RGBA").quantize(256, method=Image.Quantize.FASTOCTREE)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
 def build_trp(file_dict, output_path):
     def align64(v):
         return (v + 63) & ~63
@@ -368,17 +379,19 @@ def main():
     tropconf_bytes = make_tropconf_sfm()
     trop_bytes = make_trop_sfm()
 
-    generate_icons(workdir)
+    # --pack-only: reuse the icons already in extras/trophy/icons (skips the AI upscale).
+    if "--pack-only" not in sys.argv:
+        generate_icons(workdir)
 
     files = {
         "TROPCONF.SFM": tropconf_bytes,
         "TROP.SFM": trop_bytes,
-        "ICON0.PNG": open(os.path.join(workdir, "ICON0.PNG"), "rb").read(),
-        "TROP000.PNG": open(os.path.join(workdir, "TROP000.PNG"), "rb").read()
+        "ICON0.PNG": png8(os.path.join(workdir, "ICON0.PNG")),
+        "TROP000.PNG": png8(os.path.join(workdir, "TROP000.PNG"))
     }
     for i in range(1, 18):
         name = f"TROP{i:03d}.PNG"
-        files[name] = open(os.path.join(workdir, name), "rb").read()
+        files[name] = png8(os.path.join(workdir, name))
 
     trp_path = os.path.join(outdir, "TROPHY.TRP")
     build_trp(files, trp_path)

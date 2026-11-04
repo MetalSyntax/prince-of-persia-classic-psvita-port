@@ -34,11 +34,12 @@ This is an early, actively-developed port. Please read this list before reportin
 
 - **Exit crash fix**: Fixed an issue where selecting 'Yes' in the game's in-game Exit dialog crashed instead of returning cleanly to the LiveArea (`Cocos2dxActivity_terminateProcess`).
 - **In-game controls remapping overlay**: Press **START + SELECT** at any time to open the configuration menu. Allows remapping any action, binding PS Vita rear touch quadrants (L2/R2/L3/R3), tuning analog deadzone, and saving directly to `ux0:data/popclassic/controls.txt`.
-- **PS Vita Trophies (En desarrollo / Work in Progress)**: La integración y el paquete de trofeos nativos (`SceNpTrophy` / `TROPHY.TRP`) están estructurados en el código, pero **actualmente no se instalan ni desbloquean todavía en la consola** (error `0x800204C4` en el diálogo de configuración del sistema). Se está investigando activamente para una próxima actualización.
+- **Native PS Vita trophies (v01.55)**: 18 trophies (17 + Platinum) install on first launch and pop the system notification when unlocked. Requires `NoTrpDrm.suprx` (see Setup).
+- **Store without real money (v01.55)**: life potions/revives are bought with coins, and coins are earned from in-game score (1 point = 1 coin, paid out when the main or pause menu opens). Screens that asked for real-money purchases are no longer shown.
 - **Not using the game's official fonts yet.** Since Sony's native font APIs (`ScePvf`/`ScePgf`) aren't implemented on Vita3K and pulling in the original Android font assets raised licensing questions, text is currently rendered with the open-source, freely-licensed **DejaVu Serif** font via `stb_truetype`. On-screen text would look closer to the original Ubisoft style with the real font.
 - **Not compatible with Vita3K (emulator).** This is a confirmed **bug in Vita3K itself**, not in this port: the menu, text, and audio all work correctly, but starting a real game ("New Game"/"Quick Game") crashes because Vita3K's renderer mishandles non-power-of-2 swizzled textures (confirmed by reading Vita3K's own source, reproducible 3/3 times, and still present on Vita3K's latest `master` at the time of testing). **This port targets real PS Vita hardware.** Technical details in `Docs/plan_portabilidad.md` §9.17.
 
-As of the current build (v01.50), controls remapping, exit crash fixes and full Simplified Chinese text are functional. Native trophies are in progress.
+As of the current build (v01.55), controls remapping, exit crash fixes, full Simplified Chinese text, native trophies and the coin store are functional.
 
 Found something not on this list? Please open an issue — see [Beta Testing / Contributing](#beta-testing--contributing).
 
@@ -71,7 +72,7 @@ To install the port on a real PS Vita:
    *main
    ur0:tai/NoTrpDrm.suprx
    ```
-   > ⚠️ **Important for Trophies**: `NoTrpDrm.suprx` is required under `*main` for the console to install and pop native PS Vita trophies without DRM errors (`0x800204C4` / `SETUP_REQUIRED`). Be sure to reboot the console after editing `config.txt`.
+   > ⚠️ **Important for Trophies**: `NoTrpDrm.suprx` is required under `*main` for the console to install and pop native PS Vita trophies without DRM errors (`NP-6185-0`). Be sure to reboot the console after editing `config.txt`.
 3. Install `libshacccg.suprx` (Sony's shader compiler). You can obtain a legitimate copy from your own console using the ShaRKBR33D homebrew — it can never be redistributed, so it is **not** included in this repository (`.gitignore`: `*.suprx`).
 4. Install the generated `.vpk` (see the table above for Debug vs. Play).
 5. Obtain your own legal copy of the Android game. Extract its data and lay it out on the console under `ux0:data/popclassic/` with **exactly** this structure — `original.apk`/the `.obb` are **not needed at all**, just the loose files below:

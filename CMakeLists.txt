@@ -25,7 +25,7 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 set(VITA_APP_NAME "Prince of Persia Classic")
 set(VITA_TITLEID "POPC00001")
 set(VITA_VPKNAME "popclassic")
-set(VITA_VERSION "01.50")
+set(VITA_VERSION "01.55")
 # NOTE: NO -s NP_COMMUNICATION_ID here on purpose. Rinnegatamante's trophy
 # ports (Eldritch, Fahrenheit, FFIV, World of Goo, Late Shift) all ship
 # param.sfo WITHOUT NP_COMMUNICATION_ID (only TITLE_ID + ATTRIBUTE2=12) and

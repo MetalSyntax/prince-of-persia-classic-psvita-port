@@ -43,6 +43,11 @@ void gl_preload() {
 #endif
 }
 
+/* Leave the whole common-dialog budget to the OS (vitaGL's internal
+ * SCE_KERNEL_MAX_MAIN_CDIALOG_MEM_SIZE, same as vglInitExtended). With 0 vitaGL
+ * grabs it all and sceNpTrophySetupDialogInit fails with 0x800204C4. */
+#define CDLG_RESERVE 0x8C6000
+
 void gl_init() {
     static GLboolean initialized = GL_FALSE;
     if (initialized)
@@ -52,10 +57,10 @@ void gl_init() {
 #ifdef EMULATOR_BUILD
     //! @see docs/comments/utils_glutil.c.md#vita3k-msaa-workaround
     vglUseTripleBuffering(GL_FALSE);
-    vglInitWithCustomThreshold(0, 960, 544, 6 * 1024 * 1024, 32 * 1024 * 1024, 0, 0, SCE_GXM_MULTISAMPLE_NONE);
+    vglInitWithCustomThreshold(0, 960, 544, 6 * 1024 * 1024, 32 * 1024 * 1024, 0, CDLG_RESERVE, SCE_GXM_MULTISAMPLE_NONE);
 #else
     vglUseTripleBuffering(GL_FALSE);
-    vglInitWithCustomThreshold(0, 960, 544, 6 * 1024 * 1024, 32 * 1024 * 1024, 0, 0, SCE_GXM_MULTISAMPLE_4X);
+    vglInitWithCustomThreshold(0, 960, 544, 6 * 1024 * 1024, 32 * 1024 * 1024, 0, CDLG_RESERVE, SCE_GXM_MULTISAMPLE_4X);
 #endif
 }
 

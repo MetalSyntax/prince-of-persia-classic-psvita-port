@@ -183,7 +183,51 @@ static void hook_setControlsPos(void *this, int param) {
     controls_update_opacity(this, g_controlsVisible);
 }
 
+/* Store: real-money purchases (Google Play IAP) can't exist on Vita, so every
+ * path into them is routed to the coin-based "Get More Lives" layer, whose
+ * revive packs are paid with coins earned from score (see getRewardsCoins in
+ * java.c). These are the same calls the game's own BUILD_FREEMIUM branch makes. */
+static void (*real_GameScene_addGetMoreLivesLayer)(void *this, int tag) = NULL;
+static void (*real_MenuScene_addGetMoreLivesLayer)(void *this, int tag) = NULL;
+
+// Death with no revives: real-money ReviveOptionsLayer -> coin-based GetMoreLives
+// (tag 15 = what GameOverLayer::buttonActivated passes on the freemium branch).
+static void hook_showReviveOptionsMenu(void *this) {
+    l_info("store: revive options -> GetMoreLives (coins)");
+    real_GameScene_addGetMoreLivesLayer(this, 15);
+}
+
+// Real-money coin packs store -> GetMoreLives, with the same return-to tag.
+static void hook_GameScene_addGetMoreCoinsLayer(void *this, int tag) {
+    l_info("store: GetMoreCoins (real money) -> GetMoreLives (tag %d)", tag);
+    real_GameScene_addGetMoreLivesLayer(this, tag);
+}
+
+static void hook_MenuScene_addGetMoreCoinsLayer(void *this, int tag) {
+    l_info("store: GetMoreCoins (real money) -> GetMoreLives (tag %d)", tag);
+    real_MenuScene_addGetMoreLivesLayer(this, tag);
+}
+
+static void store_patch(void) {
+    real_GameScene_addGetMoreLivesLayer = (void (*)(void *, int)) so_symbol(&game_mod, "_ZN9GameScene20addGetMoreLivesLayerE12E_LayersTags");
+    real_MenuScene_addGetMoreLivesLayer = (void (*)(void *, int)) so_symbol(&game_mod, "_ZN9MenuScene20addGetMoreLivesLayerE12E_LayersTags");
+    uintptr_t revive = so_symbol(&game_mod, "_ZN9GameScene21showReviveOptionsMenuEv");
+    uintptr_t game_coins = so_symbol(&game_mod, "_ZN9GameScene20addGetMoreCoinsLayerE12E_LayersTags");
+    uintptr_t menu_coins = so_symbol(&game_mod, "_ZN9MenuScene20addGetMoreCoinsLayerE12E_LayersTags");
+    if (!real_GameScene_addGetMoreLivesLayer || !real_MenuScene_addGetMoreLivesLayer || !revive || !game_coins || !menu_coins) {
+        l_warn("so_patch: store symbols missing, store routing disabled");
+        return;
+    }
+    // Originals are never called, so the so_hook handles needn't be kept.
+    hook_addr(revive, (uintptr_t) hook_showReviveOptionsMenu);
+    hook_addr(game_coins, (uintptr_t) hook_GameScene_addGetMoreCoinsLayer);
+    hook_addr(menu_coins, (uintptr_t) hook_MenuScene_addGetMoreCoinsLayer);
+    l_info("so_patch: store routed to coin-based GetMoreLives");
+}
+
 void so_patch(void) {
+    store_patch();
+
     uintptr_t addr = so_symbol(&cocos2d_mod, GETFILEDATA_SYM);
     if (!addr) {
         l_warn("so_patch: %s not found, apk/obb-less loose-file loading disabled (original.apk/.obb still required)", GETFILEDATA_SYM);

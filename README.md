@@ -162,6 +162,27 @@ This is my first time porting anything to a console, and my first Vita homebrew 
 
 **Pull requests are very welcome** — fixes, cleanups, documentation, translations, anything. If you're picking up one of the [Known Issues](#known-issues--current-limitations), feel free to open an issue first to say you're on it, but it's not required.
 
+## ☕ Support My Work
+
+This project is **free** and will stay free. If you enjoy it, a tip from **$1** helps me keep porting games to the PS Vita:
+
+<p align="center">
+  <a href="https://ko-fi.com/metalsyntax"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi"></a>
+</p>
+
+- **Ko-fi:** [ko-fi.com/metalsyntax](https://ko-fi.com/metalsyntax)
+- **PayPal:** [paypal.me/MetalSyntax](https://paypal.me/MetalSyntax)
+- **Bitcoin (BTC):** `133HdCsaWxdjTfmwpgGVykByhNBV338uRc`
+
+**Ko-fi supporters get:**
+- **Early access** to new ports before their public release (test builds of upcoming projects).
+- **Data preparation scripts and step-by-step guides** to set up your own game files for each new port.
+- A say in which games I port next.
+
+> Game files are never distributed. You always need your own legally obtained copy of the game.
+
+---
+
 ## Credits
 
 Port / wrapper development: **MetalSyntax**
